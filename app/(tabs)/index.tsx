@@ -175,10 +175,6 @@ export default function Dashboard() {
         </View>
 
         <View style={{ marginTop: 8 }}>
-          <ChartCard transactions={transactions} />
-        </View>
-
-        <View style={{ marginTop: 8 }}>
           <TransactionList transactions={transactions} />
         </View>
       </ScrollView>

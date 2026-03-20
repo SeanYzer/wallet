@@ -1,11 +1,74 @@
 {
   "userProfile": {
-    "isFirstRun": true,
-    "name": "",
+    "isFirstRun": false,
+    "name": "Bongga",
     "initialBalance": 0
   },
-  "transactions": [],
-  "budgets": [],
+  "transactions": [
+    {
+      "id": "1773820290849",
+      "amount": 7523,
+      "date": "2026-03-18T00:00:00.000Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "3",
+        "name": "Salary",
+        "type": "income"
+      },
+      "paymentMethod": "Maya"
+    },
+    {
+      "id": "1773984395204",
+      "amount": 10000,
+      "date": "2026-03-20T05:25:29.465Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "3",
+        "name": "Salary",
+        "type": "income"
+      },
+      "paymentMethod": "cash",
+      "establishment": "Lyceum",
+      "receiptUrl": "file:///data/user/0/host.exp.exponent/cache/ImagePicker/e30fca36-b83c-4c79-acd0-415705ca7156.jpeg"
+    },
+    {
+      "id": "1773984426695",
+      "amount": 5000,
+      "date": "2026-03-20T05:26:40.883Z",
+      "note": "",
+      "type": "expense",
+      "category": {
+        "id": "1",
+        "name": "Food",
+        "type": "expense"
+      },
+      "paymentMethod": "Cash"
+    },
+    {
+      "id": "1773984554337",
+      "amount": 800,
+      "date": "2026-03-20T05:28:45.487Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "3",
+        "name": "Salary",
+        "type": "income"
+      },
+      "paymentMethod": "cash",
+      "establishment": "Testing"
+    }
+  ],
+  "budgets": [
+    {
+      "id": "1773823505124",
+      "categoryId": "1",
+      "amount": 4000,
+      "month": "2026-03"
+    }
+  ],
   "categories": [
     {
       "id": "1",
@@ -38,7 +101,76 @@
       "type": "income"
     }
   ],
-  "agendas": [],
-  "subscriptions": [],
-  "savingsGoals": []
+  "agendas": [
+    {
+      "id": "1773823532949",
+      "title": "Swimming",
+      "date": "2026-03-18T08:45:22.438Z",
+      "amount": 12000,
+      "completed": true
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "1772423474085",
+      "name": "Meralco",
+      "amount": 5000,
+      "dueDate": 15,
+      "category": "Bills"
+    },
+    {
+      "id": "1772520634971",
+      "name": "Wifi",
+      "amount": 2500,
+      "dueDate": 10,
+      "category": "Bills"
+    }
+  ],
+  "savingsGoals": [
+    {
+      "id": "1772520604738",
+      "title": "New Shoes",
+      "targetAmount": 25000,
+      "currentAmount": 8005,
+      "color": "#ff4081"
+    }
+  ],
+  "paymentMethods": [
+    {
+      "id": "1",
+      "name": "Cash",
+      "type": "cash",
+      "icon": "cash"
+    },
+    {
+      "id": "2",
+      "name": "BPI Debit",
+      "type": "bank",
+      "icon": "bank"
+    },
+    {
+      "id": "3",
+      "name": "UnionBank",
+      "type": "bank",
+      "icon": "bank"
+    },
+    {
+      "id": "4",
+      "name": "GCash",
+      "type": "e_wallet",
+      "icon": "wallet"
+    },
+    {
+      "id": "5",
+      "name": "Maya",
+      "type": "e_wallet",
+      "icon": "wallet"
+    },
+    {
+      "id": "6",
+      "name": "Visa Card",
+      "type": "card",
+      "icon": "credit-card"
+    }
+  ]
 }

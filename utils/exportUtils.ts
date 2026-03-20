@@ -1,8 +1,8 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-// @ts-ignore
 import * as FileSystem from "expo-file-system";
 import { Transaction } from "../types";
+import { Platform } from "react-native";
 
 export const exportToCSV = async (transactions: Transaction[]) => {
     const header = "Date,Type,Category,Amount,Payment Method,Establishment,Note\n";
@@ -12,10 +12,22 @@ export const exportToCSV = async (transactions: Transaction[]) => {
 
     const csvContent = header + rows;
     const fileName = `WiseWallet_Export_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    if (Platform.OS === 'web') {
+        const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+    }
+
     const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
     try {
-        await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+        await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType ? FileSystem.EncodingType.UTF8 : "utf8" as any });
         await Sharing.shareAsync(fileUri);
     } catch (error) {
         console.error("Error exporting to CSV:", error);

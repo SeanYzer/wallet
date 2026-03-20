@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Subscription } from "../types";
 
-const API_URL = "http://192.168.1.8:3000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 export function useSubscriptions() {
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);

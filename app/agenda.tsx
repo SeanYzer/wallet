@@ -135,7 +135,14 @@ export default function AgendaScreen() {
           <Text variant="titleLarge" style={{ marginBottom: 16 }}>New Reminder</Text>
 
           <TextInput label="Title" value={title} onChangeText={setTitle} mode="outlined" style={{ marginBottom: 12 }} />
-          <TextInput label="Amount (Optional)" value={amount} onChangeText={setAmount} keyboardType="numeric" mode="outlined" style={{ marginBottom: 12 }} />
+          <TextInput 
+            label="Amount (Optional)" 
+            value={amount} 
+            onChangeText={(text) => setAmount(text.replace(/[^0-9.]/g, ""))} 
+            keyboardType="numeric" 
+            mode="outlined" 
+            style={{ marginBottom: 12 }} 
+          />
           <TextInput
             label="Date"
             value={date.toLocaleDateString()}

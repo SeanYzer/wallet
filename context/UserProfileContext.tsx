@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-const API_URL = "http://localhost:3000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 interface UserProfile {
     isFirstRun: boolean;
@@ -8,10 +8,10 @@ interface UserProfile {
     initialBalance: number;
 }
 
-interface UserProfileContextType {
+    interface UserProfileContextType {
     profile: UserProfile | null;
     isLoading: boolean;
-    completeSetup: (name: string, initialBalance: number) => Promise<void>;
+    completeSetup: (name: string) => Promise<void>;
 }
 
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
@@ -34,19 +34,19 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             }
         } catch (error) {
             console.error("Error fetching user profile:", error);
-            // If server unreachable, assume not first run to avoid blocking the app
+            // Fallback for offline/error
             setProfile({ isFirstRun: false, name: "", initialBalance: 0 });
         } finally {
             setIsLoading(false);
         }
     };
 
-    const completeSetup = async (name: string, initialBalance: number) => {
+    const completeSetup = async (name: string) => {
         try {
             const response = await fetch(`${API_URL}/userProfile`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isFirstRun: false, name, initialBalance }),
+                body: JSON.stringify({ isFirstRun: false, name, initialBalance: 0 }),
             });
             if (!response.ok) {
                 throw new Error("Failed to save profile");

@@ -1,5 +1,5 @@
 export type TransactionType = "income" | "expense";
-export type PaymentMethod = "cash" | "card" | "bank_transfer" | "e_wallet";
+export type PaymentMethod = string;
 
 export interface Category {
   id: string | number;

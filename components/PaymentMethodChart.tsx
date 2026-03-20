@@ -34,9 +34,9 @@ export function PaymentMethodChart({ transactions }: { transactions: Transaction
   }, {} as Record<string, number>);
 
   const data = Object.keys(dataMap).map((method) => ({
-    name: PAYMENT_LABELS[method] || method,
+    name: method.charAt(0).toUpperCase() + method.slice(1).replace("_", " "),
     population: dataMap[method],
-    color: PAYMENT_COLORS[method] || "#999",
+    color: PAYMENT_COLORS[method.toLowerCase()] || "#" + Math.floor(Math.random()*16777215).toString(16), // Fallback to random color
     legendFontColor: "#7F7F7F",
     legendFontSize: 12,
   }));

@@ -18,29 +18,12 @@ import * as ImagePicker from "expo-image-picker";
 import { Calendar } from "react-native-calendars";
 import { useTransactions } from "../hooks/useTransactions";
 import { Category, TransactionType, PaymentMethod } from "../types";
-
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: "1", name: "Food", type: "expense" },
-  { id: "2", name: "Bills", type: "expense" },
-  { id: "3", name: "Transport", type: "expense" },
-  { id: "4", name: "Shopping", type: "expense" },
-  { id: "5", name: "Entertainment", type: "expense" },
-  { id: "6", name: "Salary", type: "income" },
-  { id: "7", name: "Freelance", type: "income" },
-  { id: "8", name: "Others", type: "expense" },
-  { id: "9", name: "Others", type: "income" },
-];
-
-const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
-  { value: "cash", label: "Cash", icon: "cash" },
-  { value: "card", label: "Card", icon: "credit-card" },
-  { value: "bank_transfer", label: "Bank", icon: "bank" },
-  { value: "e_wallet", label: "E-Wallet", icon: "cellphone" },
-];
+import { useCategories } from "../context/CategoriesContext";
 
 export default function AddTransaction() {
   const router = useRouter();
   const { addTransaction } = useTransactions();
+  const { categories: availableCategories } = useCategories();
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -52,35 +35,31 @@ export default function AddTransaction() {
   const [date, setDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
 
-  // Split Bill state
-  const [isSplit, setIsSplit] = useState(false);
-  const [splitPeople, setSplitPeople] = useState("2");
-  const [splitModalVisible, setSplitModalVisible] = useState(false);
-  const [splitNotes, setSplitNotes] = useState("");
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<{ id: string; name: string; type: string; icon: string }[]>([]);
+  const [selectedMethodType, setSelectedMethodType] = useState<string>("cash");
 
   useEffect(() => {
-    fetchCategories();
+    fetchPaymentMethods();
   }, []);
 
-  const fetchCategories = async () => {
+  const fetchPaymentMethods = async () => {
     try {
-      const response = await fetch("http://localhost:3000/categories");
-      const data = await response.json();
-      if (data && data.length > 0) {
-        setAvailableCategories(data);
-      } else {
-        setAvailableCategories(DEFAULT_CATEGORIES);
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000"}/paymentMethods`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailablePaymentMethods(data);
+        if (data.length > 0) {
+          setPaymentMethod(data[0].name);
+        }
       }
     } catch (error) {
-      console.error("Error fetching categories:", error);
-      setAvailableCategories(DEFAULT_CATEGORIES);
+      console.error("Error fetching payment methods:", error);
     }
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowCalendar(Platform.OS === "ios");
+    setShowCalendar(false);
     if (selectedDate) {
       setDate(selectedDate);
     }
@@ -130,29 +109,15 @@ export default function AddTransaction() {
 
     setLoading(true);
     try {
-      const numPeople = parseInt(splitPeople) || 1;
-      const finalAmount = isSplit ? numAmount / numPeople : numAmount;
-
-      const splitInfo = isSplit ? {
-        people: numPeople,
-        amountPerPerson: finalAmount,
-        notes: splitNotes
-      } : undefined;
-
-      const finalNote = isSplit
-        ? `${note ? note + " " : ""} [Split Bill] Total: ₱${numAmount.toFixed(2)} split with ${numPeople} people.`
-        : note;
-
       await addTransaction({
-        amount: finalAmount,
+        amount: numAmount,
         date: date.toISOString(),
-        note: finalNote,
+        note: note,
         type,
         category: selectedCategory,
         paymentMethod,
         establishment: establishment || undefined,
         receiptUrl: receiptImage || undefined,
-        splitInfo
       });
       setLoading(false);
       router.back();
@@ -163,7 +128,6 @@ export default function AddTransaction() {
   };
 
   const theme = useTheme();
-  const splitAmountPerPerson = (parseFloat(amount) || 0) / (parseInt(splitPeople) || 1);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -229,22 +193,52 @@ export default function AddTransaction() {
           style={{ marginBottom: 16 }}
         />
 
-        <Text variant="labelLarge" style={{ marginBottom: 8 }}>Payment Method</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-          {PAYMENT_METHODS.map((method) => (
+        <Text variant="labelLarge" style={{ marginBottom: 8 }}>Payment Source</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+          {["cash", "card", "bank", "e_wallet"].map((t) => (
             <Chip
-              key={method.value}
-              icon={method.icon}
-              selected={paymentMethod === method.value}
-              onPress={() => setPaymentMethod(method.value)}
+              key={t}
+              selected={selectedMethodType === t}
+              onPress={() => {
+                setSelectedMethodType(t);
+                if (t === "cash") {
+                  setPaymentMethod("Cash");
+                } else {
+                  // Pre-select the first one of that type if available
+                  const firstOfColor = availablePaymentMethods.find(m => m.type === t);
+                  if (firstOfColor) setPaymentMethod(firstOfColor.name);
+                }
+              }}
               mode="outlined"
-              selectedColor={paymentMethod === method.value ? "#6200ee" : undefined}
-              style={{ backgroundColor: paymentMethod === method.value ? "#e8def8" : "transparent" }}
+              style={{ 
+                backgroundColor: selectedMethodType === t ? theme.colors.primaryContainer : "transparent",
+                borderColor: selectedMethodType === t ? theme.colors.primary : theme.colors.outline
+              }}
             >
-              {method.label}
+              {t.replace("_", " ").toUpperCase()}
             </Chip>
           ))}
         </View>
+
+        {selectedMethodType !== "cash" && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: theme.colors.primaryContainer }}>
+            {availablePaymentMethods
+              .filter(m => m.type === selectedMethodType)
+              .map((method) => (
+                <Chip
+                  key={method.id}
+                  icon={method.icon}
+                  selected={paymentMethod === method.name}
+                  onPress={() => setPaymentMethod(method.name)}
+                  mode="flat"
+                  selectedColor={theme.colors.primary}
+                  style={{ backgroundColor: paymentMethod === method.name ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
+                >
+                  {method.name}
+                </Chip>
+              ))}
+          </View>
+        )}
 
         <TextInput
           label="Note (Optional)"
@@ -254,29 +248,6 @@ export default function AddTransaction() {
           multiline
           style={{ marginBottom: 16 }}
         />
-
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <Text variant="labelLarge">Split Bill?</Text>
-          <Button
-            mode={isSplit ? "contained" : "outlined"}
-            onPress={() => setSplitModalVisible(true)}
-            icon="account-group"
-          >
-            {isSplit ? `Split with ${splitPeople} people` : "Split with friends"}
-          </Button>
-        </View>
-
-        {isSplit && (
-          <View style={{ backgroundColor: "#e8def8", padding: 12, borderRadius: 8, marginBottom: 16 }}>
-            <Text variant="bodySmall" style={{ color: "#6200ee", fontWeight: "bold" }}>
-              Only your share (₱{splitAmountPerPerson.toFixed(2)}) will be added to your balance.
-            </Text>
-            <Text variant="bodySmall" style={{ marginTop: 4, color: "#666" }}>
-              Total: ₱{(parseFloat(amount) || 0).toFixed(2)} split with {splitPeople} people.
-            </Text>
-            {splitNotes && <Text variant="bodySmall" style={{ marginTop: 4 }}>Notes: {splitNotes}</Text>}
-          </View>
-        )}
 
         <Text variant="labelLarge" style={{ marginBottom: 8 }}>Receipt Image</Text>
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
@@ -316,56 +287,6 @@ export default function AddTransaction() {
         </Button>
 
         <View style={{ height: 40 }} />
-
-        <Portal>
-          <Modal
-            visible={splitModalVisible}
-            onDismiss={() => setSplitModalVisible(false)}
-            contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}
-          >
-            <Text variant="titleLarge" style={{ marginBottom: 16 }}>Split Bill</Text>
-
-            <TextInput
-              label="Number of People"
-              value={splitPeople}
-              onChangeText={setSplitPeople}
-              keyboardType="numeric"
-              mode="outlined"
-              style={{ marginBottom: 16 }}
-            />
-
-            <View style={{ backgroundColor: "#f0f0f0", padding: 16, borderRadius: 8, marginBottom: 16 }}>
-              <Text variant="labelLarge">Amount per Person:</Text>
-              <Text variant="headlineSmall" style={{ fontWeight: "bold", color: "#6200ee" }}>
-                ₱{splitAmountPerPerson.toFixed(2)}
-              </Text>
-            </View>
-
-            <TextInput
-              label="Who owes you? (Optional)"
-              value={splitNotes}
-              onChangeText={setSplitNotes}
-              mode="outlined"
-              placeholder="e.g. John owes ₱50, Sarah owes ₱50"
-              multiline
-              numberOfLines={3}
-              style={{ marginBottom: 16 }}
-            />
-
-            <Button mode="contained" onPress={() => {
-              setIsSplit(true);
-              setSplitModalVisible(false);
-            }}>
-              Confirm Split
-            </Button>
-            <Button mode="text" onPress={() => {
-              setIsSplit(false);
-              setSplitModalVisible(false);
-            }} style={{ marginTop: 8 }}>
-              Cancel Split
-            </Button>
-          </Modal>
-        </Portal>
 
         <Portal>
           <Modal

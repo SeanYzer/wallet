@@ -10,18 +10,13 @@ export default function OnboardingScreen() {
     const { completeSetup } = useUserProfile();
 
     const [name, setName] = useState("");
-    const [initialBalance, setInitialBalance] = useState("");
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState<{ name?: string; balance?: string }>({});
+    const [errors, setErrors] = useState<{ name?: string }>({});
 
     const validate = () => {
-        const newErrors: { name?: string; balance?: string } = {};
+        const newErrors: { name?: string } = {};
         if (!name.trim()) {
             newErrors.name = "Please enter your name.";
-        }
-        const parsed = parseFloat(initialBalance);
-        if (initialBalance === "" || isNaN(parsed) || parsed < 0) {
-            newErrors.balance = "Please enter a valid balance (0 or more).";
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -31,7 +26,7 @@ export default function OnboardingScreen() {
         if (!validate()) return;
         setLoading(true);
         try {
-            await completeSetup(name.trim(), parseFloat(initialBalance) || 0);
+            await completeSetup(name.trim());
             router.replace("/");
         } catch (e) {
             console.error("Setup failed:", e);
@@ -75,26 +70,6 @@ export default function OnboardingScreen() {
                         />
                         <HelperText type="error" visible={!!errors.name}>
                             {errors.name}
-                        </HelperText>
-
-                        {/* Initial Balance Field */}
-                        <TextInput
-                            label="Initial Balance"
-                            value={initialBalance}
-                            onChangeText={setInitialBalance}
-                            mode="outlined"
-                            style={styles.input}
-                            keyboardType="numeric"
-                            left={<TextInput.Icon icon="cash" />}
-                            error={!!errors.balance}
-                            returnKeyType="done"
-                            onSubmitEditing={handleGetStarted}
-                        />
-                        <HelperText type="error" visible={!!errors.balance}>
-                            {errors.balance}
-                        </HelperText>
-                        <HelperText type="info" visible={!errors.balance}>
-                            Enter how much money you currently have.
                         </HelperText>
 
                         {/* CTA Button */}

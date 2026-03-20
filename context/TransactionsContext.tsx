@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Platform } from "react-native";
 import { Transaction } from "../types";
 
-const API_URL = "http://localhost:3000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 interface TransactionsContextType {
     transactions: Transaction[];

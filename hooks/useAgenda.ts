@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Platform } from "react-native";
 import { Agenda } from "../types";
 
-const API_URL = "http://192.168.1.8:3000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 export function useAgenda() {
   const [agendas, setAgendas] = useState<Agenda[]>([]);

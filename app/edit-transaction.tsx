@@ -49,7 +49,7 @@ export default function EditTransaction() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch("http://localhost:3000/categories");
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000"}/categories`);
       const data = await response.json();
       if (data && data.length > 0) {
         setAvailableCategories(data);

@@ -1,5 +1,6 @@
-import { View, ScrollView, TouchableOpacity, Linking } from "react-native";
+import { View, ScrollView, TouchableOpacity } from "react-native";
 import { Text, Card, useTheme, Appbar, IconButton } from "react-native-paper";
+import { useRouter } from "expo-router";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { FinancialTip } from "../../components/FinancialTip";
 import { useAppTheme } from "../../context/ThemeContext";
@@ -9,24 +10,26 @@ export default function LearningScreen() {
 
     const resources = [
         {
+            id: "budgeting_101",
             title: "Budgeting 101",
             description: "Learn the basics of managing your money effectively.",
             icon: "book-open-page-variant",
-            link: "https://www.investopedia.com/financial-edge/1112/the-basics-of-budgeting.aspx"
         },
         {
+            id: "understanding_debt",
             title: "Understanding Debt",
             description: "How to manage and pay off debt strategically.",
             icon: "credit-card-off-outline",
-            link: "https://www.consumerfinance.gov/consumer-tools/debt-collection/"
         },
         {
+            id: "saving_future",
             title: "Saving for the Future",
             description: "The importance of an emergency fund and long-term savings.",
             icon: "piggy-bank-outline",
-            link: "https://www.nerdwallet.com/article/banking/how-to-save-money"
         }
     ];
+
+    const router = useRouter();
 
     return (
         <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -58,7 +61,7 @@ export default function LearningScreen() {
                         <Card
                             key={index}
                             style={{ marginBottom: 12, borderRadius: 16, backgroundColor: theme.colors.surface }}
-                            onPress={() => Linking.openURL(item.link)}
+                            onPress={() => router.push({ pathname: "/learning-detail", params: { id: item.id } })}
                         >
                             <Card.Content style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: theme.colors.primaryContainer, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Platform } from "react-native";
 import { Budget } from "../types";
 
-const API_URL = "http://192.168.1.8:3000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 export function useBudgets() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -55,5 +55,14 @@ export function useBudgets() {
     }
   };
 
-  return { budgets, loading, refetch: fetchBudgets, addBudget, updateBudget };
+  const deleteBudget = async (id: string) => {
+    try {
+      await fetch(`${API_URL}/budgets/${id}`, { method: "DELETE" });
+      setBudgets((prev) => prev.filter((b) => b.id !== id));
+    } catch (error) {
+      console.error("Error deleting budget:", error);
+    }
+  };
+
+  return { budgets, loading, refetch: fetchBudgets, addBudget, updateBudget, deleteBudget };
 }

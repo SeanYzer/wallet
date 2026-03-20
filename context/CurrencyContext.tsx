@@ -16,6 +16,8 @@ const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
 interface CurrencyContextType {
   currency: CurrencyConfig;
   setCurrency: (code: CurrencyCode) => void;
+  decimalPlaces: number;
+  setDecimalPlaces: (places: number) => void;
   formatAmount: (amount: number | undefined | null) => string;
 }
 
@@ -23,12 +25,16 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currencyCode, setCurrencyCode] = useState<CurrencyCode>("PHP");
+  const [decimalPlaces, setDecimalPlaces] = useState(2);
 
   const currency = CURRENCIES[currencyCode];
 
   const formatAmount = (amount: number | undefined | null): string => {
     const value = amount ?? 0;
-    return `${currency.symbol}${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${currency.symbol}${value.toLocaleString("en-US", { 
+      minimumFractionDigits: decimalPlaces, 
+      maximumFractionDigits: decimalPlaces 
+    })}`;
   };
 
   const setCurrency = (code: CurrencyCode) => {
@@ -36,7 +42,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, formatAmount }}>
+    <CurrencyContext.Provider value={{ currency, setCurrency, decimalPlaces, setDecimalPlaces, formatAmount }}>
       {children}
     </CurrencyContext.Provider>
   );

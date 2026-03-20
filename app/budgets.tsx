@@ -1,20 +1,23 @@
 import { useState, useCallback } from "react";
 import { View, ScrollView } from "react-native";
-import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, ProgressBar, useTheme } from "react-native-paper";
+import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, ProgressBar, useTheme, IconButton } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useBudgets } from "../hooks/useBudgets";
 import { useTransactions } from "../hooks/useTransactions";
 import { useCurrency } from "../context/CurrencyContext";
+import { useCategories } from "../context/CategoriesContext";
+import { Transaction, Budget } from "../types";
 
 export default function BudgetsScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { budgets, addBudget, refetch: refetchBudgets } = useBudgets();
+  const { budgets, addBudget, deleteBudget, refetch: refetchBudgets } = useBudgets();
   const { transactions, refetch: refetchTx } = useTransactions();
   const { formatAmount } = useCurrency();
+  const { categories } = useCategories();
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [categoryName, setCategoryName] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [budgetAmount, setBudgetAmount] = useState("");
 
   useFocusEffect(
@@ -25,30 +28,34 @@ export default function BudgetsScreen() {
   );
 
   const handleAddBudget = async () => {
-    if (!categoryName || !budgetAmount) return;
+    if (!selectedCategory || !budgetAmount) return;
 
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const currentMonth = new Date().toISOString().slice(0, 7);
     await addBudget({
-      categoryId: Date.now(),
+      categoryId: selectedCategory.id,
       amount: parseFloat(budgetAmount),
       month: currentMonth,
     });
 
-    setCategoryName("");
+    setSelectedCategory(null);
     setBudgetAmount("");
     setModalVisible(false);
   };
 
-  // Calculate spending per category
-  const getCategorySpending = (categoryId: number) => {
+  const getCategorySpending = (categoryId: string) => {
     return transactions
-      .filter((t) => t.type === "expense" && t.category.id === categoryId)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((t: Transaction) => t.type === "expense" && t.category.id.toString() === categoryId.toString())
+      .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
+  };
+
+  const getCategoryName = (categoryId: string) => {
+    return categories.find(c => c.id.toString() === categoryId.toString())?.name || "Unknown Category";
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <Appbar.Header style={{ backgroundColor: theme.colors.background, elevation: 0 }}>
+        <Appbar.BackAction onPress={() => router.back()} />
         <Appbar.Content title="Budgets" titleStyle={{ fontWeight: "700" }} />
       </Appbar.Header>
 
@@ -60,8 +67,8 @@ export default function BudgetsScreen() {
             </Text>
           </Card>
         ) : (
-          budgets.map((budget) => {
-            const spent = getCategorySpending(Number(budget.categoryId));
+          budgets.map((budget: Budget) => {
+            const spent = getCategorySpending(budget.categoryId.toString());
             const percentage = Math.min(spent / budget.amount, 1);
             const isOverBudget = spent > budget.amount;
             const remaining = budget.amount - spent;
@@ -75,11 +82,21 @@ export default function BudgetsScreen() {
             return (
               <Card key={budget.id} style={{ marginBottom: 12, borderRadius: 12 }}>
                 <Card.Content>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                    <Text variant="titleMedium">Budget: {budget.month}</Text>
-                    <Text variant="bodyMedium" style={{ color: isOverBudget ? theme.colors.error : "gray" }}>
-                      {formatAmount(spent)} / {formatAmount(budget.amount)}
-                    </Text>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <View>
+                      <Text variant="titleMedium">
+                        {getCategoryName(budget.categoryId.toString())} ({budget.month})
+                      </Text>
+                      <Text variant="bodyMedium" style={{ color: isOverBudget ? theme.colors.error : "gray" }}>
+                        {formatAmount(spent)} / {formatAmount(budget.amount)}
+                      </Text>
+                    </View>
+                    <IconButton
+                      icon="delete-outline"
+                      iconColor={theme.colors.error}
+                      size={20}
+                      onPress={() => deleteBudget(budget.id)}
+                    />
                   </View>
 
                   <ProgressBar
@@ -107,25 +124,33 @@ export default function BudgetsScreen() {
         <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
           <Text variant="titleLarge" style={{ marginBottom: 16 }}>Set New Budget</Text>
 
-          <TextInput
-            label="Category Name"
-            value={categoryName}
-            onChangeText={setCategoryName}
-            mode="outlined"
-            style={{ marginBottom: 12 }}
-          />
+          <Text variant="labelLarge" style={{ marginBottom: 8 }}>Select Category</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {categories.filter(c => c.type === "expense").map(cat => (
+                <Button
+                  key={cat.id}
+                  mode={selectedCategory?.id === cat.id ? "contained" : "outlined"}
+                  onPress={() => setSelectedCategory(cat)}
+                  style={{ borderRadius: 20 }}
+                >
+                  {cat.name}
+                </Button>
+              ))}
+            </View>
+          </ScrollView>
 
           <TextInput
             label="Budget Amount"
             value={budgetAmount}
-            onChangeText={setBudgetAmount}
+            onChangeText={(text) => setBudgetAmount(text.replace(/[^0-9.]/g, ""))}
             keyboardType="numeric"
             mode="outlined"
             left={<TextInput.Affix text="₱" />}
             style={{ marginBottom: 16 }}
           />
 
-          <Button mode="contained" onPress={handleAddBudget} disabled={!categoryName || !budgetAmount}>
+          <Button mode="contained" onPress={handleAddBudget} disabled={!selectedCategory || !budgetAmount}>
             Save Budget
           </Button>
         </Modal>

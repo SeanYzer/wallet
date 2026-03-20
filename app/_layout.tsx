@@ -4,9 +4,18 @@ import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
 import { CurrencyProvider } from "../context/CurrencyContext";
 import { TransactionsProvider } from "../context/TransactionsContext";
 import { UserProfileProvider } from "../context/UserProfileContext";
+import { CategoriesProvider } from "../context/CategoriesContext";
+import { LanguageProvider } from "../context/LanguageContext";
+import { PasscodeProvider, usePasscode } from "../context/PasscodeContext";
+import PasscodeScreen from "./passcode-screen";
 
 function MainLayout() {
   const { theme } = useAppTheme();
+  const { isPasscodeEnabled, isUnlocked } = usePasscode();
+
+  if (isPasscodeEnabled && !isUnlocked) {
+      return <PasscodeScreen />;
+  }
 
   return (
     <PaperProvider theme={theme}>
@@ -25,6 +34,8 @@ function MainLayout() {
         <Stack.Screen name="agenda" />
         <Stack.Screen name="subscriptions" />
         <Stack.Screen name="savings" />
+        <Stack.Screen name="payment-methods" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="learning-detail" options={{ animation: "slide_from_right" }} />
       </Stack>
     </PaperProvider>
   );
@@ -33,13 +44,19 @@ function MainLayout() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <CurrencyProvider>
-        <UserProfileProvider>
-          <TransactionsProvider>
-            <MainLayout />
-          </TransactionsProvider>
-        </UserProfileProvider>
-      </CurrencyProvider>
+      <LanguageProvider>
+        <PasscodeProvider>
+          <CurrencyProvider>
+            <UserProfileProvider>
+              <CategoriesProvider>
+                <TransactionsProvider>
+                  <MainLayout />
+                </TransactionsProvider>
+              </CategoriesProvider>
+            </UserProfileProvider>
+          </CurrencyProvider>
+        </PasscodeProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }
