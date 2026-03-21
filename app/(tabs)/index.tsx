@@ -4,6 +4,7 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { useRouter, useFocusEffect, Redirect } from "expo-router";
 import { useCallback } from "react";
 import { useAppTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 import { useTransactions } from "../../hooks/useTransactions";
 import { useBudgets } from "../../hooks/useBudgets";
 import { useSubscriptions } from "../../hooks/useSubscriptions";
@@ -24,16 +25,21 @@ export default function Dashboard() {
   const { subscriptions, refetch: refetchSubs } = useSubscriptions();
   const { formatAmount } = useCurrency();
   const { theme } = useAppTheme();
+  const { activeUserId } = useAuth();
 
   const loading = txLoading || budgetsLoading;
 
   useFocusEffect(
     useCallback(() => {
-      refetchTx();
-      refetchBudgets();
-      refetchSubs();
-    }, [])
+      if (activeUserId) {
+        refetchTx();
+        refetchBudgets();
+        refetchSubs();
+      }
+    }, [activeUserId])
   );
+
+  if (!activeUserId) return null; // Let AuthLoader handle redirection
 
   if (profileLoading) {
     return (
@@ -41,10 +47,6 @@ export default function Dashboard() {
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
-  }
-
-  if (profile?.isFirstRun) {
-    return <Redirect href="/onboarding" />;
   }
 
   if (loading && transactions.length === 0 && budgets.length === 0) {

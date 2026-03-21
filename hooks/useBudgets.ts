@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Platform } from "react-native";
 import { Budget } from "../types";
+import { useAuth } from "../context/AuthContext";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -8,14 +9,18 @@ export function useBudgets() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const { activeUserId } = useAuth();
+
   useEffect(() => {
+    if (!activeUserId) return;
     fetchBudgets();
-  }, []);
+  }, [activeUserId]);
 
   const fetchBudgets = async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/budgets`);
+      if (!response.ok) return;
       const data = await response.json();
       setBudgets(data);
     } catch (error) {
@@ -32,7 +37,7 @@ export function useBudgets() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...budget, id: Date.now().toString() }),
       });
-      if (!response.ok) throw new Error("Failed to add budget");
+      if (!response.ok) throw new Error(`Failed to add budget: ${response.status}`);
       const newBudget = await response.json();
       setBudgets((prev) => [...prev, newBudget]);
     } catch (error) {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { SavingsGoal } from "../types";
+import { useAuth } from "../context/AuthContext";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -7,14 +8,18 @@ export function useSavings() {
     const [goals, setGoals] = useState<SavingsGoal[]>([]);
     const [loading, setLoading] = useState(false);
 
+    const { activeUserId } = useAuth();
+
     useEffect(() => {
+        if (!activeUserId) return;
         fetchGoals();
-    }, []);
+    }, [activeUserId]);
 
     const fetchGoals = async () => {
         setLoading(true);
         try {
             const response = await fetch(`${API_URL}/savingsGoals`);
+            if (!response.ok) return;
             const data = await response.json();
             setGoals(data);
         } catch (error) {
@@ -31,6 +36,7 @@ export function useSavings() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...goal, id: Date.now().toString() }),
             });
+            if (!response.ok) throw new Error(`Failed to add goal: ${response.status}`);
             const newGoal = await response.json();
             setGoals((prev) => [...prev, newGoal]);
         } catch (error) {

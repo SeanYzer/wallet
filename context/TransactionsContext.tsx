@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform } from "react-native";
 import { Transaction } from "../types";
+import { getTransactions, saveTransaction, updateTransactionLocal, deleteTransactionLocal, getSetting } from "../utils/db";
+import { useAuth } from "./AuthContext";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -16,18 +18,19 @@ interface TransactionsContextType {
 const TransactionsContext = createContext<TransactionsContextType | undefined>(undefined);
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
+    const { activeUserId } = useAuth();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
+        if (!activeUserId) return;
         fetchTransactions();
-    }, []);
+    }, [activeUserId]);
 
     const fetchTransactions = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/transactions`);
-            const data = await response.json();
+            const data = await getTransactions();
             setTransactions(data);
         } catch (error) {
             console.error("Error fetching transactions:", error);
@@ -38,17 +41,18 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
     const addTransaction = async (transaction: Omit<Transaction, "id">) => {
         try {
-            const response = await fetch(`${API_URL}/transactions`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...transaction, id: Date.now().toString() }),
-            });
-            if (!response.ok) {
-                const errorData = await response.text();
-                throw new Error(`Failed to add transaction: ${response.status} ${errorData}`);
-            }
-            const newTransaction = await response.json();
+            const newTransaction = { ...transaction, id: Date.now().toString() } as Transaction;
+            await saveTransaction(newTransaction);
             setTransactions((prev) => [...prev, newTransaction]);
+            
+            const autoBackup = await getSetting('autoBackup');
+            if (autoBackup === 'true') {
+                fetch(`${API_URL}/transactions`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(newTransaction),
+                }).catch(err => console.error("Sync error:", err));
+            }
         } catch (error) {
             console.error("Error adding transaction:", error);
             throw error;
@@ -57,17 +61,17 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
     const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
         try {
-            const response = await fetch(`${API_URL}/transactions/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updates),
-            });
-            if (!response.ok) {
-                const errorData = await response.text();
-                throw new Error(`Failed to update transaction: ${response.status} ${errorData}`);
+            await updateTransactionLocal(id, updates);
+            setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+            
+            const autoBackup = await getSetting('autoBackup');
+            if (autoBackup === 'true') {
+                fetch(`${API_URL}/transactions/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updates),
+                }).catch(err => console.error("Sync error:", err));
             }
-            const updatedTransaction = await response.json();
-            setTransactions((prev) => prev.map((t) => (t.id === id ? updatedTransaction : t)));
         } catch (error) {
             console.error("Error updating transaction:", error);
             throw error;
@@ -76,12 +80,13 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
     const deleteTransaction = async (id: string) => {
         try {
-            const response = await fetch(`${API_URL}/transactions/${id}`, { method: "DELETE" });
-            if (!response.ok) {
-                const errorData = await response.text();
-                throw new Error(`Failed to delete transaction: ${response.status} ${errorData}`);
-            }
+            await deleteTransactionLocal(id);
             setTransactions((prev) => prev.filter((t) => t.id !== id));
+            
+            const autoBackup = await getSetting('autoBackup');
+            if (autoBackup === 'true') {
+                fetch(`${API_URL}/transactions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+            }
         } catch (error) {
             console.error("Error deleting transaction:", error);
             throw error;

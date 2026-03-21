@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { getUserProfile, saveUserProfile, getSetting } from "../utils/db";
+import { useAuth } from "./AuthContext";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -17,25 +19,28 @@ interface UserProfile {
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
+    const { activeUserId } = useAuth();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        if (!activeUserId) return;
         fetchProfile();
-    }, []);
+    }, [activeUserId]);
 
     const fetchProfile = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_URL}/userProfile`);
-            if (response.ok) {
-                const data: UserProfile = await response.json();
+            const data = await getUserProfile();
+            if (data) {
                 setProfile(data);
+            } else {
+                setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
             }
         } catch (error) {
             console.error("Error fetching user profile:", error);
             // Fallback for offline/error
-            setProfile({ isFirstRun: false, name: "", initialBalance: 0 });
+            setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
         } finally {
             setIsLoading(false);
         }
@@ -43,16 +48,20 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
 
     const completeSetup = async (name: string) => {
         try {
-            const response = await fetch(`${API_URL}/userProfile`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isFirstRun: false, name, initialBalance: 0 }),
-            });
-            if (!response.ok) {
-                throw new Error("Failed to save profile");
-            }
-            const updated: UserProfile = await response.json();
+            await saveUserProfile(name, false, 0);
+            const updated = { isFirstRun: false, name, initialBalance: 0 };
             setProfile(updated);
+            
+            const autoBackup = await getSetting('autoBackup');
+            if (autoBackup === 'true') {
+                fetch(`${API_URL}/userProfile`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updated),
+                }).then(res => {
+                    if (!res.ok) console.warn("Sync failed with status:", res.status);
+                }).catch(err => console.error("Sync error:", err));
+            }
         } catch (error) {
             console.error("Error saving user profile:", error);
             throw error;

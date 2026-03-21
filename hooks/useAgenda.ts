@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Platform } from "react-native";
 import { Agenda } from "../types";
+import { useAuth } from "../context/AuthContext";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -8,14 +9,18 @@ export function useAgenda() {
   const [agendas, setAgendas] = useState<Agenda[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const { activeUserId } = useAuth();
+
   useEffect(() => {
+    if (!activeUserId) return;
     fetchAgendas();
-  }, []);
+  }, [activeUserId]);
 
   const fetchAgendas = async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/agendas`);
+      if (!response.ok) return;
       const data = await response.json();
       setAgendas(data);
     } catch (error) {
@@ -32,7 +37,7 @@ export function useAgenda() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...agenda, id: Date.now().toString() }),
       });
-      if (!response.ok) throw new Error("Failed to add agenda");
+      if (!response.ok) throw new Error(`Failed to add agenda: ${response.status}`);
       const newAgenda = await response.json();
       setAgendas((prev) => [...prev, newAgenda]);
     } catch (error) {

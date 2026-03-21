@@ -1,7 +1,7 @@
 {
   "userProfile": {
     "isFirstRun": false,
-    "name": "Bongga",
+    "name": "Wally",
     "initialBalance": 0
   },
   "transactions": [
@@ -59,6 +59,33 @@
       },
       "paymentMethod": "cash",
       "establishment": "Testing"
+    },
+    {
+      "id": "1774103510480",
+      "amount": 5000,
+      "date": "2026-03-21T14:31:34.481Z",
+      "note": "",
+      "type": "expense",
+      "category": {
+        "id": "1",
+        "name": "Food",
+        "type": "expense"
+      },
+      "paymentMethod": "Cash"
+    },
+    {
+      "id": "1774107775348",
+      "amount": 100000,
+      "date": "2026-03-21T15:42:29.860Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "9",
+        "name": "Others",
+        "type": "income"
+      },
+      "paymentMethod": "Cash",
+      "establishment": "Initial funding "
     }
   ],
   "budgets": [
@@ -98,6 +125,186 @@
     {
       "id": "6",
       "name": "Freelance",
+      "type": "income"
+    },
+    {
+      "id": "1",
+      "name": "Food",
+      "type": "expense"
+    },
+    {
+      "id": "2",
+      "name": "Bills",
+      "type": "expense"
+    },
+    {
+      "id": "3",
+      "name": "Transport",
+      "type": "expense"
+    },
+    {
+      "id": "4",
+      "name": "Shopping",
+      "type": "expense"
+    },
+    {
+      "id": "5",
+      "name": "Entertainment",
+      "type": "expense"
+    },
+    {
+      "id": "6",
+      "name": "Salary",
+      "type": "income"
+    },
+    {
+      "id": "7",
+      "name": "Freelance",
+      "type": "income"
+    },
+    {
+      "id": "8",
+      "name": "Others",
+      "type": "expense"
+    },
+    {
+      "id": "9",
+      "name": "Others",
+      "type": "income"
+    },
+    {
+      "id": "1",
+      "name": "Food",
+      "type": "expense"
+    },
+    {
+      "id": "2",
+      "name": "Bills",
+      "type": "expense"
+    },
+    {
+      "id": "3",
+      "name": "Transport",
+      "type": "expense"
+    },
+    {
+      "id": "4",
+      "name": "Shopping",
+      "type": "expense"
+    },
+    {
+      "id": "5",
+      "name": "Entertainment",
+      "type": "expense"
+    },
+    {
+      "id": "6",
+      "name": "Salary",
+      "type": "income"
+    },
+    {
+      "id": "7",
+      "name": "Freelance",
+      "type": "income"
+    },
+    {
+      "id": "8",
+      "name": "Others",
+      "type": "expense"
+    },
+    {
+      "id": "9",
+      "name": "Others",
+      "type": "income"
+    },
+    {
+      "id": "1",
+      "name": "Food",
+      "type": "expense"
+    },
+    {
+      "id": "2",
+      "name": "Bills",
+      "type": "expense"
+    },
+    {
+      "id": "3",
+      "name": "Transport",
+      "type": "expense"
+    },
+    {
+      "id": "4",
+      "name": "Shopping",
+      "type": "expense"
+    },
+    {
+      "id": "5",
+      "name": "Entertainment",
+      "type": "expense"
+    },
+    {
+      "id": "6",
+      "name": "Salary",
+      "type": "income"
+    },
+    {
+      "id": "7",
+      "name": "Freelance",
+      "type": "income"
+    },
+    {
+      "id": "8",
+      "name": "Others",
+      "type": "expense"
+    },
+    {
+      "id": "9",
+      "name": "Others",
+      "type": "income"
+    },
+    {
+      "id": "1",
+      "name": "Food",
+      "type": "expense"
+    },
+    {
+      "id": "2",
+      "name": "Bills",
+      "type": "expense"
+    },
+    {
+      "id": "3",
+      "name": "Transport",
+      "type": "expense"
+    },
+    {
+      "id": "4",
+      "name": "Shopping",
+      "type": "expense"
+    },
+    {
+      "id": "5",
+      "name": "Entertainment",
+      "type": "expense"
+    },
+    {
+      "id": "6",
+      "name": "Salary",
+      "type": "income"
+    },
+    {
+      "id": "7",
+      "name": "Freelance",
+      "type": "income"
+    },
+    {
+      "id": "8",
+      "name": "Others",
+      "type": "expense"
+    },
+    {
+      "id": "9",
+      "name": "Others",
       "type": "income"
     }
   ],
