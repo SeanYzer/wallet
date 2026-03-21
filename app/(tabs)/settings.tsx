@@ -65,13 +65,25 @@ export default function SettingsScreen() {
       const profile = await getUserProfile();
       
       if (profile) {
-        await fetch(`${API_URL}/userProfile`, { method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify(profile)}).catch(() => {});
+        await fetch(`${API_URL}/userProfile`, { 
+          method: "PATCH", 
+          headers: {"Content-Type": "application/json"}, 
+          body: JSON.stringify({ ...profile, userId: activeUserId })
+        }).catch(() => {});
       }
       for (const c of cats) {
-        await fetch(`${API_URL}/categories`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(c)}).catch(() => {});
+        await fetch(`${API_URL}/categories`, { 
+          method: "POST", 
+          headers: {"Content-Type": "application/json"}, 
+          body: JSON.stringify({ ...c, userId: activeUserId })
+        }).catch(() => {});
       }
       for (const t of txs) {
-        await fetch(`${API_URL}/transactions`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({...t, categoryId: String(t.category.id)})}).catch(() => {});
+        await fetch(`${API_URL}/transactions`, { 
+          method: "POST", 
+          headers: {"Content-Type": "application/json"}, 
+          body: JSON.stringify({ ...t, categoryId: String(t.category.id), userId: activeUserId })
+        }).catch(() => {});
       }
       
       alert("Backup completed!");
@@ -163,15 +175,22 @@ export default function SettingsScreen() {
   const handleSyncWithConflict = async () => {
     setIsSyncing(true);
     try {
-      // 1. Fetch remote data
-      const response = await fetch(`${API_URL}/db`); // JSON-server endpoint for full db
-      if (!response.ok) {
-        alert("Could not connect to the cloud API. Please check if your server is running.");
+      // 1. Fetch remote data segregated by user
+      const [txRes, catRes, profRes] = await Promise.all([
+        fetch(`${API_URL}/transactions?userId=${activeUserId}`),
+        fetch(`${API_URL}/categories?userId=${activeUserId}`),
+        fetch(`${API_URL}/userProfile?userId=${activeUserId}`)
+      ]);
+      
+      if (!txRes.ok || !catRes.ok || !profRes.ok) {
+        alert("Could not connect to the cloud API correctly.");
         return;
       }
-      const remoteDb = await response.json();
-      const remoteTxs = remoteDb.transactions || [];
-      const remoteCats = remoteDb.categories || [];
+
+      const remoteTxs = await txRes.json();
+      const remoteCats = await catRes.json();
+      const remoteProf = await profRes.json();
+      const remoteUserProfile = remoteProf.length > 0 ? remoteProf[0] : null;
       
       // 2. Fetch local data
       const localTxs = await getTransactions();
@@ -189,7 +208,7 @@ export default function SettingsScreen() {
               text: "Keep Cloud (Overwrite Local)", 
               onPress: async () => {
                 const cloudJson = JSON.stringify({
-                    profile: remoteDb.userProfile,
+                    profile: remoteUserProfile,
                     categories: remoteCats,
                     transactions: remoteTxs,
                     settings: { autoBackup: "true" }

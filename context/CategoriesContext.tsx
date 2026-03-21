@@ -68,7 +68,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
         fetch(`${API_URL}/categories`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newCategory),
+          body: JSON.stringify({ ...newCategory, userId: activeUserId }),
         }).catch(err => console.error("Sync error:", err));
       }
     } catch (error) {

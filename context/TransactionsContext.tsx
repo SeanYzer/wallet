@@ -50,7 +50,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 fetch(`${API_URL}/transactions`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(newTransaction),
+                    body: JSON.stringify({ ...newTransaction, userId: activeUserId }),
                 }).catch(err => console.error("Sync error:", err));
             }
         } catch (error) {
@@ -69,7 +69,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 fetch(`${API_URL}/transactions/${id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(updates),
+                    body: JSON.stringify({ ...updates, userId: activeUserId }),
                 }).catch(err => console.error("Sync error:", err));
             }
         } catch (error) {

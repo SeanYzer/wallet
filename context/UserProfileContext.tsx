@@ -57,7 +57,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 fetch(`${API_URL}/userProfile`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(updated),
+                    body: JSON.stringify({ ...updated, userId: activeUserId }),
                 }).then(res => {
                     if (!res.ok) console.warn("Sync failed with status:", res.status);
                 }).catch(err => console.error("Sync error:", err));

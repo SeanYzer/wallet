@@ -18,7 +18,7 @@ export function useSavings() {
     const fetchGoals = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/savingsGoals`);
+            const response = await fetch(`${API_URL}/savingsGoals?userId=${activeUserId}`);
             if (!response.ok) return;
             const data = await response.json();
             setGoals(data);
@@ -34,7 +34,7 @@ export function useSavings() {
             const response = await fetch(`${API_URL}/savingsGoals`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...goal, id: Date.now().toString() }),
+                body: JSON.stringify({ ...goal, id: Date.now().toString(), userId: activeUserId }),
             });
             if (!response.ok) throw new Error(`Failed to add goal: ${response.status}`);
             const newGoal = await response.json();
@@ -50,7 +50,7 @@ export function useSavings() {
             const response = await fetch(`${API_URL}/savingsGoals/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updates),
+                body: JSON.stringify({ ...updates, userId: activeUserId }),
             });
             const updatedGoal = await response.json();
             setGoals((prev) => prev.map((g) => (g.id === id ? updatedGoal : g)));

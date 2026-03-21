@@ -18,7 +18,7 @@ export function useSubscriptions() {
     const fetchSubscriptions = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/subscriptions`);
+            const response = await fetch(`${API_URL}/subscriptions?userId=${activeUserId}`);
             if (!response.ok) return;
             const data = await response.json();
             setSubscriptions(data);
@@ -29,12 +29,26 @@ export function useSubscriptions() {
         }
     };
 
+    const updateSubscription = async (id: string, updates: Partial<Subscription>) => {
+        try {
+            const response = await fetch(`${API_URL}/subscriptions/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...updates, userId: activeUserId }),
+            });
+            const updatedSubscription = await response.json();
+            setSubscriptions((prev) => prev.map((s) => (s.id === id ? updatedSubscription : s)));
+        } catch (error) {
+            console.error("Error updating subscription:", error);
+        }
+    };
+
     const addSubscription = async (subscription: Omit<Subscription, "id">) => {
         try {
             const response = await fetch(`${API_URL}/subscriptions`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...subscription, id: Date.now().toString() }),
+                body: JSON.stringify({ ...subscription, id: Date.now().toString(), userId: activeUserId }),
             });
             if (!response.ok) throw new Error(`Failed to add subscription: ${response.status}`);
             const newSub = await response.json();

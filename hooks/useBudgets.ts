@@ -19,7 +19,7 @@ export function useBudgets() {
   const fetchBudgets = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/budgets`);
+      const response = await fetch(`${API_URL}/budgets?userId=${activeUserId}`);
       if (!response.ok) return;
       const data = await response.json();
       setBudgets(data);
@@ -35,7 +35,7 @@ export function useBudgets() {
       const response = await fetch(`${API_URL}/budgets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...budget, id: Date.now().toString() }),
+        body: JSON.stringify({ ...budget, id: Date.now().toString(), userId: activeUserId }),
       });
       if (!response.ok) throw new Error(`Failed to add budget: ${response.status}`);
       const newBudget = await response.json();
@@ -51,7 +51,7 @@ export function useBudgets() {
       const response = await fetch(`${API_URL}/budgets/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ ...updates, userId: activeUserId }),
       });
       const updatedBudget = await response.json();
       setBudgets((prev) => prev.map((b) => (b.id === id ? updatedBudget : b)));

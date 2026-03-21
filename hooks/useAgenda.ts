@@ -19,7 +19,7 @@ export function useAgenda() {
   const fetchAgendas = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/agendas`);
+      const response = await fetch(`${API_URL}/agendas?userId=${activeUserId}`);
       if (!response.ok) return;
       const data = await response.json();
       setAgendas(data);
@@ -35,7 +35,7 @@ export function useAgenda() {
       const response = await fetch(`${API_URL}/agendas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...agenda, id: Date.now().toString() }),
+        body: JSON.stringify({ ...agenda, id: Date.now().toString(), userId: activeUserId }),
       });
       if (!response.ok) throw new Error(`Failed to add agenda: ${response.status}`);
       const newAgenda = await response.json();
@@ -51,7 +51,7 @@ export function useAgenda() {
       const response = await fetch(`${API_URL}/agendas/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ ...updates, userId: activeUserId }),
       });
       const updatedAgenda = await response.json();
       setAgendas((prev) => prev.map((a) => (a.id === id ? updatedAgenda : a)));

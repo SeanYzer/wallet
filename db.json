@@ -1,8 +1,16 @@
 {
+  "users": [
+    {
+      "id": "1774109463750",
+      "name": "nin",
+      "passcode": "1234"
+    }
+  ],
   "userProfile": {
     "isFirstRun": false,
-    "name": "Wally",
-    "initialBalance": 0
+    "name": "Nin",
+    "initialBalance": 0,
+    "userId": "1774108916386"
   },
   "transactions": [
     {
@@ -306,6 +314,60 @@
       "id": "9",
       "name": "Others",
       "type": "income"
+    },
+    {
+      "id": "1",
+      "name": "Food",
+      "type": "expense",
+      "userId": "1774108916386"
+    },
+    {
+      "id": "2",
+      "name": "Bills",
+      "type": "expense",
+      "userId": "1774108916386"
+    },
+    {
+      "id": "3",
+      "name": "Transport",
+      "type": "expense",
+      "userId": "1774108916386"
+    },
+    {
+      "id": "4",
+      "name": "Shopping",
+      "type": "expense",
+      "userId": "1774108916386"
+    },
+    {
+      "id": "5",
+      "name": "Entertainment",
+      "type": "expense",
+      "userId": "1774108916386"
+    },
+    {
+      "id": "6",
+      "name": "Salary",
+      "type": "income",
+      "userId": "1774108916386"
+    },
+    {
+      "id": "7",
+      "name": "Freelance",
+      "type": "income",
+      "userId": "1774108916386"
+    },
+    {
+      "id": "8",
+      "name": "Others",
+      "type": "expense",
+      "userId": "1774108916386"
+    },
+    {
+      "id": "9",
+      "name": "Others",
+      "type": "income",
+      "userId": "1774108916386"
     }
   ],
   "agendas": [
@@ -340,6 +402,14 @@
       "targetAmount": 25000,
       "currentAmount": 8005,
       "color": "#ff4081"
+    },
+    {
+      "id": "1774109593885",
+      "title": "Tst",
+      "targetAmount": 20,
+      "currentAmount": 20,
+      "color": "#ff4081",
+      "userId": "1774109463750"
     }
   ],
   "paymentMethods": [
