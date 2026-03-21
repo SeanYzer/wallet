@@ -1,4 +1,4 @@
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import { useEffect, useState } from "react";
 import { View, Text } from "react-native";
 import { initMasterDb, initDb } from "../utils/db";
@@ -16,6 +16,22 @@ import PasscodeScreen from "./passcode-screen";
 function MainLayout() {
   const { theme } = useAppTheme();
   const { isPasscodeEnabled, isUnlocked } = usePasscode();
+  const { activeUserId, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+  const navigationState = useRootNavigationState();
+
+  useEffect(() => {
+    if (isLoading || !navigationState?.key) return;
+    
+    const inAuthGroup = segments[0] === 'auth';
+    
+    if (!activeUserId && !inAuthGroup) {
+      router.replace('/auth');
+    } else if (activeUserId && inAuthGroup) {
+      router.replace('/');
+    }
+  }, [activeUserId, isLoading, segments, navigationState?.key]);
 
   if (isPasscodeEnabled && !isUnlocked) {
       return <PasscodeScreen />;
@@ -26,11 +42,7 @@ function MainLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="auth" options={{ animation: "fade" }} />
         <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
-
-        {/* Main App with Bottom Tabs */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-        {/* Modals / Sub-screens */}
         <Stack.Screen name="add-transaction" options={{ presentation: "modal" }} />
         <Stack.Screen name="edit-transaction" options={{ presentation: "modal" }} />
         <Stack.Screen name="transaction-details" options={{ title: "Details" }} />
@@ -50,27 +62,35 @@ export function AuthLoader({ children }: { children: React.ReactNode }) {
   const { activeUserId, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [dbLoading, setDbLoading] = useState(false);
+  const [dbInitializedFor, setDbInitializedFor] = useState<string | null>(null);
 
+  // 1. Handle DB Initialization
   useEffect(() => {
     if (isLoading) return;
     
-    if (activeUserId) {
-        // Ensure the private DB for this user is initialized
-        initDb(activeUserId).catch(e => console.error("User DB Init Error", e));
+    if (activeUserId && activeUserId !== dbInitializedFor) {
+        setDbLoading(true);
+        initDb(activeUserId)
+          .then(() => {
+            setDbInitializedFor(activeUserId);
+            setDbLoading(false);
+          })
+          .catch(e => {
+            console.error("User DB Init Error", e);
+            setDbLoading(false);
+          });
+    } else if (!activeUserId) {
+        setDbInitializedFor(null);
     }
+  }, [activeUserId, isLoading]);
 
-    const inAuthGroup = segments[0] === 'auth';
-    if (!activeUserId && !inAuthGroup) {
-      router.replace('/auth');
-    } else if (activeUserId && inAuthGroup) {
-      router.replace('/');
-    }
-  }, [activeUserId, isLoading, segments]);
-
-  if (isLoading) {
+  // 2. Handle Navigation handled in MainLayout to avoid race-condition with Stack registration 
+  
+  if (isLoading || dbLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Checking Accounts...</Text>
+        <Text>{isLoading ? "Checking Accounts..." : "Preparing Database..."}</Text>
       </View>
     );
   }
@@ -101,15 +121,15 @@ export default function RootLayout() {
         <AuthProvider>
           <PasscodeProvider>
             <CurrencyProvider>
-              <UserProfileProvider>
-                <CategoriesProvider>
-                  <TransactionsProvider>
-                    <AuthLoader>
+              <AuthLoader>
+                <UserProfileProvider>
+                  <CategoriesProvider>
+                    <TransactionsProvider>
                       <MainLayout />
-                    </AuthLoader>
-                  </TransactionsProvider>
-                </CategoriesProvider>
-              </UserProfileProvider>
+                    </TransactionsProvider>
+                  </CategoriesProvider>
+                </UserProfileProvider>
+              </AuthLoader>
             </CurrencyProvider>
           </PasscodeProvider>
         </AuthProvider>

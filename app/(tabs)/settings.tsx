@@ -65,8 +65,17 @@ export default function SettingsScreen() {
       const profile = await getUserProfile();
       
       if (profile) {
-        await fetch(`${API_URL}/userProfile`, { 
-          method: "PATCH", 
+        // Find existing profile on API to get its ID for PATCH, or POST if none
+        const check = await fetch(`${API_URL}/userProfiles?userId=${activeUserId}`);
+        const existing = await check.json();
+        
+        const method = (existing && existing.length > 0) ? "PATCH" : "POST";
+        const url = (existing && existing.length > 0) 
+            ? `${API_URL}/userProfiles/${existing[0].id}` 
+            : `${API_URL}/userProfiles`;
+
+        await fetch(url, { 
+          method, 
           headers: {"Content-Type": "application/json"}, 
           body: JSON.stringify({ ...profile, userId: activeUserId })
         }).catch(() => {});
@@ -172,69 +181,53 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleSyncWithConflict = async () => {
-    setIsSyncing(true);
-    try {
-      // 1. Fetch remote data segregated by user
-      const [txRes, catRes, profRes] = await Promise.all([
-        fetch(`${API_URL}/transactions?userId=${activeUserId}`),
-        fetch(`${API_URL}/categories?userId=${activeUserId}`),
-        fetch(`${API_URL}/userProfile?userId=${activeUserId}`)
-      ]);
-      
-      if (!txRes.ok || !catRes.ok || !profRes.ok) {
-        alert("Could not connect to the cloud API correctly.");
-        return;
-      }
+  const handleRestoreFromCloud = async () => {
+    Alert.alert(
+      "Restore from Cloud",
+      "This will overwrite all your local data with the data from your cloud backup. Are you sure?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Restore",
+          style: "destructive",
+          onPress: async () => {
+            setIsSyncing(true);
+            try {
+              const [txRes, catRes, profRes] = await Promise.all([
+                fetch(`${API_URL}/transactions?userId=${activeUserId}`),
+                fetch(`${API_URL}/categories?userId=${activeUserId}`),
+                fetch(`${API_URL}/userProfiles?userId=${activeUserId}`)
+              ]);
+              
+              if (!txRes.ok || !catRes.ok || !profRes.ok) {
+                alert("Could not connect to the cloud API correctly.");
+                return;
+              }
 
-      const remoteTxs = await txRes.json();
-      const remoteCats = await catRes.json();
-      const remoteProf = await profRes.json();
-      const remoteUserProfile = remoteProf.length > 0 ? remoteProf[0] : null;
-      
-      // 2. Fetch local data
-      const localTxs = await getTransactions();
-      const localCats = await getCategories();
-      
-      // 3. Compare counts (simple heuristic)
-      const disparity = (remoteTxs.length + remoteCats.length) !== (localTxs.length + localCats.length);
-      
-      if (disparity) {
-        Alert.alert(
-          "Sync Conflict",
-          `The cloud backup (${remoteTxs.length + remoteCats.length} items) differs from your local data (${localTxs.length + localCats.length} items). Which one should we keep?`,
-          [
-            { 
-              text: "Keep Cloud (Overwrite Local)", 
-              onPress: async () => {
-                const cloudJson = JSON.stringify({
-                    profile: remoteUserProfile,
-                    categories: remoteCats,
-                    transactions: remoteTxs,
-                    settings: { autoBackup: "true" }
-                });
-                await importData(cloudJson);
-                alert("Cloud data restored locally.");
-              }
-            },
-            {
-              text: "Keep Local (Overwrite Cloud)",
-              onPress: async () => {
-                 await handeManualBackup(); // This pushes local to cloud
-              }
-            },
-            { text: "Cancel", style: "cancel" }
-          ]
-        );
-      } else {
-        alert("Sync healthy! No disparities found.");
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Verification failed. Make sure the API is online.");
-    } finally {
-      setIsSyncing(false);
-    }
+              const remoteTxs = await txRes.json();
+              const remoteCats = await catRes.json();
+              const remoteProf = await profRes.json();
+              const remoteUserProfile = remoteProf.length > 0 ? remoteProf[0] : null;
+              
+              const cloudJson = JSON.stringify({
+                  profile: remoteUserProfile,
+                  categories: remoteCats,
+                  transactions: remoteTxs,
+                  settings: { autoBackup: "true" }
+              });
+              
+              await importData(cloudJson);
+              alert("Cloud data restored locally. Please switch tabs to refresh.");
+            } catch (e) {
+              console.error(e);
+              alert("Restore failed. Make sure the API is online.");
+            } finally {
+              setIsSyncing(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -346,8 +339,8 @@ export default function SettingsScreen() {
                Backup Data to Cloud API Now
             </Button>
 
-            <Button mode="outlined" icon="sync-alert" onPress={handleSyncWithConflict} loading={isSyncing} disabled={isSyncing} style={{ marginVertical: 4 }}>
-               Verify & Resolve Sync Conflict
+            <Button mode="outlined" icon="cloud-download" onPress={handleRestoreFromCloud} loading={isSyncing} disabled={isSyncing} style={{ marginVertical: 4 }}>
+               Restore Data from Cloud API
             </Button>
 
             <Button mode="outlined" icon="file-export" onPress={handleExportJSON} style={{ marginVertical: 4 }}>

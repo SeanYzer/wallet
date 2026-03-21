@@ -1,52 +1,74 @@
 import * as SQLite from 'expo-sqlite';
 import { Category, Transaction } from '../types';
 
+let dbInstance: SQLite.SQLiteDatabase | null = null;
+let currentDbId: string | null = null;
+
 export const getDb = async (overrideUserId?: string) => {
   const AsyncStorage = require('@react-native-async-storage/async-storage').default;
   const userId = overrideUserId || await AsyncStorage.getItem('activeUserId');
   const dbName = userId ? `wallet_${userId}.db` : 'wallet.db';
-  return await SQLite.openDatabaseAsync(dbName);
+  
+  if (dbInstance && currentDbId === dbName) {
+    return dbInstance;
+  }
+
+  // Ensure old connection is closed if name changed (optional but safer)
+  // For now just re-open
+  dbInstance = await SQLite.openDatabaseAsync(dbName);
+  currentDbId = dbName;
+  return dbInstance;
 };
 
+let isInitializing = false;
 export const initDb = async (overrideUserId?: string) => {
-  const db = await getDb(overrideUserId);
-  await db.execAsync(`
-    PRAGMA journal_mode = WAL;
-    
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL
-    );
-    
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      amount REAL NOT NULL,
-      categoryId TEXT NOT NULL,
-      date TEXT NOT NULL,
-      note TEXT,
-      receiptUrl TEXT,
-      type TEXT NOT NULL,
-      paymentMethod TEXT,
-      establishment TEXT,
-      splitInfo TEXT
-    );
-    
-    CREATE TABLE IF NOT EXISTS user_profile (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      isFirstRun INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      initialBalance REAL NOT NULL
-    );
-    
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-  `);
+  if (isInitializing) return;
+  isInitializing = true;
   
-  // Seed autoBackup default
-  await db.runAsync(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`, ['autoBackup', 'true']);
+  try {
+    const db = await getDb(overrideUserId);
+    // Use a simpler exec for critical sections
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL
+      );
+      
+      CREATE TABLE IF NOT EXISTS transactions (
+        id TEXT PRIMARY KEY,
+        amount REAL NOT NULL,
+        categoryId TEXT NOT NULL,
+        date TEXT NOT NULL,
+        note TEXT,
+        receiptUrl TEXT,
+        type TEXT NOT NULL,
+        paymentMethod TEXT,
+        establishment TEXT,
+        splitInfo TEXT
+      );
+      
+      CREATE TABLE IF NOT EXISTS user_profile (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        isFirstRun INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        initialBalance REAL NOT NULL
+      );
+      
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    
+    await db.runAsync(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`, ['autoBackup', 'true']);
+  } catch (error) {
+    console.error("Critical DB Init Error:", error);
+    // Even if it fails, allow it to be retried by un-flagging
+    throw error;
+  } finally {
+    isInitializing = false;
+  }
 };
 
 export const clearAllLocalData = async () => {
@@ -54,7 +76,11 @@ export const clearAllLocalData = async () => {
   await db.execAsync(`
     DELETE FROM transactions;
     DELETE FROM categories;
+    DELETE FROM user_profile;
+    DELETE FROM settings;
   `);
+  // Re-seed autoBackup default
+  await db.runAsync(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`, ['autoBackup', 'true']);
 };
 
 // --- Settings CRUD ---
@@ -132,12 +158,26 @@ export const getTransactions = async (): Promise<Transaction[]> => {
 
 export const saveTransaction = async (t: Transaction) => {
   const db = await getDb();
+  const args = [
+    t.id ?? null, 
+    t.amount ?? null, 
+    String(t.category?.id || (t as any).categoryId), 
+    t.date ?? null, 
+    t.note || null, 
+    t.receiptUrl || null, 
+    t.type ?? null, 
+    t.paymentMethod || null, 
+    t.establishment || null, 
+    t.splitInfo ? JSON.stringify(t.splitInfo) : null
+  ];
+  
+  if (args.some(v => v === undefined)) {
+    console.error("SQLite Binding Error: Undefined value in arguments:", args);
+  }
+
   await db.runAsync(
     `INSERT OR REPLACE INTO transactions (id, amount, categoryId, date, note, receiptUrl, type, paymentMethod, establishment, splitInfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      t.id, t.amount, String(t.category.id), t.date, t.note || null, t.receiptUrl || null, t.type, t.paymentMethod || null, t.establishment || null, 
-      t.splitInfo ? JSON.stringify(t.splitInfo) : null
-    ]
+    args
   );
 };
 
@@ -165,7 +205,6 @@ export const getMasterDb = async () => {
 export const initMasterDb = async () => {
     const db = await getMasterDb();
     await db.execAsync(`
-        PRAGMA journal_mode = WAL;
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -232,12 +271,21 @@ export const importData = async (jsonString: string) => {
 
     if (data.transactions) {
         for (const t of data.transactions as any[]) {
+            const args = [
+              t.id ?? null, 
+              t.amount ?? null, 
+              String(t.category?.id || t.categoryId), 
+              t.date ?? null, 
+              t.note || null, 
+              t.receiptUrl || null, 
+              t.type ?? null, 
+              t.paymentMethod || null, 
+              t.establishment || null, 
+              t.splitInfo ? JSON.stringify(t.splitInfo) : null
+            ];
             await db.runAsync(
-              `INSERT INTO transactions (id, amount, categoryId, date, note, receiptUrl, type, paymentMethod, establishment, splitInfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                t.id, t.amount, String(t.category?.id || t.categoryId), t.date, t.note || null, t.receiptUrl || null, t.type, t.paymentMethod || null, t.establishment || null, 
-                t.splitInfo ? JSON.stringify(t.splitInfo) : null
-              ]
+              `INSERT OR REPLACE INTO transactions (id, amount, categoryId, date, note, receiptUrl, type, paymentMethod, establishment, splitInfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              args
             );
         }
     }
