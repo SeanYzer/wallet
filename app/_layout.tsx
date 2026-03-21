@@ -76,7 +76,7 @@ export function AuthLoader({ children }: { children: React.ReactNode }) {
             setDbInitializedFor(activeUserId);
             setDbLoading(false);
           })
-          .catch(e => {
+          .catch((e: any) => {
             console.error("User DB Init Error", e);
             setDbLoading(false);
           });
@@ -104,7 +104,7 @@ export default function RootLayout() {
   useEffect(() => {
     initMasterDb()
       .then(() => setDbReady(true))
-      .catch((e) => console.error("DB init Error", e));
+      .catch((e: any) => console.error("DB init Error", e));
   }, []);
 
   if (!dbReady) {

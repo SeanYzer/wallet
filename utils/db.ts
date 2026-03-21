@@ -21,7 +21,7 @@ export const getDb = async (overrideUserId?: string) => {
 };
 
 let isInitializing = false;
-export const initDb = async (overrideUserId?: string) => {
+export const initDb = async (overrideUserId?: string): Promise<void> => {
   if (isInitializing) return;
   isInitializing = true;
   
@@ -62,8 +62,26 @@ export const initDb = async (overrideUserId?: string) => {
     `);
     
     await db.runAsync(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`, ['autoBackup', 'true']);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Critical DB Init Error:", error);
+    if (error.message && error.message.includes('NullPointerException')) {
+       console.warn("Detected corrupted wallet DB! Wiping...");
+       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+       const userId = overrideUserId || await AsyncStorage.getItem('activeUserId');
+       const dbName = userId ? `wallet_${userId}.db` : 'wallet.db';
+       try {
+           await SQLite.deleteDatabaseAsync(dbName);
+           // Clear JS cache
+           if (currentDbId === dbName) {
+               dbInstance = null;
+               currentDbId = null;
+           }
+           isInitializing = false;
+           return initDb(overrideUserId); // retry
+       } catch (err) {
+           console.error("Failed to wipe corrupted wallet db:", err);
+       }
+    }
     // Even if it fails, allow it to be retried by un-flagging
     throw error;
   } finally {
@@ -202,15 +220,28 @@ export const getMasterDb = async () => {
     return await SQLite.openDatabaseAsync('master.db');
 };
 
-export const initMasterDb = async () => {
-    const db = await getMasterDb();
-    await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            passcode TEXT NOT NULL
-        );
-    `);
+export const initMasterDb = async (): Promise<void> => {
+    try {
+        const db = await getMasterDb();
+        await db.execAsync(`
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                passcode TEXT NOT NULL
+            );
+        `);
+    } catch (e: any) {
+        if (e.message && e.message.includes('NullPointerException')) {
+            console.warn("Detected corrupted master.db! Wiping and recreating...");
+            try {
+                await SQLite.deleteDatabaseAsync('master.db');
+                return initMasterDb(); 
+            } catch (err) {
+               console.error("Failed to recover master.db", err);
+            }
+        }
+        throw e;
+    }
 };
 
 export const getUsers = async () => {
