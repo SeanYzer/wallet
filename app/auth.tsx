@@ -74,7 +74,7 @@ export default function AuthScreen() {
             }).catch(() => {});
             
             await login(newId);
-            router.replace("/");
+            // Redirection handled by _layout.tsx based on activeUserId state
         } catch (e) {
             console.error(e);
             Alert.alert("Error", "Could not register account");
@@ -97,7 +97,7 @@ export default function AuthScreen() {
                 if (localUser.passcode === passcode.trim()) {
                     await login(localUser.id);
                     await initDb();
-                    router.replace("/");
+                    // Redirection handled by _layout.tsx based on activeUserId state
                     return;
                 } else {
                     Alert.alert("Error", "Incorrect PIN");
@@ -120,7 +120,7 @@ export default function AuthScreen() {
                     await saveUserProfile(cloudUser.name, false, 0, cloudUser.id);
                     
                     await login(cloudUser.id);
-                    router.replace("/");
+                    // Redirection handled by _layout.tsx based on activeUserId state
                     return;
                 } else {
                     Alert.alert("Error", "Incorrect PIN for this cloud account");

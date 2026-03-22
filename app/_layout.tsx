@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text } from "react-native";
+import { View, Text, Platform } from "react-native";
 import { initMasterDb, initDb } from "../utils/db";
 import { PaperProvider } from "react-native-paper";
 import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
@@ -28,9 +28,17 @@ function MainLayout() {
     const inAuthGroup = segments[0] === 'auth';
     
     if (!activeUserId && !inAuthGroup) {
-      router.replace('/auth');
+      if (Platform.OS === 'web') {
+        setTimeout(() => router.replace('/auth'), 0);
+      } else {
+        router.replace('/auth');
+      }
     } else if (activeUserId && inAuthGroup) {
-      router.replace('/');
+      if (Platform.OS === 'web') {
+        setTimeout(() => router.replace('/'), 0);
+      } else {
+        router.replace('/');
+      }
     }
   }, [activeUserId, isLoading, segments, navigationState?.key]);
 
