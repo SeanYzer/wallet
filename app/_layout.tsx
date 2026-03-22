@@ -12,6 +12,7 @@ import { LanguageProvider } from "../context/LanguageContext";
 import { PasscodeProvider, usePasscode } from "../context/PasscodeContext";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import PasscodeScreen from "./passcode-screen";
+import { DbRecoveryProvider } from "../context/DbRecoveryContext";
 
 function MainLayout() {
   const { theme } = useAppTheme();
@@ -116,24 +117,26 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <AuthProvider>
-          <PasscodeProvider>
-            <CurrencyProvider>
-              <AuthLoader>
-                <UserProfileProvider>
-                  <CategoriesProvider>
-                    <TransactionsProvider>
-                      <MainLayout />
-                    </TransactionsProvider>
-                  </CategoriesProvider>
-                </UserProfileProvider>
-              </AuthLoader>
-            </CurrencyProvider>
-          </PasscodeProvider>
-        </AuthProvider>
-      </LanguageProvider>
-    </ThemeProvider>
+    <DbRecoveryProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <PasscodeProvider>
+              <CurrencyProvider>
+                <AuthLoader>
+                  <UserProfileProvider>
+                    <CategoriesProvider>
+                      <TransactionsProvider>
+                        <MainLayout />
+                      </TransactionsProvider>
+                    </CategoriesProvider>
+                  </UserProfileProvider>
+                </AuthLoader>
+              </CurrencyProvider>
+            </PasscodeProvider>
+          </AuthProvider>
+        </LanguageProvider>
+      </ThemeProvider>
+    </DbRecoveryProvider>
   );
 }
