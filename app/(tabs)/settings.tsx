@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Alert } from "react-native";
+import { View, ScrollView, Alert, Platform } from "react-native";
 import { Appbar, List, RadioButton, Text, Card, Switch, Divider, Button, Avatar, Portal, Dialog, TextInput, useTheme as usePaperTheme } from "react-native-paper";
 import { useRouter } from "expo-router";
 import * as FileSystem from "expo-file-system/legacy";
@@ -261,70 +261,106 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleRestoreFromCloud = async () => {
-    Alert.alert(
-      "Restore from Cloud",
-      "This will overwrite all your local data with the data from your cloud backup. Are you sure?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Restore",
-          style: "destructive",
-          onPress: async () => {
-            setIsSyncing(true);
-            try {
-              console.log("Starting cloud restore for user:", activeUserId);
-              // Fetch all to catch legacy data (missing userId)
-              const [txRes, catRes, profRes] = await Promise.all([
-                fetch(`${API_URL}/transactions`),
-                fetch(`${API_URL}/categories`),
-                fetch(`${API_URL}/userProfiles`)
-              ]);
-              
-              if (!txRes.ok || !catRes.ok || !profRes.ok) {
-                console.error("Cloud restore network error:", { tx: txRes.status, cat: catRes.status, prof: profRes.status });
-                alert("Could not connect to the cloud API correctly.");
-                return;
-              }
+  const performRestore = async () => {
+    setIsSyncing(true);
+    try {
+      console.log("[Restore] Starting cloud restore for user:", activeUserId);
+      console.log("[Restore] API URL:", API_URL);
+      
+      // Fetch all to catch legacy data (missing userId)
+      const [txRes, catRes, profRes] = await Promise.all([
+        fetch(`${API_URL}/transactions`),
+        fetch(`${API_URL}/categories`),
+        fetch(`${API_URL}/userProfiles`)
+      ]);
+      
+      console.log("[Restore] Network status:", { 
+        txs: txRes.status, 
+        cats: catRes.status, 
+        profs: profRes.status 
+      });
 
-              const allTxs = await txRes.json();
-              const allCats = await catRes.json();
-              const allProfs = await profRes.json();
+      if (!txRes.ok || !catRes.ok || !profRes.ok) {
+        console.error("[Restore] Cloud restore network error.");
+        alert("Could not connect to the cloud API. Please check your connection.");
+        return;
+      }
 
-              // Filter strictly for this user as requested
-              const remoteTxs = Array.isArray(allTxs) ? allTxs.filter((t: any) => String(t.userId) === String(activeUserId)) : [];
-              const remoteCats = Array.isArray(allCats) ? allCats.filter((c: any) => String(c.userId) === String(activeUserId)) : [];
-              const remoteProf = Array.isArray(allProfs) ? allProfs.find((p: any) => String(p.userId) === String(activeUserId)) : null;
-              
-              console.log("Filter results:", { txs: remoteTxs.length, cats: remoteCats.length, prof: !!remoteProf });
+      const allTxs = await txRes.json();
+      const allCats = await catRes.json();
+      const allProfs = await profRes.json();
 
-              const cloudJson = JSON.stringify({
-                  profile: remoteProf,
-                  categories: remoteCats,
-                  transactions: remoteTxs,
-                  settings: { autoBackup: "true" }
-              });
-              
-              await importData(cloudJson);
-              
-              // 5. Trigger automatic UI refresh
-              await Promise.all([
-                  refetchTx(),
-                  refetchCats(),
-                  refetchProfile()
-              ]);
+      console.log("[Restore] Raw data received:", {
+        txs: Array.isArray(allTxs) ? allTxs.length : "error",
+        cats: Array.isArray(allCats) ? allCats.length : "error",
+        profs: Array.isArray(allProfs) ? allProfs.length : "error"
+      });
 
-              alert("Cloud data restored locally and UI refreshed!");
-            } catch (e) {
-              console.error(e);
-              alert("Restore failed. Make sure the API is online.");
-            } finally {
-              setIsSyncing(false);
-            }
+      // Filter strictly for this user as requested
+      const remoteTxs = Array.isArray(allTxs) ? allTxs.filter((t: any) => String(t.userId) === String(activeUserId)) : [];
+      const remoteCats = Array.isArray(allCats) ? allCats.filter((c: any) => String(c.userId) === String(activeUserId)) : [];
+      const remoteProf = Array.isArray(allProfs) ? allProfs.find((p: any) => String(p.userId) === String(activeUserId)) : null;
+      
+      console.log("[Restore] Filtered data:", { 
+        txs: remoteTxs.length, 
+        cats: remoteCats.length, 
+        profFound: !!remoteProf 
+      });
+
+      const currentSettings = { autoBackup: autoBackup.toString() };
+      const cloudJson = JSON.stringify({
+          profile: remoteProf,
+          categories: remoteCats,
+          transactions: remoteTxs,
+          settings: currentSettings
+      });
+      
+      await importData(cloudJson);
+      
+      // 5. Trigger automatic UI refresh
+      // On Web, AsyncStorage can sometimes be slightly asynchronous even after resolving.
+      // A small delay ensures the contexts read the freshly imported data.
+      if (Platform.OS === 'web') {
+          console.log("[Restore] Web platform detected, applying settling delay...");
+          await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      await Promise.all([
+          refetchTx(),
+          refetchCats(),
+          refetchProfile()
+      ]);
+
+      alert("Cloud data restored locally and UI refreshed!");
+    } catch (e) {
+      console.error(e);
+      alert("Restore failed. Make sure the API is online.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleRestoreFromCloud = () => {
+    console.log("[Restore] Button clicked. Platform:", Platform.OS);
+    if (Platform.OS === 'web') {
+      const confirm = window.confirm("This will overwrite all your local data with the data from your cloud backup. Are you sure?");
+      if (confirm) {
+        performRestore();
+      }
+    } else {
+      Alert.alert(
+        "Restore from Cloud",
+        "This will overwrite all your local data with the data from your cloud backup. Are you sure?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Restore", 
+            style: "destructive", 
+            onPress: performRestore 
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   return (

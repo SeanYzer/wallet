@@ -48,7 +48,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
 
       // 2. Background Sync if enabled
       const autoBackup = await getSetting('autoBackup');
-      if (autoBackup === 'true' && activeUserId) {
+      if (autoBackup !== 'false' && activeUserId) {
         const response = await fetch(`${API_URL}/categories?userId=${activeUserId}`);
         if (response.ok) {
             const remoteData = await response.json();
@@ -80,7 +80,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
       setCategories((prev) => [...prev, newCategory]);
       
       const autoBackup = await getSetting('autoBackup');
-      if (autoBackup === 'true') {
+      if (autoBackup !== 'false') {
         fetch(`${API_URL}/categories`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -98,7 +98,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
       setCategories((prev) => prev.filter((c) => c.id !== id));
       
       const autoBackup = await getSetting('autoBackup');
-      if (autoBackup === 'true') {
+      if (autoBackup !== 'false') {
         fetch(`${API_URL}/categories/${id}`, {
           method: "DELETE",
         }).catch(err => console.error("Sync error:", err));

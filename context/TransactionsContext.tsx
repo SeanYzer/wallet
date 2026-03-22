@@ -36,7 +36,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
             // 2. Background Sync if enabled (if not on web, or even on web)
             const autoBackup = await getSetting('autoBackup');
-            if (autoBackup === 'true' && activeUserId) {
+            if (autoBackup !== 'false' && activeUserId) {
                 const response = await fetch(`${API_URL}/transactions?userId=${activeUserId}`);
                 if (response.ok) {
                     const remoteData = await response.json();
@@ -62,7 +62,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             setTransactions((prev) => [...prev, newTransaction]);
             
             const autoBackup = await getSetting('autoBackup');
-            if (autoBackup === 'true') {
+            if (autoBackup !== 'false') {
                 fetch(`${API_URL}/transactions`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -81,7 +81,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
             
             const autoBackup = await getSetting('autoBackup');
-            if (autoBackup === 'true') {
+            if (autoBackup !== 'false') {
                 fetch(`${API_URL}/transactions/${id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -100,7 +100,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             setTransactions((prev) => prev.filter((t) => t.id !== id));
             
             const autoBackup = await getSetting('autoBackup');
-            if (autoBackup === 'true') {
+            if (autoBackup !== 'false') {
                 fetch(`${API_URL}/transactions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
             }
         } catch (error) {
