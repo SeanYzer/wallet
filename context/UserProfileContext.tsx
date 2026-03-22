@@ -52,6 +52,25 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                     });
                     await saveUserProfile(cloudProfile.name, cloudProfile.isFirstRun, cloudProfile.initialBalance);
                 } else {
+                    // Try to fetch account name as fallback from the main /users table
+                    const userRes = await fetch(`${API_URL}/users/${activeUserId}`);
+                    if (userRes.ok) {
+                        const userData = await userRes.json();
+                        if (userData && userData.name) {
+                            const newProfile = { name: userData.name, isFirstRun: false, initialBalance: 0 };
+                            setProfile(newProfile);
+                            await saveUserProfile(newProfile.name, false, 0);
+                            
+                            // Self-heal the cloud by POSTing the missing profile
+                            fetch(`${API_URL}/userProfiles`, { 
+                                method: "POST", 
+                                headers: {"Content-Type":"application/json"}, 
+                                body: JSON.stringify({...newProfile, userId: activeUserId})
+                            }).catch(()=>{});
+                            return;
+                        }
+                    }
+
                     // No cloud profile, set default for first run
                     setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
                 }

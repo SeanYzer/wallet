@@ -16,6 +16,8 @@ import { ChartCard } from "../../components/ChartCard";
 import { TransactionList } from "../../components/TransactionList";
 import { FinancialTip } from "../../components/FinancialTip";
 import { BudgetCard } from "../../components/BudgetCard";
+import { DashboardSkeleton } from "../../components/SkeletonLoader";
+
 
 export default function Dashboard() {
   const router = useRouter();
@@ -41,20 +43,8 @@ export default function Dashboard() {
 
   if (!activeUserId) return null; // Let AuthLoader handle redirection
 
-  if (profileLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
-  if (loading && transactions.length === 0 && budgets.length === 0) {
-    return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
+  if (profileLoading || (loading && transactions.length === 0 && budgets.length === 0)) {
+    return <DashboardSkeleton />;
   }
 
   const currentMonth = new Date().toISOString().slice(0, 7);

@@ -66,6 +66,13 @@ export default function AuthScreen() {
             await initDb(newId);
             await saveUserProfile(name.trim(), false, 0, newId);
             
+            // Push initial profile to cloud as well so it doesn't get wiped on restore
+            await fetch(`${API_URL}/userProfiles`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: name.trim(), isFirstRun: false, initialBalance: 0, userId: newId }),
+            }).catch(() => {});
+            
             await login(newId);
             router.replace("/");
         } catch (e) {
