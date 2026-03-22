@@ -133,6 +133,38 @@
       },
       "paymentMethod": "Visa Card",
       "userId": "1774183113299"
+    },
+    {
+      "id": "1774183141899",
+      "amount": 5000,
+      "date": "2026-03-22T12:38:53.229Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "6",
+        "name": "Salary",
+        "type": "income"
+      },
+      "paymentMethod": "Cash",
+      "userId": "1774183113299",
+      "receiptUrl": null,
+      "categoryId": "6"
+    },
+    {
+      "id": "1774183311724",
+      "amount": 50000,
+      "date": "2026-03-22T12:41:43.171Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "7",
+        "name": "Freelance",
+        "type": "income"
+      },
+      "paymentMethod": "Visa Card",
+      "userId": "1774183113299",
+      "receiptUrl": null,
+      "categoryId": "7"
     }
   ],
   "budgets": [
@@ -143,7 +175,62 @@
       "month": "2026-03"
     }
   ],
-  "categories": [],
+  "categories": [
+    {
+      "id": "1",
+      "name": "Food",
+      "type": "expense",
+      "userId": "1774183113299"
+    },
+    {
+      "id": "2",
+      "name": "Bills",
+      "type": "expense",
+      "userId": "1774183113299"
+    },
+    {
+      "id": "3",
+      "name": "Transport",
+      "type": "expense",
+      "userId": "1774183113299"
+    },
+    {
+      "id": "4",
+      "name": "Shopping",
+      "type": "expense",
+      "userId": "1774183113299"
+    },
+    {
+      "id": "5",
+      "name": "Entertainment",
+      "type": "expense",
+      "userId": "1774183113299"
+    },
+    {
+      "id": "6",
+      "name": "Salary",
+      "type": "income",
+      "userId": "1774183113299"
+    },
+    {
+      "id": "7",
+      "name": "Freelance",
+      "type": "income",
+      "userId": "1774183113299"
+    },
+    {
+      "id": "8",
+      "name": "Others",
+      "type": "expense",
+      "userId": "1774183113299"
+    },
+    {
+      "id": "9",
+      "name": "Others",
+      "type": "income",
+      "userId": "1774183113299"
+    }
+  ],
   "agendas": [
     {
       "id": "1773823532949",

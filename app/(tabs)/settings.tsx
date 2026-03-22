@@ -61,7 +61,7 @@ export default function SettingsScreen() {
     await setSetting('autoBackup', val.toString());
   };
 
-  const handeManualBackup = async () => {
+  const handleManualBackup = async () => {
     setIsSyncing(true);
     try {
       const txs = await getTransactions();
@@ -468,13 +468,17 @@ export default function SettingsScreen() {
 
             <Divider style={{ marginVertical: 8 }} />
 
-            <Button mode="outlined" icon="backup-restore" onPress={handeManualBackup} loading={isSyncing} disabled={isSyncing} style={{ marginVertical: 4 }}>
-               Backup Data to Cloud API Now
-            </Button>
+            {!autoBackup && (
+              <Button mode="outlined" icon="backup-restore" onPress={handleManualBackup} loading={isSyncing} disabled={isSyncing} style={{ marginVertical: 4 }}>
+                 Backup Data to Cloud API Now
+              </Button>
+            )}
 
-            <Button mode="outlined" icon="cloud-download" onPress={handleRestoreFromCloud} loading={isSyncing} disabled={isSyncing} style={{ marginVertical: 4 }}>
-               Restore Data from Cloud API
-            </Button>
+            {!autoBackup && (
+              <Button mode="outlined" icon="cloud-download" onPress={handleRestoreFromCloud} loading={isSyncing} disabled={isSyncing} style={{ marginVertical: 4 }}>
+                 Restore Data from Cloud API
+              </Button>
+            )}
 
             <Button mode="outlined" icon="file-export" onPress={handleExportJSON} style={{ marginVertical: 4 }}>
                Export Data (JSON)
