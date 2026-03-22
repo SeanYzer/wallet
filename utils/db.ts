@@ -127,6 +127,21 @@ export const saveCategory = async (category: Category) => {
   await setItem(fullKey, items);
 };
 
+export const saveCategoriesBulk = async (categories: Category[]) => {
+  const fullKey = await getPrefixedKey('categories');
+  const items = await getCategories();
+  
+  for (const cat of categories) {
+    const index = items.findIndex(c => String(c.id) === String(cat.id));
+    if (index >= 0) {
+      items[index] = cat;
+    } else {
+      items.push(cat);
+    }
+  }
+  await setItem(fullKey, items);
+};
+
 export const deleteCategoryLocal = async (id: string) => {
   const fullKey = await getPrefixedKey('categories');
   const items = await getCategories();
@@ -156,6 +171,25 @@ export const saveTransaction = async (t: Transaction) => {
     items[index] = sanitized;
   } else {
     items.push(sanitized);
+  }
+  await setItem(fullKey, items);
+};
+
+export const saveTransactionsBulk = async (transactions: Transaction[]) => {
+  const fullKey = await getPrefixedKey('transactions');
+  const items = await getTransactions();
+  
+  for (const t of transactions) {
+     const index = items.findIndex(x => String(x.id) === String(t.id));
+     const sanitized = { ...t };
+     if (sanitized.note === undefined) sanitized.note = null as any;
+     if (sanitized.receiptUrl === undefined) sanitized.receiptUrl = null as any;
+     
+     if (index >= 0) {
+       items[index] = sanitized;
+     } else {
+       items.push(sanitized);
+     }
   }
   await setItem(fullKey, items);
 };

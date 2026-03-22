@@ -12,16 +12,20 @@ import { useAppTheme } from "../../context/ThemeContext";
 import { useUserProfile } from "../../context/UserProfileContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { usePasscode } from "../../context/PasscodeContext";
+import { useTransactionsContext } from "../../context/TransactionsContext";
+import { useCategories } from "../../context/CategoriesContext";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const paperTheme = usePaperTheme();
   const { currency, setCurrency, decimalPlaces, setDecimalPlaces } = useCurrency();
   const { theme, isDarkMode, toggleTheme } = useAppTheme();
-  const { profile } = useUserProfile();
+  const { profile, refetch: refetchProfile } = useUserProfile();
   const { language, setLanguage, t } = useLanguage();
   const { isPasscodeEnabled, setIsPasscodeEnabled, passcode, setPasscode, setIsUnlocked } = usePasscode();
   const { activeUserId, logout } = useAuth();
+  const { refetch: refetchTx } = useTransactionsContext();
+  const { refetch: refetchCats } = useCategories();
 
   const handleLogout = async () => {
       await logout();
@@ -104,14 +108,58 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleClearData = () => {
-    // We check against the user's logged-in master passcode. If not loaded, fallback carefully.
-    // In a multi-user environment, we should verify against master.db, but for pragmatism we accept defaults if un-loaded.
+  const handleClearData = async () => {
     if (pinInput === (passcode || "1234")) {
-      clearAllLocalData().then(() => {
-         setShowPinPrompt(false);
-         router.replace("/");
-      });
+      setIsSyncing(true);
+      try {
+        if (activeUserId) {
+          console.log("Syncing Clear Data to cloud for user:", activeUserId);
+          // 1. Fetch user data from cloud
+          const [txRes, catRes, profRes] = await Promise.all([
+            fetch(`${API_URL}/transactions?userId=${activeUserId}`),
+            fetch(`${API_URL}/categories?userId=${activeUserId}`),
+            fetch(`${API_URL}/userProfiles?userId=${activeUserId}`)
+          ]);
+
+          const [txs, cats, profs] = await Promise.all([
+            txRes.json(),
+            catRes.json(),
+            profRes.json()
+          ]);
+
+          // 2. Delete all from cloud
+          const deletePromises = [
+            ...(Array.isArray(txs) ? txs.map(t => fetch(`${API_URL}/transactions/${t.id}`, { method: "DELETE" })) : []),
+            ...(Array.isArray(cats) ? cats.map(c => fetch(`${API_URL}/categories/${c.id}`, { method: "DELETE" })) : []),
+            ...(Array.isArray(profs) ? profs.map(p => fetch(`${API_URL}/userProfiles/${p.id}`, { method: "DELETE" })) : [])
+          ];
+
+          await Promise.all(deletePromises);
+          console.log("Cloud data cleared successfully");
+        }
+
+        // 3. Clear local
+        await clearAllLocalData();
+        setShowPinPrompt(false);
+        setPinInput("");
+        
+        // 4. Refresh UI
+        await Promise.all([
+          refetchTx(),
+          refetchCats(),
+          refetchProfile()
+        ]);
+        
+        alert("All local and cloud data has been cleared.");
+        router.replace("/");
+      } catch (e) {
+        console.error("Clear data sync failed:", e);
+        alert("Cleared local data, but cloud sync failed. Check your connection.");
+        await clearAllLocalData();
+        router.replace("/");
+      } finally {
+        setIsSyncing(false);
+      }
     } else {
       alert("Incorrect PIN");
     }
@@ -157,25 +205,57 @@ export default function SettingsScreen() {
         { 
           text: "Delete", 
           style: "destructive", 
-          onPress: async () => {
-             if (activeUserId) {
-                // 1. Attempt to clear cloud data
-                try {
-                  await fetch(`${API_URL}/userProfile/${activeUserId}`, { method: "DELETE" });
-                  // Note: In real API we'd delete all related transactions/categories too
-                } catch(e) {}
-                
-                // 2. Clear local tables (except master)
-                await clearAllLocalData();
-                
-                // 3. Remove from master.db
-                await deleteUser(activeUserId);
-                
-                // 4. Logout and redirect
-                await logout();
-                router.replace("/auth");
-             }
+        onPress: async () => {
+          if (activeUserId) {
+            setIsSyncing(true);
+            try {
+              // 1. Fetch user data from cloud to get IDs
+              const [txRes, catRes, profRes] = await Promise.all([
+                fetch(`${API_URL}/transactions?userId=${activeUserId}`),
+                fetch(`${API_URL}/categories?userId=${activeUserId}`),
+                fetch(`${API_URL}/userProfiles?userId=${activeUserId}`)
+              ]);
+
+              const [txs, cats, profs] = await Promise.all([
+                txRes.json(),
+                catRes.json(),
+                profRes.json()
+              ]);
+
+              // 2. Delete all from cloud
+              const deletePromises = [
+                ...(Array.isArray(txs) ? txs.map(t => fetch(`${API_URL}/transactions/${t.id}`, { method: "DELETE" })) : []),
+                ...(Array.isArray(cats) ? cats.map(c => fetch(`${API_URL}/categories/${c.id}`, { method: "DELETE" })) : []),
+                ...(Array.isArray(profs) ? profs.map(p => fetch(`${API_URL}/userProfiles/${p.id}`, { method: "DELETE" })) : []),
+                // Also delete from /users if applicable
+                fetch(`${API_URL}/users/${activeUserId}`, { method: "DELETE" }).catch(() => {})
+              ];
+
+              await Promise.all(deletePromises);
+              console.log("Cloud account data cleared successfully");
+              
+              // 3. Clear local tables (except master)
+              await clearAllLocalData();
+              
+              // 4. Remove from master.db
+              await deleteUser(activeUserId);
+              
+              // 5. Logout and redirect
+              await logout();
+              router.replace("/auth");
+              alert("Account and all associated data deleted successfully.");
+            } catch (e) {
+              console.error("Delete account sync failed:", e);
+              alert("Failed to fully clear cloud data. Account was deleted locally.");
+              await clearAllLocalData();
+              await deleteUser(activeUserId);
+              await logout();
+              router.replace("/auth");
+            } finally {
+              setIsSyncing(false);
+            }
           }
+        }
         }
       ]
     );
@@ -193,31 +273,48 @@ export default function SettingsScreen() {
           onPress: async () => {
             setIsSyncing(true);
             try {
+              console.log("Starting cloud restore for user:", activeUserId);
+              // Fetch all to catch legacy data (missing userId)
               const [txRes, catRes, profRes] = await Promise.all([
-                fetch(`${API_URL}/transactions?userId=${activeUserId}`),
-                fetch(`${API_URL}/categories?userId=${activeUserId}`),
-                fetch(`${API_URL}/userProfiles?userId=${activeUserId}`)
+                fetch(`${API_URL}/transactions`),
+                fetch(`${API_URL}/categories`),
+                fetch(`${API_URL}/userProfiles`)
               ]);
               
               if (!txRes.ok || !catRes.ok || !profRes.ok) {
+                console.error("Cloud restore network error:", { tx: txRes.status, cat: catRes.status, prof: profRes.status });
                 alert("Could not connect to the cloud API correctly.");
                 return;
               }
 
-              const remoteTxs = await txRes.json();
-              const remoteCats = await catRes.json();
-              const remoteProf = await profRes.json();
-              const remoteUserProfile = remoteProf.length > 0 ? remoteProf[0] : null;
+              const allTxs = await txRes.json();
+              const allCats = await catRes.json();
+              const allProfs = await profRes.json();
+
+              // Filter strictly for this user as requested
+              const remoteTxs = Array.isArray(allTxs) ? allTxs.filter((t: any) => String(t.userId) === String(activeUserId)) : [];
+              const remoteCats = Array.isArray(allCats) ? allCats.filter((c: any) => String(c.userId) === String(activeUserId)) : [];
+              const remoteProf = Array.isArray(allProfs) ? allProfs.find((p: any) => String(p.userId) === String(activeUserId)) : null;
               
+              console.log("Filter results:", { txs: remoteTxs.length, cats: remoteCats.length, prof: !!remoteProf });
+
               const cloudJson = JSON.stringify({
-                  profile: remoteUserProfile,
+                  profile: remoteProf,
                   categories: remoteCats,
                   transactions: remoteTxs,
                   settings: { autoBackup: "true" }
               });
               
               await importData(cloudJson);
-              alert("Cloud data restored locally. Please switch tabs to refresh.");
+              
+              // 5. Trigger automatic UI refresh
+              await Promise.all([
+                  refetchTx(),
+                  refetchCats(),
+                  refetchProfile()
+              ]);
+
+              alert("Cloud data restored locally and UI refreshed!");
             } catch (e) {
               console.error(e);
               alert("Restore failed. Make sure the API is online.");

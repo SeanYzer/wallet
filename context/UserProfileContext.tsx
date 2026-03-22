@@ -14,6 +14,7 @@ interface UserProfile {
     profile: UserProfile | null;
     isLoading: boolean;
     completeSetup: (name: string) => Promise<void>;
+    refetch: () => Promise<void>;
 }
 
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
@@ -109,7 +110,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <UserProfileContext.Provider value={{ profile, isLoading, completeSetup }}>
+        <UserProfileContext.Provider value={{ profile, isLoading, completeSetup, refetch: fetchProfile }}>
             {children}
         </UserProfileContext.Provider>
     );

@@ -1,4 +1,4 @@
-import { View, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
+import { View, ActivityIndicator, ScrollView, TouchableOpacity, Platform } from "react-native";
 import { FAB, Appbar, Text, Button, Card, IconButton } from "react-native-paper";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useRouter, useFocusEffect, Redirect } from "expo-router";
@@ -98,11 +98,16 @@ export default function Dashboard() {
                 justifyContent: "center",
                 alignItems: "center",
                 marginBottom: 8,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.05,
-                shadowRadius: 4,
-                elevation: 2
+                ...Platform.select({
+                  web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)' },
+                  default: {
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 4,
+                    elevation: 2
+                  }
+                })
               }}>
                 <MaterialCommunityIcons name={item.icon as any} size={26} color={theme.colors.primary} />
               </View>

@@ -35,6 +35,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
   const fetchCategories = async () => {
     setLoading(true);
     try {
+      // 1. Initial Load from Local
       let data = await getCategories();
       if (data.length === 0) {
         // Seed database
@@ -44,9 +45,24 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
         data = await getCategories();
       }
       setCategories(data);
+
+      // 2. Background Sync if enabled
+      const autoBackup = await getSetting('autoBackup');
+      if (autoBackup === 'true' && activeUserId) {
+        const response = await fetch(`${API_URL}/categories?userId=${activeUserId}`);
+        if (response.ok) {
+            const remoteData = await response.json();
+            if (Array.isArray(remoteData) && remoteData.length > 0) {
+                const { saveCategoriesBulk, getCategories: getLatest } = await import("../utils/db");
+                await saveCategoriesBulk(remoteData);
+                const mergedData = await getLatest();
+                setCategories(mergedData);
+            }
+        }
+      }
     } catch (error) {
       console.error("Error fetching categories from DB:", error);
-      setCategories(DEFAULT_CATEGORIES);
+      if (categories.length === 0) setCategories(DEFAULT_CATEGORIES);
     } finally {
       setLoading(false);
     }

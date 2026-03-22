@@ -128,10 +128,15 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         padding: 24,
         elevation: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        ...Platform.select({
+            web: { boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.3)" },
+            default: {
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+            }
+        })
     },
     cardTitle: {
         fontSize: 20,

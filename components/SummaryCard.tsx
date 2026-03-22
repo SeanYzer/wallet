@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { View, Platform } from "react-native";
 import { Card, Text } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
@@ -34,10 +34,15 @@ export function SummaryCard({ transactions }: { transactions: Transaction[] }) {
           borderRadius: 24,
           padding: 24,
           elevation: 8,
-          shadowColor: theme.colors.primary,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
+          ...Platform.select({
+            web: { boxShadow: `0px 4px 12px ${theme.colors.primary}4D` }, // 4D = 0.3 opacity
+            default: {
+              shadowColor: theme.colors.primary,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 12,
+            }
+          })
         }}
       >
         <Text variant="labelMedium" style={{ color: "#fff", opacity: 0.7, textAlign: "center", letterSpacing: 1, fontWeight: "600" }}>

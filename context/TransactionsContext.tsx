@@ -30,8 +30,24 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     const fetchTransactions = async () => {
         setLoading(true);
         try {
-            const data = await getTransactions();
-            setTransactions(data);
+            // 1. Initial Load from Local
+            const localData = await getTransactions();
+            setTransactions(localData);
+
+            // 2. Background Sync if enabled (if not on web, or even on web)
+            const autoBackup = await getSetting('autoBackup');
+            if (autoBackup === 'true' && activeUserId) {
+                const response = await fetch(`${API_URL}/transactions?userId=${activeUserId}`);
+                if (response.ok) {
+                    const remoteData = await response.json();
+                    if (Array.isArray(remoteData)) {
+                        const { saveTransactionsBulk, getTransactions: getLatest } = await import("../utils/db");
+                        await saveTransactionsBulk(remoteData);
+                        const mergedData = await getLatest();
+                        setTransactions(mergedData);
+                    }
+                }
+            }
         } catch (error) {
             console.error("Error fetching transactions:", error);
         } finally {

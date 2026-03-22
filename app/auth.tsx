@@ -232,7 +232,21 @@ const styles = StyleSheet.create({
     container: { padding: 24 },
     appName: { fontSize: 36, fontWeight: "bold", color: "#fff", textAlign: 'center', marginBottom: 8 },
     tagline: { fontSize: 16, color: "rgba(255,255,255,0.7)", textAlign: 'center', marginBottom: 32 },
-    card: { backgroundColor: '#fff', borderRadius: 24, padding: 8, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+    card: { 
+        backgroundColor: '#fff', 
+        borderRadius: 24, 
+        padding: 8, 
+        elevation: 8, 
+        ...Platform.select({
+            web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)' },
+            default: {
+                shadowColor: '#000', 
+                shadowOffset: { width: 0, height: 4 }, 
+                shadowOpacity: 0.2, 
+                shadowRadius: 8 
+            }
+        })
+    },
     createBtn: { marginTop: 20, marginBottom: 8, borderRadius: 12, paddingVertical: 4, backgroundColor: '#3949ab' },
     input: { marginBottom: 12, backgroundColor: '#fff' },
     listItem: { borderBottomWidth: 1, borderBottomColor: '#f0f0f0', paddingVertical: 8 }

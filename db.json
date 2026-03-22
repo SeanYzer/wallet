@@ -13,13 +13,6 @@
       "initialBalance": 0,
       "userId": "1774108916386",
       "id": "4386"
-    },
-    {
-      "id": "2eca",
-      "isFirstRun": false,
-      "name": "nin",
-      "initialBalance": 0,
-      "userId": "1774109463750"
     }
   ],
   "transactions": [
@@ -106,1063 +99,174 @@
       "establishment": "Initial funding "
     },
     {
-      "id": "1774109780661",
-      "amount": 1250,
-      "date": "2026-03-21T16:16:10.357Z",
-      "note": "",
-      "type": "expense",
-      "category": {
-        "id": "3",
-        "name": "Transport",
-        "type": "expense"
-      },
-      "paymentMethod": "Cash",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110502496",
-      "amount": 4000,
-      "date": "2026-03-21T16:28:13.545Z",
-      "note": "",
-      "type": "income",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "paymentMethod": "Cash",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110531041",
-      "amount": 5000,
-      "date": "2026-03-21T16:28:34.799Z",
-      "note": "",
-      "type": "expense",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "paymentMethod": "Cash",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110548939",
-      "amount": 50000,
-      "date": "2026-03-21T16:28:57.444Z",
-      "note": "",
-      "type": "income",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "paymentMethod": "Cash",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110574889",
-      "amount": 50000,
-      "date": "2026-03-21T16:29:25.181Z",
+      "id": "1774182072067",
+      "amount": 1000,
+      "date": "2026-03-22T12:21:01.273Z",
       "note": "",
       "type": "income",
       "category": {
         "id": "7",
         "name": "Freelance",
-        "type": "income"
-      },
-      "paymentMethod": "Cash",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110917068",
-      "amount": 55888,
-      "date": "2026-03-21T16:35:06.312Z",
-      "note": "",
-      "type": "expense",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "paymentMethod": "Cash",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774109780661",
-      "amount": 1250,
-      "categoryId": "3",
-      "category": {
-        "id": "3",
-        "name": "Transport",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:16:10.357Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110502496",
-      "amount": 4000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:13.545Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110531041",
-      "amount": 5000,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:28:34.799Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110548939",
-      "amount": 50000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:57.444Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110574889",
-      "amount": 50000,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:29:25.181Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774109780661",
-      "amount": 1250,
-      "categoryId": "3",
-      "category": {
-        "id": "3",
-        "name": "Transport",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:16:10.357Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110502496",
-      "amount": 4000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:13.545Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110531041",
-      "amount": 5000,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:28:34.799Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110548939",
-      "amount": 50000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:57.444Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110574889",
-      "amount": 50000,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:29:25.181Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774109780661",
-      "amount": 1250,
-      "categoryId": "3",
-      "category": {
-        "id": "3",
-        "name": "Transport",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:16:10.357Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110502496",
-      "amount": 4000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:13.545Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110531041",
-      "amount": 5000,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:28:34.799Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110548939",
-      "amount": 50000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:57.444Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110574889",
-      "amount": 50000,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:29:25.181Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774109780661",
-      "amount": 1250,
-      "categoryId": "3",
-      "category": {
-        "id": "3",
-        "name": "Transport",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:16:10.357Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110502496",
-      "amount": 4000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:13.545Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110531041",
-      "amount": 5000,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:28:34.799Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110548939",
-      "amount": 50000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:57.444Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110574889",
-      "amount": 50000,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:29:25.181Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110917068",
-      "amount": 55888,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:35:06.312Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774109780661",
-      "amount": 1250,
-      "categoryId": "3",
-      "category": {
-        "id": "3",
-        "name": "Transport",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:16:10.357Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110502496",
-      "amount": 4000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:13.545Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110531041",
-      "amount": 5000,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:28:34.799Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110548939",
-      "amount": 50000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:57.444Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110574889",
-      "amount": 50000,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:29:25.181Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774111454848",
-      "amount": 1008,
-      "date": "2026-03-21T16:44:00.341Z",
-      "note": "",
-      "type": "expense",
-      "category": {
-        "id": "2",
-        "name": "Bills",
-        "type": "expense"
-      },
-      "paymentMethod": "BPI Debit",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774111725047",
-      "amount": 10000,
-      "date": "2026-03-21T16:48:36.909Z",
-      "note": "",
-      "type": "expense",
-      "category": {
-        "id": "4",
-        "name": "Shopping",
-        "type": "expense"
-      },
-      "paymentMethod": "Cash",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110917068",
-      "amount": 55888,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:35:06.312Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774109780661",
-      "amount": 1250,
-      "categoryId": "3",
-      "category": {
-        "id": "3",
-        "name": "Transport",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:16:10.357Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110502496",
-      "amount": 4000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:13.545Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110531041",
-      "amount": 5000,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:28:34.799Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110548939",
-      "amount": 50000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:57.444Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110574889",
-      "amount": 50000,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:29:25.181Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774111454848",
-      "amount": 1008,
-      "categoryId": "2",
-      "category": {
-        "id": "2",
-        "name": "Bills",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:44:00.341Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "BPI Debit",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774111725047",
-      "amount": 10000,
-      "categoryId": "4",
-      "category": {
-        "id": "4",
-        "name": "Shopping",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:48:36.909Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110917068",
-      "amount": 55888,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:35:06.312Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774109780661",
-      "amount": 1250,
-      "categoryId": "3",
-      "category": {
-        "id": "3",
-        "name": "Transport",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:16:10.357Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110502496",
-      "amount": 4000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:13.545Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110531041",
-      "amount": 5000,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:28:34.799Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110548939",
-      "amount": 50000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:57.444Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110574889",
-      "amount": 50000,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:29:25.181Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774111454848",
-      "amount": 1008,
-      "categoryId": "2",
-      "category": {
-        "id": "2",
-        "name": "Bills",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:44:00.341Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "BPI Debit",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774111924742",
-      "amount": 50000,
-      "date": "2026-03-21T16:51:52.366Z",
-      "note": "",
-      "type": "income",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "paymentMethod": "Cash",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774111725047",
-      "amount": 10000,
-      "categoryId": "4",
-      "category": {
-        "id": "4",
-        "name": "Shopping",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:48:36.909Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110917068",
-      "amount": 55888,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:35:06.312Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774109780661",
-      "amount": 1250,
-      "categoryId": "3",
-      "category": {
-        "id": "3",
-        "name": "Transport",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:16:10.357Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110502496",
-      "amount": 4000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:13.545Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110531041",
-      "amount": 5000,
-      "categoryId": "1",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:28:34.799Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110548939",
-      "amount": 50000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:28:57.444Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774110574889",
-      "amount": 50000,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:29:25.181Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774111454848",
-      "amount": 1008,
-      "categoryId": "2",
-      "category": {
-        "id": "2",
-        "name": "Bills",
-        "type": "expense"
-      },
-      "date": "2026-03-21T16:44:00.341Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "expense",
-      "paymentMethod": "BPI Debit",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774111924742",
-      "amount": 50000,
-      "categoryId": "6",
-      "category": {
-        "id": "6",
-        "name": "Salary",
-        "type": "income"
-      },
-      "date": "2026-03-21T16:51:52.366Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "Cash",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774132453159",
-      "amount": 45435435,
-      "date": "2026-03-21T22:34:00.229Z",
-      "note": "",
-      "type": "income",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "paymentMethod": "UnionBank",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774132453159",
-      "amount": 45435435,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T22:34:00.229Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "UnionBank",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774132453159",
-      "amount": 45435435,
-      "categoryId": "7",
-      "category": {
-        "id": "7",
-        "name": "Freelance",
-        "type": "income"
-      },
-      "date": "2026-03-21T22:34:00.229Z",
-      "note": null,
-      "receiptUrl": null,
-      "type": "income",
-      "paymentMethod": "UnionBank",
-      "establishment": null,
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774178662735",
-      "amount": 100000,
-      "date": "2026-03-22T11:24:12.953Z",
-      "note": "",
-      "type": "expense",
-      "category": {
-        "id": "4",
-        "name": "Shopping",
-        "type": "expense"
-      },
-      "paymentMethod": "Cash",
-      "userId": "1774109463750"
-    },
-    {
-      "id": "1774180298217",
-      "amount": 15000000,
-      "date": "2026-03-22T11:51:26.688Z",
-      "note": "",
-      "type": "expense",
-      "category": {
-        "id": "1",
-        "name": "Food",
-        "type": "expense",
+        "type": "income",
         "userId": "1774109463750"
       },
       "paymentMethod": "Cash",
       "userId": "1774109463750"
+    },
+    {
+      "id": "1774182072067",
+      "amount": 1000,
+      "date": "2026-03-22T12:21:01.273Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "7",
+        "name": "Freelance",
+        "type": "income",
+        "userId": "1774109463750"
+      },
+      "paymentMethod": "Cash",
+      "userId": "1774109463750",
+      "receiptUrl": null,
+      "categoryId": "7"
+    },
+    {
+      "id": "1774182072067",
+      "amount": 1000,
+      "date": "2026-03-22T12:21:01.273Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "7",
+        "name": "Freelance",
+        "type": "income",
+        "userId": "1774109463750"
+      },
+      "paymentMethod": "Cash",
+      "userId": "1774109463750",
+      "receiptUrl": null,
+      "categoryId": "7"
+    },
+    {
+      "id": "1774182112672",
+      "amount": 200,
+      "date": "2026-03-22T12:21:43.180Z",
+      "note": "",
+      "type": "expense",
+      "category": {
+        "id": "5",
+        "name": "Entertainment",
+        "type": "expense",
+        "userId": "1774109463750"
+      },
+      "paymentMethod": "BPI Debit",
+      "userId": "1774109463750"
+    },
+    {
+      "id": "1774182072067",
+      "amount": 1000,
+      "date": "2026-03-22T12:21:01.273Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "7",
+        "name": "Freelance",
+        "type": "income",
+        "userId": "1774109463750"
+      },
+      "paymentMethod": "Cash",
+      "userId": "1774109463750",
+      "receiptUrl": null,
+      "categoryId": "7"
+    },
+    {
+      "id": "1774182112672",
+      "amount": 200,
+      "date": "2026-03-22T12:21:43.180Z",
+      "note": "",
+      "type": "expense",
+      "category": {
+        "id": "5",
+        "name": "Entertainment",
+        "type": "expense",
+        "userId": "1774109463750"
+      },
+      "paymentMethod": "BPI Debit",
+      "userId": "1774109463750",
+      "receiptUrl": null,
+      "categoryId": "5"
+    },
+    {
+      "id": "1774182151032",
+      "amount": 5000,
+      "date": "2026-03-22T12:22:22.674Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "9",
+        "name": "Others",
+        "type": "income",
+        "userId": "1774109463750"
+      },
+      "paymentMethod": "Cash",
+      "userId": "1774109463750"
+    },
+    {
+      "id": "1774182072067",
+      "amount": 1000,
+      "date": "2026-03-22T12:21:01.273Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "7",
+        "name": "Freelance",
+        "type": "income",
+        "userId": "1774109463750"
+      },
+      "paymentMethod": "Cash",
+      "userId": "1774109463750",
+      "receiptUrl": null,
+      "categoryId": "7"
+    },
+    {
+      "id": "1774182112672",
+      "amount": 200,
+      "date": "2026-03-22T12:21:43.180Z",
+      "note": "",
+      "type": "expense",
+      "category": {
+        "id": "5",
+        "name": "Entertainment",
+        "type": "expense",
+        "userId": "1774109463750"
+      },
+      "paymentMethod": "BPI Debit",
+      "userId": "1774109463750",
+      "receiptUrl": null,
+      "categoryId": "5"
+    },
+    {
+      "id": "1774182151032",
+      "amount": 5000,
+      "date": "2026-03-22T12:22:22.674Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "9",
+        "name": "Others",
+        "type": "income",
+        "userId": "1774109463750"
+      },
+      "paymentMethod": "Cash",
+      "userId": "1774109463750",
+      "receiptUrl": null,
+      "categoryId": "9"
     }
   ],
   "budgets": [
     {
       "id": "1773823505124",
-      "categoryId": "1",
+      "categoryId": null,
       "amount": 4000,
       "month": "2026-03"
     }
@@ -1171,266 +275,38 @@
     {
       "id": "1",
       "name": "Food",
-      "type": "expense"
-    },
-    {
-      "id": "2",
-      "name": "Transport",
-      "type": "expense"
-    },
-    {
-      "id": "3",
-      "name": "Salary",
-      "type": "income"
-    },
-    {
-      "id": "4",
-      "name": "Shopping",
-      "type": "expense"
-    },
-    {
-      "id": "5",
-      "name": "Utilities",
-      "type": "expense"
-    },
-    {
-      "id": "6",
-      "name": "Freelance",
-      "type": "income"
-    },
-    {
-      "id": "1",
-      "name": "Food",
-      "type": "expense"
-    },
-    {
-      "id": "2",
-      "name": "Bills",
-      "type": "expense"
-    },
-    {
-      "id": "3",
-      "name": "Transport",
-      "type": "expense"
-    },
-    {
-      "id": "4",
-      "name": "Shopping",
-      "type": "expense"
-    },
-    {
-      "id": "5",
-      "name": "Entertainment",
-      "type": "expense"
-    },
-    {
-      "id": "6",
-      "name": "Salary",
-      "type": "income"
-    },
-    {
-      "id": "7",
-      "name": "Freelance",
-      "type": "income"
-    },
-    {
-      "id": "8",
-      "name": "Others",
-      "type": "expense"
-    },
-    {
-      "id": "9",
-      "name": "Others",
-      "type": "income"
-    },
-    {
-      "id": "1",
-      "name": "Food",
-      "type": "expense"
-    },
-    {
-      "id": "2",
-      "name": "Bills",
-      "type": "expense"
-    },
-    {
-      "id": "3",
-      "name": "Transport",
-      "type": "expense"
-    },
-    {
-      "id": "4",
-      "name": "Shopping",
-      "type": "expense"
-    },
-    {
-      "id": "5",
-      "name": "Entertainment",
-      "type": "expense"
-    },
-    {
-      "id": "6",
-      "name": "Salary",
-      "type": "income"
-    },
-    {
-      "id": "7",
-      "name": "Freelance",
-      "type": "income"
-    },
-    {
-      "id": "8",
-      "name": "Others",
-      "type": "expense"
-    },
-    {
-      "id": "9",
-      "name": "Others",
-      "type": "income"
-    },
-    {
-      "id": "1",
-      "name": "Food",
-      "type": "expense"
-    },
-    {
-      "id": "2",
-      "name": "Bills",
-      "type": "expense"
-    },
-    {
-      "id": "3",
-      "name": "Transport",
-      "type": "expense"
-    },
-    {
-      "id": "4",
-      "name": "Shopping",
-      "type": "expense"
-    },
-    {
-      "id": "5",
-      "name": "Entertainment",
-      "type": "expense"
-    },
-    {
-      "id": "6",
-      "name": "Salary",
-      "type": "income"
-    },
-    {
-      "id": "7",
-      "name": "Freelance",
-      "type": "income"
-    },
-    {
-      "id": "8",
-      "name": "Others",
-      "type": "expense"
-    },
-    {
-      "id": "9",
-      "name": "Others",
-      "type": "income"
-    },
-    {
-      "id": "1",
-      "name": "Food",
-      "type": "expense"
-    },
-    {
-      "id": "2",
-      "name": "Bills",
-      "type": "expense"
-    },
-    {
-      "id": "3",
-      "name": "Transport",
-      "type": "expense"
-    },
-    {
-      "id": "4",
-      "name": "Shopping",
-      "type": "expense"
-    },
-    {
-      "id": "5",
-      "name": "Entertainment",
-      "type": "expense"
-    },
-    {
-      "id": "6",
-      "name": "Salary",
-      "type": "income"
-    },
-    {
-      "id": "7",
-      "name": "Freelance",
-      "type": "income"
-    },
-    {
-      "id": "8",
-      "name": "Others",
-      "type": "expense"
-    },
-    {
-      "id": "9",
-      "name": "Others",
-      "type": "income"
-    },
-    {
-      "id": "1",
-      "name": "Food",
       "type": "expense",
-      "userId": "1774108916386"
+      "userId": "1774109463750"
     },
     {
       "id": "2",
       "name": "Bills",
       "type": "expense",
-      "userId": "1774108916386"
+      "userId": "1774109463750"
     },
     {
       "id": "3",
       "name": "Transport",
       "type": "expense",
-      "userId": "1774108916386"
+      "userId": "1774109463750"
     },
     {
       "id": "4",
       "name": "Shopping",
       "type": "expense",
-      "userId": "1774108916386"
+      "userId": "1774109463750"
     },
     {
       "id": "5",
       "name": "Entertainment",
       "type": "expense",
-      "userId": "1774108916386"
+      "userId": "1774109463750"
     },
     {
       "id": "6",
       "name": "Salary",
       "type": "income",
-      "userId": "1774108916386"
-    },
-    {
-      "id": "7",
-      "name": "Freelance",
-      "type": "income",
-      "userId": "1774108916386"
-    },
-    {
-      "id": "8",
-      "name": "Others",
-      "type": "expense",
-      "userId": "1774108916386"
-    },
-    {
-      "id": "9",
-      "name": "Others",
-      "type": "income",
-      "userId": "1774108916386"
+      "userId": "1774109463750"
     },
     {
       "id": "1",

@@ -1,4 +1,4 @@
-import { View, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity, Platform } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { Transaction } from "../types";
@@ -40,11 +40,16 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
             marginBottom: 12,
             flexDirection: "row",
             alignItems: "center",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.05,
-            shadowRadius: 2,
-            elevation: 1
+            ...Platform.select({
+              web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)' },
+              default: {
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 1
+              }
+            })
           }}
         >
           <View style={{
