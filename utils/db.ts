@@ -59,8 +59,8 @@ export const initMasterDb = async (): Promise<void> => {
 
 export const getDb = async () => ({
   // Mock DB object if needed by any legacy calls, but we aim to replace all.
-    runAsync: async () => {},
-    closeAsync: async () => {},
+  runAsync: async () => { },
+  closeAsync: async () => { },
 });
 
 export const setOnFatalError = (cb: () => void) => {
@@ -118,6 +118,7 @@ export const saveUserProfile = async (name: string, isFirstRun: boolean, initial
 export const getCategories = async (): Promise<Category[]> => {
   const fullKey = await getPrefixedKey('categories');
   const items = await getItem<Category[]>(fullKey, []);
+  console.log("Categories - getCategories", fullKey, items);
   return deduplicate(items);
 };
 

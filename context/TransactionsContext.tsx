@@ -36,7 +36,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             if (USE_API && activeUserId) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    const response = await authFetch(`/api/transactions?userId=${activeUserId}`);
+                    const response = await authFetch(`transactions?userId=${activeUserId}`);
                     if (response.ok) {
                         const remoteData = await response.json();
                         if (Array.isArray(remoteData)) {
@@ -64,7 +64,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             if (USE_API) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    authFetch(`/api/transactions`, {
+                    authFetch(`transactions`, {
                         method: "POST",
                         body: JSON.stringify({
                             amount: newTransaction.amount,
@@ -94,7 +94,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             if (USE_API) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    authFetch(`/api/transactions/${id}`, {
+                    authFetch(`transactions/${id}`, {
                         method: "PUT",
                         body: JSON.stringify({ ...updates, userId: activeUserId }),
                     }).catch(err => console.error("Sync error:", err));
@@ -114,7 +114,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             if (USE_API) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    authFetch(`/api/transactions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+                    authFetch(`transactions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
                 }
             }
         } catch (error) {

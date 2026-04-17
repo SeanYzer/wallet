@@ -26,7 +26,7 @@ export function useSubscriptions() {
             if (USE_API && activeUserId) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    const response = await authFetch(`/api/subscriptions`);
+                    const response = await authFetch(`subscriptions`);
                     if (response.ok) {
                         const remoteData = await response.json();
                         if (Array.isArray(remoteData) && remoteData.length > 0) {
@@ -56,7 +56,7 @@ export function useSubscriptions() {
             if (USE_API) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    authFetch(`/api/subscriptions`, {
+                    authFetch(`subscriptions`, {
                         method: "POST",
                         body: JSON.stringify({
                             name: newSub.name,
@@ -84,7 +84,7 @@ export function useSubscriptions() {
             if (USE_API) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    authFetch(`/api/subscriptions/${id}`, {
+                    authFetch(`subscriptions/${id}`, {
                         method: "PUT",
                         body: JSON.stringify({ ...updates, userId: activeUserId }),
                     }).catch(err => console.error("Sync error:", err));
@@ -105,7 +105,7 @@ export function useSubscriptions() {
             if (USE_API) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    authFetch(`/api/subscriptions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+                    authFetch(`subscriptions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
                 }
             }
         } catch (error) {

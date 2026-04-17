@@ -32,7 +32,7 @@ export default function PaymentMethodsScreen() {
 
     const fetchMethods = async () => {
         try {
-            const response = await authFetch(`/api/paymentMethods`);
+            const response = await authFetch(`paymentMethods`);
             if (response.ok) {
                 const data = await response.json();
                 setMethods(data);
@@ -52,7 +52,7 @@ export default function PaymentMethodsScreen() {
         };
 
         try {
-            const response = await authFetch(`/api/paymentMethods`, {
+            const response = await authFetch(`paymentMethods`, {
                 method: "POST",
                 body: JSON.stringify(newMethod),
             });
@@ -74,7 +74,7 @@ export default function PaymentMethodsScreen() {
                 style: "destructive",
                 onPress: async () => {
                     try {
-                        const response = await authFetch(`/api/paymentMethods/${id}`, {
+                        const response = await authFetch(`paymentMethods/${id}`, {
                             method: "DELETE",
                         });
                         if (response.ok) {

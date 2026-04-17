@@ -3,9 +3,10 @@ import { API_URL } from './db';
 
 export const authFetch = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
     const token = await AsyncStorage.getItem('authToken');
-    
+
     // Ensure the endpoint starts with a slash
-    const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const formattedEndpoint = !endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    console.info(endpoint, formattedEndpoint);
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -19,6 +20,8 @@ export const authFetch = async (endpoint: string, options: RequestInit = {}): Pr
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
+
+    console.info(API_URL);
 
     const response = await fetch(`${API_URL}${formattedEndpoint}`, {
         ...options,
@@ -41,6 +44,6 @@ export const authFetch = async (endpoint: string, options: RequestInit = {}): Pr
             return data;
         };
     }
-    
+
     return response;
 };

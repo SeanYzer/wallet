@@ -39,7 +39,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             }
 
             if (USE_API && activeUserId) {
-                const response = await authFetch(`/api/userProfiles?userId=${activeUserId}`);
+                const response = await authFetch(`userProfiles?userId=${activeUserId}`);
                 if (response.ok) {
                     const cloudProfile = await response.json();
                     if (cloudProfile && cloudProfile.name) {
@@ -70,7 +70,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
 
         if (USE_API && activeUserId) {
             try {
-                const response = await authFetch(`/api/userProfiles/${activeUserId}`, {
+                const response = await authFetch(`userProfiles/${activeUserId}`, {
                     method: "PUT",
                     body: JSON.stringify({ name, isFirstRun, initialBalance })
                 });

@@ -2,7 +2,7 @@ export type TransactionType = "income" | "expense";
 export type PaymentMethod = string;
 
 export interface Category {
-  id: string | number;
+  id: string;
   name: string;
   type: TransactionType;
 }

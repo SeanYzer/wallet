@@ -46,7 +46,7 @@ export default function AddTransaction() {
 
   const fetchPaymentMethods = async () => {
     try {
-      const response = await authFetch(`/api/paymentMethods`);
+      const response = await authFetch(`paymentMethods`);
       if (response.ok) {
         const data = await response.json();
         setAvailablePaymentMethods(data);
@@ -214,7 +214,7 @@ export default function AddTransaction() {
                 }
               }}
               mode="outlined"
-              style={{ 
+              style={{
                 backgroundColor: selectedMethodType === t ? theme.colors.primaryContainer : "transparent",
                 borderColor: selectedMethodType === t ? theme.colors.primary : theme.colors.outline
               }}

@@ -14,6 +14,7 @@ import { useLanguage } from "../../context/LanguageContext";
 import { usePasscode } from "../../context/PasscodeContext";
 import { useTransactionsContext } from "../../context/TransactionsContext";
 import { useCategories } from "../../context/CategoriesContext";
+import { authFetch } from "../../utils/apiClient";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -28,27 +29,26 @@ export default function SettingsScreen() {
   const { refetch: refetchCats } = useCategories();
 
   const handleLogout = async () => {
-      await logout();
-      router.replace("/auth");
+    await logout();
+    router.replace("/auth");
   };
 
   const handleTogglePasscode = (enabled: boolean) => {
-      if (enabled) {
-          // In a real app, we'd show a modal to set the code
-          setPasscode("1234"); 
-          setIsPasscodeEnabled(true);
-          setIsUnlocked(false);
-      } else {
-          setIsPasscodeEnabled(false);
-          setPasscode(null);
-      }
+    if (enabled) {
+      // In a real app, we'd show a modal to set the code
+      setPasscode("1234");
+      setIsPasscodeEnabled(true);
+      setIsUnlocked(false);
+    } else {
+      setIsPasscodeEnabled(false);
+      setPasscode(null);
+    }
   };
 
   const [autoBackup, setAutoBackup] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinInput, setPinInput] = useState("");
-  const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
   useEffect(() => {
     getSetting('autoBackup').then(val => {
@@ -67,38 +67,40 @@ export default function SettingsScreen() {
       const txs = await getTransactions();
       const cats = await getCategories();
       const profile = await getUserProfile();
-      
+
+
       if (profile) {
         // Find existing profile on API to get its ID for PATCH, or POST if none
-        const check = await fetch(`${API_URL}/userProfiles?userId=${activeUserId}`);
+        const check = await authFetch(`userProfiles?userId=${activeUserId}`);
         const existing = await check.json();
-        
-        const method = (existing && existing.length > 0) ? "PATCH" : "POST";
-        const url = (existing && existing.length > 0) 
-            ? `${API_URL}/userProfiles/${existing[0].id}` 
-            : `${API_URL}/userProfiles`;
 
-        await fetch(url, { 
-          method, 
-          headers: {"Content-Type": "application/json"}, 
+        const method = (existing && existing.length > 0) ? "PATCH" : "POST";
+        const url = (existing && existing.length > 0)
+          ? `userProfiles/${existing[0].id}`
+          : `userProfiles`;
+
+        await authFetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...profile, userId: activeUserId })
-        }).catch(() => {});
+        }).catch(() => { });
       }
       for (const c of cats) {
-        await fetch(`${API_URL}/categories`, { 
-          method: "POST", 
-          headers: {"Content-Type": "application/json"}, 
+        await authFetch(`categories`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...c, userId: activeUserId })
-        }).catch(() => {});
+        }).catch(() => { });
       }
       for (const t of txs) {
-        await fetch(`${API_URL}/transactions`, { 
-          method: "POST", 
-          headers: {"Content-Type": "application/json"}, 
+        console.log("Transaction", t);
+        await authFetch(`transactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...t, categoryId: String(t.category.id), userId: activeUserId })
-        }).catch(() => {});
+        }).catch(() => { });
       }
-      
+
       alert("Backup completed!");
     } catch (e) {
       console.error(e);
@@ -116,9 +118,9 @@ export default function SettingsScreen() {
           console.log("Syncing Clear Data to cloud for user:", activeUserId);
           // 1. Fetch user data from cloud
           const [txRes, catRes, profRes] = await Promise.all([
-            fetch(`${API_URL}/transactions?userId=${activeUserId}`),
-            fetch(`${API_URL}/categories?userId=${activeUserId}`),
-            fetch(`${API_URL}/userProfiles?userId=${activeUserId}`)
+            authFetch(`transactions?userId=${activeUserId}`),
+            authFetch(`categories?userId=${activeUserId}`),
+            authFetch(`userProfiles?userId=${activeUserId}`)
           ]);
 
           const [txs, cats, profs] = await Promise.all([
@@ -129,9 +131,9 @@ export default function SettingsScreen() {
 
           // 2. Delete all from cloud
           const deletePromises = [
-            ...(Array.isArray(txs) ? txs.map(t => fetch(`${API_URL}/transactions/${t.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(cats) ? cats.map(c => fetch(`${API_URL}/categories/${c.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(profs) ? profs.map(p => fetch(`${API_URL}/userProfiles/${p.id}`, { method: "DELETE" })) : [])
+            ...(Array.isArray(txs) ? txs.map(t => authFetch(`transactions/${t.id}`, { method: "DELETE" })) : []),
+            ...(Array.isArray(cats) ? cats.map(c => authFetch(`categories/${c.id}`, { method: "DELETE" })) : []),
+            ...(Array.isArray(profs) ? profs.map(p => authFetch(`userProfiles/${p.id}`, { method: "DELETE" })) : [])
           ];
 
           await Promise.all(deletePromises);
@@ -142,14 +144,14 @@ export default function SettingsScreen() {
         await clearAllLocalData();
         setShowPinPrompt(false);
         setPinInput("");
-        
+
         // 4. Refresh UI
         await Promise.all([
           refetchTx(),
           refetchCats(),
           refetchProfile()
         ]);
-        
+
         alert("All local and cloud data has been cleared.");
         router.replace("/");
       } catch (e) {
@@ -183,79 +185,79 @@ export default function SettingsScreen() {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-          const fileUri = result.assets[0].uri;
-          const fsAny = FileSystem as any;
-          const encoding = fsAny.EncodingType ? fsAny.EncodingType.UTF8 : 'utf8';
-          const jsonString = await FileSystem.readAsStringAsync(fileUri, { encoding });
-          await importData(jsonString);
-          alert("Import successful! Data has been restored. Please restart the app or switch accounts to see the changes.");
+        const fileUri = result.assets[0].uri;
+        const fsAny = FileSystem as any;
+        const encoding = fsAny.EncodingType ? fsAny.EncodingType.UTF8 : 'utf8';
+        const jsonString = await FileSystem.readAsStringAsync(fileUri, { encoding });
+        await importData(jsonString);
+        alert("Import successful! Data has been restored. Please restart the app or switch accounts to see the changes.");
       }
     } catch (e) {
       console.error(e);
       alert("Import failed");
     }
   };
-  
+
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
       "Are you sure? This will remove your account from this device and attempt to clear your cloud data. This action is permanent.",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive", 
-        onPress: async () => {
-          if (activeUserId) {
-            setIsSyncing(true);
-            try {
-              // 1. Fetch user data from cloud to get IDs
-              const [txRes, catRes, profRes] = await Promise.all([
-                fetch(`${API_URL}/transactions?userId=${activeUserId}`),
-                fetch(`${API_URL}/categories?userId=${activeUserId}`),
-                fetch(`${API_URL}/userProfiles?userId=${activeUserId}`)
-              ]);
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (activeUserId) {
+              setIsSyncing(true);
+              try {
+                // 1. Fetch user data from cloud to get IDs
+                const [txRes, catRes, profRes] = await Promise.all([
+                  authFetch(`transactions?userId=${activeUserId}`),
+                  authFetch(`categories?userId=${activeUserId}`),
+                  authFetch(`userProfiles?userId=${activeUserId}`)
+                ]);
 
-              const [txs, cats, profs] = await Promise.all([
-                txRes.json(),
-                catRes.json(),
-                profRes.json()
-              ]);
+                const [txs, cats, profs] = await Promise.all([
+                  txRes.json(),
+                  catRes.json(),
+                  profRes.json()
+                ]);
 
-              // 2. Delete all from cloud
-              const deletePromises = [
-                ...(Array.isArray(txs) ? txs.map(t => fetch(`${API_URL}/transactions/${t.id}`, { method: "DELETE" })) : []),
-                ...(Array.isArray(cats) ? cats.map(c => fetch(`${API_URL}/categories/${c.id}`, { method: "DELETE" })) : []),
-                ...(Array.isArray(profs) ? profs.map(p => fetch(`${API_URL}/userProfiles/${p.id}`, { method: "DELETE" })) : []),
-                // Also delete from /users if applicable
-                fetch(`${API_URL}/users/${activeUserId}`, { method: "DELETE" }).catch(() => {})
-              ];
+                // 2. Delete all from cloud
+                const deletePromises = [
+                  ...(Array.isArray(txs) ? txs.map(t => authFetch(`transactions/${t.id}`, { method: "DELETE" })) : []),
+                  ...(Array.isArray(cats) ? cats.map(c => authFetch(`categories/${c.id}`, { method: "DELETE" })) : []),
+                  ...(Array.isArray(profs) ? profs.map(p => authFetch(`userProfiles/${p.id}`, { method: "DELETE" })) : []),
+                  // Also delete from /users if applicable
+                  authFetch(`users/${activeUserId}`, { method: "DELETE" }).catch(() => { })
+                ];
 
-              await Promise.all(deletePromises);
-              console.log("Cloud account data cleared successfully");
-              
-              // 3. Clear local tables (except master)
-              await clearAllLocalData();
-              
-              // 4. Remove from master.db
-              await deleteUser(activeUserId);
-              
-              // 5. Logout and redirect
-              await logout();
-              router.replace("/auth");
-              alert("Account and all associated data deleted successfully.");
-            } catch (e) {
-              console.error("Delete account sync failed:", e);
-              alert("Failed to fully clear cloud data. Account was deleted locally.");
-              await clearAllLocalData();
-              await deleteUser(activeUserId);
-              await logout();
-              router.replace("/auth");
-            } finally {
-              setIsSyncing(false);
+                await Promise.all(deletePromises);
+                console.log("Cloud account data cleared successfully");
+
+                // 3. Clear local tables (except master)
+                await clearAllLocalData();
+
+                // 4. Remove from master.db
+                await deleteUser(activeUserId);
+
+                // 5. Logout and redirect
+                await logout();
+                router.replace("/auth");
+                alert("Account and all associated data deleted successfully.");
+              } catch (e) {
+                console.error("Delete account sync failed:", e);
+                alert("Failed to fully clear cloud data. Account was deleted locally.");
+                await clearAllLocalData();
+                await deleteUser(activeUserId);
+                await logout();
+                router.replace("/auth");
+              } finally {
+                setIsSyncing(false);
+              }
             }
           }
-        }
         }
       ]
     );
@@ -265,19 +267,18 @@ export default function SettingsScreen() {
     setIsSyncing(true);
     try {
       console.log("[Restore] Starting cloud restore for user:", activeUserId);
-      console.log("[Restore] API URL:", API_URL);
-      
+
       // Fetch all to catch legacy data (missing userId)
       const [txRes, catRes, profRes] = await Promise.all([
-        fetch(`${API_URL}/transactions`),
-        fetch(`${API_URL}/categories`),
-        fetch(`${API_URL}/userProfiles`)
+        authFetch(`transactions`),
+        authFetch(`categories`),
+        authFetch(`userProfiles`)
       ]);
-      
-      console.log("[Restore] Network status:", { 
-        txs: txRes.status, 
-        cats: catRes.status, 
-        profs: profRes.status 
+
+      console.log("[Restore] Network status:", {
+        txs: txRes.status,
+        cats: catRes.status,
+        profs: profRes.status
       });
 
       if (!txRes.ok || !catRes.ok || !profRes.ok) {
@@ -300,35 +301,35 @@ export default function SettingsScreen() {
       const remoteTxs = Array.isArray(allTxs) ? allTxs.filter((t: any) => String(t.userId) === String(activeUserId)) : [];
       const remoteCats = Array.isArray(allCats) ? allCats.filter((c: any) => String(c.userId) === String(activeUserId)) : [];
       const remoteProf = Array.isArray(allProfs) ? allProfs.find((p: any) => String(p.userId) === String(activeUserId)) : null;
-      
-      console.log("[Restore] Filtered data:", { 
-        txs: remoteTxs.length, 
-        cats: remoteCats.length, 
-        profFound: !!remoteProf 
+
+      console.log("[Restore] Filtered data:", {
+        txs: remoteTxs.length,
+        cats: remoteCats.length,
+        profFound: !!remoteProf
       });
 
       const currentSettings = { autoBackup: autoBackup.toString() };
       const cloudJson = JSON.stringify({
-          profile: remoteProf,
-          categories: remoteCats,
-          transactions: remoteTxs,
-          settings: currentSettings
+        profile: remoteProf,
+        categories: remoteCats,
+        transactions: remoteTxs,
+        settings: currentSettings
       });
-      
+
       await importData(cloudJson);
-      
+
       // 5. Trigger automatic UI refresh
       // On Web, AsyncStorage can sometimes be slightly asynchronous even after resolving.
       // A small delay ensures the contexts read the freshly imported data.
       if (Platform.OS === 'web') {
-          console.log("[Restore] Web platform detected, applying settling delay...");
-          await new Promise(resolve => setTimeout(resolve, 200));
+        console.log("[Restore] Web platform detected, applying settling delay...");
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       await Promise.all([
-          refetchTx(),
-          refetchCats(),
-          refetchProfile()
+        refetchTx(),
+        refetchCats(),
+        refetchProfile()
       ]);
 
       alert("Cloud data restored locally and UI refreshed!");
@@ -353,10 +354,10 @@ export default function SettingsScreen() {
         "This will overwrite all your local data with the data from your cloud backup. Are you sure?",
         [
           { text: "Cancel", style: "cancel" },
-          { 
-            text: "Restore", 
-            style: "destructive", 
-            onPress: performRestore 
+          {
+            text: "Restore",
+            style: "destructive",
+            onPress: performRestore
           }
         ]
       );
@@ -374,9 +375,9 @@ export default function SettingsScreen() {
         <Card style={{ marginBottom: 16 }}>
           <Card.Content>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Avatar.Text 
-                size={48} 
-                label={profile?.name?.substring(0, 2).toUpperCase() || "US"} 
+              <Avatar.Text
+                size={48}
+                label={profile?.name?.substring(0, 2).toUpperCase() || "US"}
                 style={{ backgroundColor: paperTheme.colors.primary }}
               />
               <View style={{ marginLeft: 16 }}>
@@ -430,25 +431,25 @@ export default function SettingsScreen() {
             <RadioButton.Group onValueChange={(value) => setCurrency(value as CurrencyCode)} value={currency.code}>
               <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
                 {Object.values(CURRENCIES).map((curr) => (
-                    <View key={curr.code} style={{ width: "50%" }}>
-                        <RadioButton.Item
-                        label={curr.code}
-                        value={curr.code}
-                        status={currency.code === curr.code ? 'checked' : 'unchecked'}
-                        />
-                    </View>
+                  <View key={curr.code} style={{ width: "50%" }}>
+                    <RadioButton.Item
+                      label={curr.code}
+                      value={curr.code}
+                      status={currency.code === curr.code ? 'checked' : 'unchecked'}
+                    />
+                  </View>
                 ))}
               </View>
             </RadioButton.Group>
 
             <Divider style={{ marginVertical: 8 }} />
-            
+
             <Text variant="titleSmall" style={{ marginTop: 8 }}>Decimal Points</Text>
             <RadioButton.Group onValueChange={(v) => setDecimalPlaces(parseInt(v))} value={decimalPlaces.toString()}>
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <RadioButton.Item label="0" value="0" />
-                  <RadioButton.Item label="1" value="1" />
-                  <RadioButton.Item label="2" value="2" />
+                <RadioButton.Item label="0" value="0" />
+                <RadioButton.Item label="1" value="1" />
+                <RadioButton.Item label="2" value="2" />
               </View>
             </RadioButton.Group>
           </Card.Content>
@@ -457,7 +458,7 @@ export default function SettingsScreen() {
         <Card style={{ marginBottom: 16 }}>
           <Card.Content>
             <Text variant="titleMedium" style={{ marginBottom: 16 }}>Data Management</Text>
-            
+
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <List.Icon icon="cloud-sync" color={paperTheme.colors.onSurfaceVariant} />
@@ -470,26 +471,26 @@ export default function SettingsScreen() {
 
             {!autoBackup && (
               <Button mode="outlined" icon="backup-restore" onPress={handleManualBackup} loading={isSyncing} disabled={isSyncing} style={{ marginVertical: 4 }}>
-                 Backup Data to Cloud API Now
+                Backup Data to Cloud API Now
               </Button>
             )}
 
             {!autoBackup && (
               <Button mode="outlined" icon="cloud-download" onPress={handleRestoreFromCloud} loading={isSyncing} disabled={isSyncing} style={{ marginVertical: 4 }}>
-                 Restore Data from Cloud API
+                Restore Data from Cloud API
               </Button>
             )}
 
             <Button mode="outlined" icon="file-export" onPress={handleExportJSON} style={{ marginVertical: 4 }}>
-               Export Data (JSON)
+              Export Data (JSON)
             </Button>
-            
+
             <Button mode="outlined" icon="file-import" onPress={handleImportJSON} style={{ marginVertical: 4 }}>
-               Import Data (JSON)
+              Import Data (JSON)
             </Button>
-            
+
             <Button mode="contained-tonal" buttonColor={paperTheme.colors.errorContainer} textColor={paperTheme.colors.onErrorContainer} icon="delete-alert" onPress={() => setShowPinPrompt(true)} style={{ marginTop: 8 }}>
-               Clear All Data
+              Clear All Data
             </Button>
 
           </Card.Content>
@@ -499,10 +500,10 @@ export default function SettingsScreen() {
           <Card.Content>
             <Text variant="titleMedium" style={{ marginBottom: 16 }}>Account</Text>
             <Button mode="outlined" icon="account-switch" onPress={handleLogout} textColor={paperTheme.colors.primary} style={{ marginBottom: 8 }}>
-               Switch Account / Logout
+              Switch Account / Logout
             </Button>
             <Button mode="contained-tonal" icon="account-remove" onPress={handleDeleteAccount} buttonColor={paperTheme.colors.errorContainer} textColor={paperTheme.colors.onErrorContainer}>
-               Delete Account
+              Delete Account
             </Button>
           </Card.Content>
         </Card>

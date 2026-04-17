@@ -26,7 +26,7 @@ export function useBudgets() {
       if (USE_API && activeUserId) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          const response = await authFetch(`/api/budgets`);
+          const response = await authFetch(`budgets`);
           if (response.ok) {
             const remoteData = await response.json();
             if (Array.isArray(remoteData) && remoteData.length > 0) {
@@ -56,7 +56,7 @@ export function useBudgets() {
       if (USE_API) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          authFetch(`/api/budgets`, {
+          authFetch(`budgets`, {
             method: "POST",
             body: JSON.stringify({
               amount: newBudget.amount,
@@ -83,7 +83,7 @@ export function useBudgets() {
       if (USE_API) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          authFetch(`/api/budgets/${id}`, {
+          authFetch(`budgets/${id}`, {
             method: "PUT",
             body: JSON.stringify({ ...updates, userId: activeUserId }),
           }).catch(err => console.error("Sync error:", err));
@@ -104,7 +104,7 @@ export function useBudgets() {
       if (USE_API) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          authFetch(`/api/budgets/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+          authFetch(`budgets/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
         }
       }
     } catch (error) {

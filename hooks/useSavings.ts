@@ -26,7 +26,7 @@ export function useSavings() {
             if (USE_API && activeUserId) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    const response = await authFetch(`/api/savingsGoals?userId=${activeUserId}`);
+                    const response = await authFetch(`savingsGoals?userId=${activeUserId}`);
                     if (response.ok) {
                         const remoteData = await response.json();
                         if (Array.isArray(remoteData) && remoteData.length > 0) {
@@ -56,7 +56,7 @@ export function useSavings() {
             if (USE_API) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    authFetch(`/api/savingsGoals`, {
+                    authFetch(`savingsGoals`, {
                         method: "POST",
                         body: JSON.stringify({
                             title: newGoal.title,
@@ -84,7 +84,7 @@ export function useSavings() {
             if (USE_API) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    authFetch(`/api/savingsGoals/${id}`, {
+                    authFetch(`savingsGoals/${id}`, {
                         method: "PUT",
                         body: JSON.stringify({ ...updates, userId: activeUserId }),
                     }).catch(err => console.error("Sync error:", err));
@@ -105,7 +105,7 @@ export function useSavings() {
             if (USE_API) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
-                    authFetch(`/api/savingsGoals/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+                    authFetch(`savingsGoals/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
                 }
             }
         } catch (error) {

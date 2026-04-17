@@ -26,7 +26,7 @@ export function useAgenda() {
       if (USE_API && activeUserId) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          const response = await authFetch(`/api/agendas`);
+          const response = await authFetch(`agendas`);
           if (response.ok) {
             const remoteData = await response.json();
             if (Array.isArray(remoteData) && remoteData.length > 0) {
@@ -56,7 +56,7 @@ export function useAgenda() {
       if (USE_API) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          authFetch(`/api/agendas`, {
+          authFetch(`agendas`, {
             method: "POST",
             body: JSON.stringify({
               title: newAgenda.title,
@@ -84,7 +84,7 @@ export function useAgenda() {
       if (USE_API) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          authFetch(`/api/agendas/${id}`, {
+          authFetch(`agendas/${id}`, {
             method: "PUT",
             body: JSON.stringify({ ...updates, userId: activeUserId }),
           }).catch(err => console.error("Sync error:", err));
@@ -105,7 +105,7 @@ export function useAgenda() {
       if (USE_API) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          authFetch(`/api/agendas/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+          authFetch(`agendas/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
         }
       }
     } catch (error) {
