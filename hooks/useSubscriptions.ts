@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Subscription } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { USE_API, getSubscriptions, saveSubscription, deleteSubscriptionLocal, updateSubscriptionLocal } from "../utils/db";
+import { USE_API, getSubscriptions, saveSubscription, saveSubscriptionsBulk, deleteSubscriptionLocal, updateSubscriptionLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 
 export function useSubscriptions() {
@@ -18,14 +18,24 @@ export function useSubscriptions() {
     const fetchSubscriptions = async () => {
         setLoading(true);
         try {
-            if (USE_API) {
-                const response = await authFetch(`/api/subscriptions?userId=${activeUserId}`);
-                if (!response.ok) return;
-                const data = await response.json();
-                setSubscriptions(data);
-            } else {
-                const data = await getSubscriptions();
-                setSubscriptions(data);
+            // 1. Always load from local first (source of truth)
+            const localData = await getSubscriptions();
+            setSubscriptions(localData);
+
+            // 2. Background sync from API if enabled
+            if (USE_API && activeUserId) {
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    const response = await authFetch(`/api/subscriptions`);
+                    if (response.ok) {
+                        const remoteData = await response.json();
+                        if (Array.isArray(remoteData) && remoteData.length > 0) {
+                            await saveSubscriptionsBulk(remoteData);
+                            const merged = await getSubscriptions();
+                            setSubscriptions(merged);
+                        }
+                    }
+                }
             }
         } catch (error) {
             console.error("Error fetching subscriptions:", error);
@@ -34,39 +44,29 @@ export function useSubscriptions() {
         }
     };
 
-    const updateSubscription = async (id: string, updates: Partial<Subscription>) => {
-        try {
-            if (USE_API) {
-                const response = await authFetch(`/api/subscriptions/${id}`, {
-                    method: "PUT",
-                    body: JSON.stringify({ ...updates, userId: activeUserId }),
-                });
-                const updatedData = await response.json();
-                setSubscriptions((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
-            } else {
-                await updateSubscriptionLocal(id, updates);
-                setSubscriptions((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
-            }
-        } catch (error) {
-            console.error("Error updating subscription:", error);
-        }
-    };
-
     const addSubscription = async (subscription: Omit<Subscription, "id">) => {
         try {
             const newSub = { ...subscription, id: Date.now().toString(), userId: activeUserId } as any;
 
+            // 1. Save locally first
+            await saveSubscription(newSub);
+            setSubscriptions((prev) => [...prev, newSub]);
+
+            // 2. Background sync to API
             if (USE_API) {
-                const response = await authFetch(`/api/subscriptions`, {
-                    method: "POST",
-                    body: JSON.stringify(newSub),
-                });
-                if (!response.ok) throw new Error(`Failed to add subscription: ${response.status}`);
-                const saved = await response.json();
-                setSubscriptions((prev) => [...prev, saved]);
-            } else {
-                await saveSubscription(newSub);
-                setSubscriptions((prev) => [...prev, newSub]);
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    authFetch(`/api/subscriptions`, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            name: newSub.name,
+                            amount: newSub.amount,
+                            dueDate: newSub.dueDate,
+                            category: newSub.category ?? null,
+                            userId: activeUserId,
+                        }),
+                    }).catch(err => console.error("Sync error:", err));
+                }
             }
         } catch (error) {
             console.error("Error adding subscription:", error);
@@ -74,18 +74,44 @@ export function useSubscriptions() {
         }
     };
 
+    const updateSubscription = async (id: string, updates: Partial<Subscription>) => {
+        try {
+            // 1. Update locally first
+            await updateSubscriptionLocal(id, updates);
+            setSubscriptions((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+
+            // 2. Background sync to API
+            if (USE_API) {
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    authFetch(`/api/subscriptions/${id}`, {
+                        method: "PUT",
+                        body: JSON.stringify({ ...updates, userId: activeUserId }),
+                    }).catch(err => console.error("Sync error:", err));
+                }
+            }
+        } catch (error) {
+            console.error("Error updating subscription:", error);
+        }
+    };
+
     const deleteSubscription = async (id: string) => {
         try {
-            if (USE_API) {
-                await authFetch(`/api/subscriptions/${id}`, { method: "DELETE" });
-            } else {
-                await deleteSubscriptionLocal(id);
-            }
+            // 1. Delete locally first
+            await deleteSubscriptionLocal(id);
             setSubscriptions((prev) => prev.filter((s) => s.id !== id));
+
+            // 2. Background sync to API
+            if (USE_API) {
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    authFetch(`/api/subscriptions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+                }
+            }
         } catch (error) {
             console.error("Error deleting subscription:", error);
         }
     };
 
-    return { subscriptions, loading, refetch: fetchSubscriptions, addSubscription, deleteSubscription };
+    return { subscriptions, loading, refetch: fetchSubscriptions, addSubscription, updateSubscription, deleteSubscription };
 }

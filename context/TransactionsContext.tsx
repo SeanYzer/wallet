@@ -66,7 +66,17 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 if (autoBackup !== 'false') {
                     authFetch(`/api/transactions`, {
                         method: "POST",
-                        body: JSON.stringify({ ...newTransaction, userId: activeUserId }),
+                        body: JSON.stringify({
+                            amount: newTransaction.amount,
+                            date: newTransaction.date,
+                            note: newTransaction.note,
+                            type: newTransaction.type,
+                            categoryId: String(newTransaction.category?.id ?? ""),
+                            paymentMethod: newTransaction.paymentMethod,
+                            establishment: newTransaction.establishment,
+                            receiptUrl: newTransaction.receiptUrl,
+                            userId: activeUserId,
+                        }),
                     }).catch(err => console.error("Sync error:", err));
                 }
             }

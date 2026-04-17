@@ -43,20 +43,23 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
         }
         data = await getCategories();
       }
-      setCategories(data);
+      const uniqueInitialData = Array.from(new Map(data.sort((a, b) => b.id.length - a.id.length).map(c => [c.name, c])).values());
+      setCategories(uniqueInitialData);
 
       // 2. Background Sync if enabled AND API mode is ON
       if (USE_API && activeUserId) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          const response = await authFetch(`/api/categories?userId=${activeUserId}`);
+          const response = await authFetch(`/api/categories`);
           if (response.ok) {
             const remoteData = await response.json();
             if (Array.isArray(remoteData) && remoteData.length > 0) {
               const { saveCategoriesBulk, getCategories: getLatest } = await import("../utils/db");
               await saveCategoriesBulk(remoteData);
               const mergedData = await getLatest();
-              setCategories(mergedData);
+              // Deduplicate by name, prioritizing backend (UUIDs are longer than local "1", "2" IDs)
+              const uniqueData = Array.from(new Map(mergedData.sort((a, b) => b.id.length - a.id.length).map(c => [c.name, c])).values());
+              setCategories(uniqueData);
             }
           }
         }

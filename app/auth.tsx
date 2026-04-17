@@ -3,6 +3,7 @@ import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } f
 import { Text, TextInput, Button, Card, useTheme as usePaperTheme } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
+import { addUser, saveUserProfile } from '../utils/db';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AuthScreen() {
@@ -37,10 +38,16 @@ export default function AuthScreen() {
                 return;
             }
 
+            await addUser(responseData.data.user.id, name.trim(), passcode.trim());
+            await saveUserProfile(name.trim(), true, 0, responseData.data.user.id);
             await login(responseData.data.user.id, responseData.data.token);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            Alert.alert("Error", "Could not register account");
+            if (e.message && e.message.includes('Network')) {
+                Alert.alert("Connection Required", "Please ensure you have an active internet connection to communicate with the server.");
+            } else {
+                Alert.alert("Error", "Could not register account");
+            }
         } finally {
             setLoading(false);
         }
@@ -67,10 +74,16 @@ export default function AuthScreen() {
                 return;
             }
 
+            await addUser(responseData.data.user.id, name.trim(), passcode.trim());
+            await saveUserProfile(name.trim(), false, 0, responseData.data.user.id);
             await login(responseData.data.user.id, responseData.data.token);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            Alert.alert("Error", "Cloud login failed");
+            if (e.message && e.message.includes('Network')) {
+                Alert.alert("Connection Required", "Please ensure you have an active internet connection to communicate with the server.");
+            } else {
+                Alert.alert("Error", "Cloud login failed");
+            }
         } finally {
             setLoading(false);
         }

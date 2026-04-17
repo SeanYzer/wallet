@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { SavingsGoal } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { USE_API, getSavingsGoals, saveSavingsGoal, deleteSavingsGoalLocal, updateSavingsGoalLocal } from "../utils/db";
+import { USE_API, getSavingsGoals, saveSavingsGoal, saveSavingsGoalsBulk, deleteSavingsGoalLocal, updateSavingsGoalLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 
 export function useSavings() {
@@ -18,14 +18,24 @@ export function useSavings() {
     const fetchGoals = async () => {
         setLoading(true);
         try {
-            if (USE_API) {
-                const response = await authFetch(`/api/savingsGoals?userId=${activeUserId}`);
-                if (!response.ok) return;
-                const data = await response.json();
-                setGoals(data);
-            } else {
-                const data = await getSavingsGoals();
-                setGoals(data);
+            // 1. Always load from local first (source of truth)
+            const localData = await getSavingsGoals();
+            setGoals(localData);
+
+            // 2. Background sync from API if enabled
+            if (USE_API && activeUserId) {
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    const response = await authFetch(`/api/savingsGoals?userId=${activeUserId}`);
+                    if (response.ok) {
+                        const remoteData = await response.json();
+                        if (Array.isArray(remoteData) && remoteData.length > 0) {
+                            await saveSavingsGoalsBulk(remoteData);
+                            const merged = await getSavingsGoals();
+                            setGoals(merged);
+                        }
+                    }
+                }
             }
         } catch (error) {
             console.error("Error fetching savings goals:", error);
@@ -38,17 +48,25 @@ export function useSavings() {
         try {
             const newGoal = { ...goal, id: Date.now().toString(), userId: activeUserId } as any;
 
+            // 1. Save locally first
+            await saveSavingsGoal(newGoal);
+            setGoals((prev) => [...prev, newGoal]);
+
+            // 2. Background sync to API
             if (USE_API) {
-                const response = await authFetch(`/api/savingsGoals`, {
-                    method: "POST",
-                    body: JSON.stringify(newGoal),
-                });
-                if (!response.ok) throw new Error(`Failed to add goal: ${response.status}`);
-                const saved = await response.json();
-                setGoals((prev) => [...prev, saved]);
-            } else {
-                await saveSavingsGoal(newGoal);
-                setGoals((prev) => [...prev, newGoal]);
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    authFetch(`/api/savingsGoals`, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            title: newGoal.title,
+                            targetAmount: newGoal.targetAmount,
+                            currentAmount: newGoal.currentAmount ?? 0,
+                            color: newGoal.color ?? null,
+                            userId: activeUserId,
+                        }),
+                    }).catch(err => console.error("Sync error:", err));
+                }
             }
         } catch (error) {
             console.error("Error adding savings goal:", error);
@@ -58,16 +76,19 @@ export function useSavings() {
 
     const updateGoal = async (id: string, updates: Partial<SavingsGoal>) => {
         try {
+            // 1. Update locally first
+            await updateSavingsGoalLocal(id, updates);
+            setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
+
+            // 2. Background sync to API
             if (USE_API) {
-                const response = await authFetch(`/api/savingsGoals/${id}`, {
-                    method: "PUT",
-                    body: JSON.stringify({ ...updates, userId: activeUserId }),
-                });
-                const updatedGoal = await response.json();
-                setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
-            } else {
-                await updateSavingsGoalLocal(id, updates);
-                setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    authFetch(`/api/savingsGoals/${id}`, {
+                        method: "PUT",
+                        body: JSON.stringify({ ...updates, userId: activeUserId }),
+                    }).catch(err => console.error("Sync error:", err));
+                }
             }
         } catch (error) {
             console.error("Error updating savings goal:", error);
@@ -76,12 +97,17 @@ export function useSavings() {
 
     const deleteGoal = async (id: string) => {
         try {
-            if (USE_API) {
-                await authFetch(`/api/savingsGoals/${id}`, { method: "DELETE" });
-            } else {
-                await deleteSavingsGoalLocal(id);
-            }
+            // 1. Delete locally first
+            await deleteSavingsGoalLocal(id);
             setGoals((prev) => prev.filter((g) => g.id !== id));
+
+            // 2. Background sync to API
+            if (USE_API) {
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    authFetch(`/api/savingsGoals/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+                }
+            }
         } catch (error) {
             console.error("Error deleting savings goal:", error);
         }

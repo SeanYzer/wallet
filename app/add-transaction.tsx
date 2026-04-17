@@ -14,6 +14,7 @@ import {
   Card,
 } from "react-native-paper";
 import { useRouter } from "expo-router";
+import { authFetch } from "../utils/apiClient";
 import * as ImagePicker from "expo-image-picker";
 import { Calendar } from "react-native-calendars";
 import { useTransactions } from "../hooks/useTransactions";
@@ -45,7 +46,7 @@ export default function AddTransaction() {
 
   const fetchPaymentMethods = async () => {
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000"}/paymentMethods`);
+      const response = await authFetch(`/api/paymentMethods`);
       if (response.ok) {
         const data = await response.json();
         setAvailablePaymentMethods(data);
@@ -139,7 +140,10 @@ export default function AddTransaction() {
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <SegmentedButtons
           value={type}
-          onValueChange={(val) => setType(val as TransactionType)}
+          onValueChange={(val) => {
+            setType(val as TransactionType);
+            setSelectedCategory(null);
+          }}
           buttons={[
             { value: "expense", label: "Expense", icon: "arrow-down" },
             { value: "income", label: "Income", icon: "arrow-up" },
