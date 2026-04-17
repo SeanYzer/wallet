@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { Platform } from "react-native";
 import { Budget } from "../types";
 import { useAuth } from "../context/AuthContext";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+import { USE_API, getBudgets, saveBudget, deleteBudgetLocal, updateBudgetLocal } from "../utils/db";
+import { authFetch } from "../utils/apiClient";
 
 export function useBudgets() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -19,10 +18,15 @@ export function useBudgets() {
   const fetchBudgets = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/budgets?userId=${activeUserId}`);
-      if (!response.ok) return;
-      const data = await response.json();
-      setBudgets(data);
+      if (USE_API) {
+        const response = await authFetch(`/api/budgets?userId=${activeUserId}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        setBudgets(data);
+      } else {
+        const data = await getBudgets();
+        setBudgets(data);
+      }
     } catch (error) {
       console.error("Error fetching budgets:", error);
     } finally {
@@ -32,14 +36,20 @@ export function useBudgets() {
 
   const addBudget = async (budget: Omit<Budget, "id">) => {
     try {
-      const response = await fetch(`${API_URL}/budgets`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...budget, id: Date.now().toString(), userId: activeUserId }),
-      });
-      if (!response.ok) throw new Error(`Failed to add budget: ${response.status}`);
-      const newBudget = await response.json();
-      setBudgets((prev) => [...prev, newBudget]);
+      const newBudget = { ...budget, id: Date.now().toString(), userId: activeUserId } as Budget;
+
+      if (USE_API) {
+        const response = await authFetch(`/api/budgets`, {
+          method: "POST",
+          body: JSON.stringify(newBudget),
+        });
+        if (!response.ok) throw new Error(`Failed to add budget: ${response.status}`);
+        const saved = await response.json();
+        setBudgets((prev) => [...prev, saved]);
+      } else {
+        await saveBudget(newBudget);
+        setBudgets((prev) => [...prev, newBudget]);
+      }
     } catch (error) {
       console.error("Error adding budget:", error);
       throw error;
@@ -48,13 +58,18 @@ export function useBudgets() {
 
   const updateBudget = async (id: string, updates: Partial<Budget>) => {
     try {
-      const response = await fetch(`${API_URL}/budgets/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...updates, userId: activeUserId }),
-      });
-      const updatedBudget = await response.json();
-      setBudgets((prev) => prev.map((b) => (b.id === id ? updatedBudget : b)));
+      if (USE_API) {
+        const response = await authFetch(`/api/budgets/${id}`, {
+          method: "PUT",
+          body: JSON.stringify({ ...updates, userId: activeUserId }),
+        });
+        const updatedData = await response.json();
+        // Since backend might just return status: success without the item, we update optimistically
+        setBudgets((prev) => prev.map((b) => (b.id === id ? { ...b, ...updates } : b)));
+      } else {
+        await updateBudgetLocal(id, updates);
+        setBudgets((prev) => prev.map((b) => (b.id === id ? { ...b, ...updates } : b)));
+      }
     } catch (error) {
       console.error("Error updating budget:", error);
     }
@@ -62,7 +77,11 @@ export function useBudgets() {
 
   const deleteBudget = async (id: string) => {
     try {
-      await fetch(`${API_URL}/budgets/${id}`, { method: "DELETE" });
+      if (USE_API) {
+        await authFetch(`/api/budgets/${id}`, { method: "DELETE" });
+      } else {
+        await deleteBudgetLocal(id);
+      }
       setBudgets((prev) => prev.filter((b) => b.id !== id));
     } catch (error) {
       console.error("Error deleting budget:", error);

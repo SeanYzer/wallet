@@ -21,6 +21,34 @@
       "isFirstRun": false,
       "initialBalance": 0,
       "userId": "1774183113299"
+    },
+    {
+      "id": "dadf",
+      "name": "test@example.com",
+      "isFirstRun": false,
+      "initialBalance": 0,
+      "userId": "1774188321093"
+    },
+    {
+      "id": "a469",
+      "name": "thesis_test_final@test.com",
+      "isFirstRun": false,
+      "initialBalance": 0,
+      "userId": "1774188490385"
+    },
+    {
+      "id": "195c",
+      "name": "thesis_test_final_v2@test.com",
+      "isFirstRun": false,
+      "initialBalance": 0,
+      "userId": "1774188621125"
+    },
+    {
+      "id": "4a85",
+      "name": "jm",
+      "isFirstRun": false,
+      "initialBalance": 0,
+      "userId": "1774789749200"
     }
   ],
   "transactions": [
@@ -165,6 +193,20 @@
       "userId": "1774183113299",
       "receiptUrl": null,
       "categoryId": "7"
+    },
+    {
+      "id": "1774789800267",
+      "amount": 100000,
+      "date": "2026-03-29T13:09:50.633Z",
+      "note": "",
+      "type": "income",
+      "category": {
+        "id": "6",
+        "name": "Salary",
+        "type": "income"
+      },
+      "paymentMethod": "Cash",
+      "userId": "1774789749200"
     }
   ],
   "budgets": [

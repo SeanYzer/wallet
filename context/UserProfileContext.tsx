@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getUserProfile, saveUserProfile, getSetting } from "../utils/db";
+import { getUserProfile, saveUserProfile, getSetting, USE_API } from "../utils/db";
+import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 interface UserProfile {
     isFirstRun: boolean;
@@ -10,7 +9,7 @@ interface UserProfile {
     initialBalance: number;
 }
 
-    interface UserProfileContextType {
+interface UserProfileContextType {
     profile: UserProfile | null;
     isLoading: boolean;
     completeSetup: (name: string) => Promise<void>;
@@ -39,49 +38,26 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            // API check segmented by userId
-            const response = await fetch(`${API_URL}/userProfiles?userId=${activeUserId}`);
-            if (response.ok) {
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    const cloudProfile = data[0];
-                    setProfile({
-                        name: cloudProfile.name,
-                        isFirstRun: cloudProfile.isFirstRun,
-                        initialBalance: cloudProfile.initialBalance,
-                    });
-                    await saveUserProfile(cloudProfile.name, cloudProfile.isFirstRun, cloudProfile.initialBalance);
-                } else {
-                    // Try to fetch account name as fallback from the main /users table
-                    const userRes = await fetch(`${API_URL}/users/${activeUserId}`);
-                    if (userRes.ok) {
-                        const userData = await userRes.json();
-                        if (userData && userData.name) {
-                            const newProfile = { name: userData.name, isFirstRun: false, initialBalance: 0 };
-                            setProfile(newProfile);
-                            await saveUserProfile(newProfile.name, false, 0);
-                            
-                            // Self-heal the cloud by POSTing the missing profile
-                            fetch(`${API_URL}/userProfiles`, { 
-                                method: "POST", 
-                                headers: {"Content-Type":"application/json"}, 
-                                body: JSON.stringify({...newProfile, userId: activeUserId})
-                            }).catch(()=>{});
-                            return;
-                        }
+            if (USE_API && activeUserId) {
+                const response = await authFetch(`/api/userProfiles`);
+                if (response.ok) {
+                    const cloudProfile = await response.json();
+                    if (cloudProfile && cloudProfile.name) {
+                        setProfile({
+                            name: cloudProfile.name,
+                            isFirstRun: false,
+                            initialBalance: cloudProfile.initialBalance || 0,
+                        });
+                        await saveUserProfile(cloudProfile.name, false, cloudProfile.initialBalance || 0);
+                        return;
                     }
-
-                    // No cloud profile, set default for first run
-                    setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
                 }
+                setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
             } else {
-                // API error, fallback to default
-                console.error("Error fetching profile from API:", response.status);
                 setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
             }
         } catch (e) {
             console.error("Error fetching profile:", e);
-            // Fallback for offline/error
             setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
         } finally {
             setIsLoading(false);
@@ -92,22 +68,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         await saveUserProfile(name, isFirstRun, initialBalance);
         setProfile({ name, isFirstRun, initialBalance });
 
-        if (activeUserId) {
-            // Sync to cloud - segmented by userId
+        if (USE_API && activeUserId) {
             try {
-                // Check if profile exists first for this user
-                const check = await fetch(`${API_URL}/userProfiles?userId=${activeUserId}`);
-                const existing = await check.json();
-
-                const method = (existing && existing.length > 0) ? "PATCH" : "POST";
-                const url = (existing && existing.length > 0)
-                    ? `${API_URL}/userProfiles/${existing[0].id}`
-                    : `${API_URL}/userProfiles`;
-
-                const response = await fetch(url, {
-                    method,
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, isFirstRun, initialBalance, userId: activeUserId })
+                const response = await authFetch(`/api/userProfiles/${activeUserId}`, {
+                    method: "PUT",
+                    body: JSON.stringify({ name, isFirstRun, initialBalance })
                 });
 
                 if (!response.ok) {

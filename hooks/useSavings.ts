@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { SavingsGoal } from "../types";
 import { useAuth } from "../context/AuthContext";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+import { USE_API, getSavingsGoals, saveSavingsGoal, deleteSavingsGoalLocal, updateSavingsGoalLocal } from "../utils/db";
+import { authFetch } from "../utils/apiClient";
 
 export function useSavings() {
     const [goals, setGoals] = useState<SavingsGoal[]>([]);
@@ -18,10 +18,15 @@ export function useSavings() {
     const fetchGoals = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/savingsGoals?userId=${activeUserId}`);
-            if (!response.ok) return;
-            const data = await response.json();
-            setGoals(data);
+            if (USE_API) {
+                const response = await authFetch(`/api/savingsGoals?userId=${activeUserId}`);
+                if (!response.ok) return;
+                const data = await response.json();
+                setGoals(data);
+            } else {
+                const data = await getSavingsGoals();
+                setGoals(data);
+            }
         } catch (error) {
             console.error("Error fetching savings goals:", error);
         } finally {
@@ -31,14 +36,20 @@ export function useSavings() {
 
     const addGoal = async (goal: Omit<SavingsGoal, "id">) => {
         try {
-            const response = await fetch(`${API_URL}/savingsGoals`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...goal, id: Date.now().toString(), userId: activeUserId }),
-            });
-            if (!response.ok) throw new Error(`Failed to add goal: ${response.status}`);
-            const newGoal = await response.json();
-            setGoals((prev) => [...prev, newGoal]);
+            const newGoal = { ...goal, id: Date.now().toString(), userId: activeUserId } as any;
+
+            if (USE_API) {
+                const response = await authFetch(`/api/savingsGoals`, {
+                    method: "POST",
+                    body: JSON.stringify(newGoal),
+                });
+                if (!response.ok) throw new Error(`Failed to add goal: ${response.status}`);
+                const saved = await response.json();
+                setGoals((prev) => [...prev, saved]);
+            } else {
+                await saveSavingsGoal(newGoal);
+                setGoals((prev) => [...prev, newGoal]);
+            }
         } catch (error) {
             console.error("Error adding savings goal:", error);
             throw error;
@@ -47,13 +58,17 @@ export function useSavings() {
 
     const updateGoal = async (id: string, updates: Partial<SavingsGoal>) => {
         try {
-            const response = await fetch(`${API_URL}/savingsGoals/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...updates, userId: activeUserId }),
-            });
-            const updatedGoal = await response.json();
-            setGoals((prev) => prev.map((g) => (g.id === id ? updatedGoal : g)));
+            if (USE_API) {
+                const response = await authFetch(`/api/savingsGoals/${id}`, {
+                    method: "PUT",
+                    body: JSON.stringify({ ...updates, userId: activeUserId }),
+                });
+                const updatedGoal = await response.json();
+                setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
+            } else {
+                await updateSavingsGoalLocal(id, updates);
+                setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
+            }
         } catch (error) {
             console.error("Error updating savings goal:", error);
         }
@@ -61,7 +76,11 @@ export function useSavings() {
 
     const deleteGoal = async (id: string) => {
         try {
-            await fetch(`${API_URL}/savingsGoals/${id}`, { method: "DELETE" });
+            if (USE_API) {
+                await authFetch(`/api/savingsGoals/${id}`, { method: "DELETE" });
+            } else {
+                await deleteSavingsGoalLocal(id);
+            }
             setGoals((prev) => prev.filter((g) => g.id !== id));
         } catch (error) {
             console.error("Error deleting savings goal:", error);

@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Platform } from "react-native";
 import { Transaction } from "../types";
-import { getTransactions, saveTransaction, updateTransactionLocal, deleteTransactionLocal, getSetting } from "../utils/db";
+import { getTransactions, saveTransaction, updateTransactionLocal, deleteTransactionLocal, getSetting, USE_API } from "../utils/db";
+import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 interface TransactionsContextType {
     transactions: Transaction[];
@@ -34,17 +32,19 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             const localData = await getTransactions();
             setTransactions(localData);
 
-            // 2. Background Sync if enabled (if not on web, or even on web)
-            const autoBackup = await getSetting('autoBackup');
-            if (autoBackup !== 'false' && activeUserId) {
-                const response = await fetch(`${API_URL}/transactions?userId=${activeUserId}`);
-                if (response.ok) {
-                    const remoteData = await response.json();
-                    if (Array.isArray(remoteData)) {
-                        const { saveTransactionsBulk, getTransactions: getLatest } = await import("../utils/db");
-                        await saveTransactionsBulk(remoteData);
-                        const mergedData = await getLatest();
-                        setTransactions(mergedData);
+            // 2. Background Sync if enabled AND API mode is ON
+            if (USE_API && activeUserId) {
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    const response = await authFetch(`/api/transactions?userId=${activeUserId}`);
+                    if (response.ok) {
+                        const remoteData = await response.json();
+                        if (Array.isArray(remoteData)) {
+                            const { saveTransactionsBulk, getTransactions: getLatest } = await import("../utils/db");
+                            await saveTransactionsBulk(remoteData);
+                            const mergedData = await getLatest();
+                            setTransactions(mergedData);
+                        }
                     }
                 }
             }
@@ -60,14 +60,15 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             const newTransaction = { ...transaction, id: Date.now().toString() } as Transaction;
             await saveTransaction(newTransaction);
             setTransactions((prev) => [...prev, newTransaction]);
-            
-            const autoBackup = await getSetting('autoBackup');
-            if (autoBackup !== 'false') {
-                fetch(`${API_URL}/transactions`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ ...newTransaction, userId: activeUserId }),
-                }).catch(err => console.error("Sync error:", err));
+
+            if (USE_API) {
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    authFetch(`/api/transactions`, {
+                        method: "POST",
+                        body: JSON.stringify({ ...newTransaction, userId: activeUserId }),
+                    }).catch(err => console.error("Sync error:", err));
+                }
             }
         } catch (error) {
             console.error("Error adding transaction:", error);
@@ -79,14 +80,15 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         try {
             await updateTransactionLocal(id, updates);
             setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
-            
-            const autoBackup = await getSetting('autoBackup');
-            if (autoBackup !== 'false') {
-                fetch(`${API_URL}/transactions/${id}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ ...updates, userId: activeUserId }),
-                }).catch(err => console.error("Sync error:", err));
+
+            if (USE_API) {
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    authFetch(`/api/transactions/${id}`, {
+                        method: "PUT",
+                        body: JSON.stringify({ ...updates, userId: activeUserId }),
+                    }).catch(err => console.error("Sync error:", err));
+                }
             }
         } catch (error) {
             console.error("Error updating transaction:", error);
@@ -98,10 +100,12 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         try {
             await deleteTransactionLocal(id);
             setTransactions((prev) => prev.filter((t) => t.id !== id));
-            
-            const autoBackup = await getSetting('autoBackup');
-            if (autoBackup !== 'false') {
-                fetch(`${API_URL}/transactions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+
+            if (USE_API) {
+                const autoBackup = await getSetting('autoBackup');
+                if (autoBackup !== 'false') {
+                    authFetch(`/api/transactions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+                }
             }
         } catch (error) {
             console.error("Error deleting transaction:", error);

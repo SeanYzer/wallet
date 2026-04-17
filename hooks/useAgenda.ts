@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { Platform } from "react-native";
 import { Agenda } from "../types";
 import { useAuth } from "../context/AuthContext";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+import { USE_API, getAgendas, saveAgenda, deleteAgendaLocal, updateAgendaLocal } from "../utils/db";
+import { authFetch } from "../utils/apiClient";
 
 export function useAgenda() {
   const [agendas, setAgendas] = useState<Agenda[]>([]);
@@ -19,10 +18,15 @@ export function useAgenda() {
   const fetchAgendas = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/agendas?userId=${activeUserId}`);
-      if (!response.ok) return;
-      const data = await response.json();
-      setAgendas(data);
+      if (USE_API) {
+        const response = await authFetch(`/api/agendas?userId=${activeUserId}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        setAgendas(data);
+      } else {
+        const data = await getAgendas();
+        setAgendas(data);
+      }
     } catch (error) {
       console.error("Error fetching agendas:", error);
     } finally {
@@ -32,14 +36,20 @@ export function useAgenda() {
 
   const addAgenda = async (agenda: Omit<Agenda, "id">) => {
     try {
-      const response = await fetch(`${API_URL}/agendas`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...agenda, id: Date.now().toString(), userId: activeUserId }),
-      });
-      if (!response.ok) throw new Error(`Failed to add agenda: ${response.status}`);
-      const newAgenda = await response.json();
-      setAgendas((prev) => [...prev, newAgenda]);
+      const newAgenda = { ...agenda, id: Date.now().toString(), userId: activeUserId } as Agenda;
+
+      if (USE_API) {
+        const response = await authFetch(`/api/agendas`, {
+          method: "POST",
+          body: JSON.stringify(newAgenda),
+        });
+        if (!response.ok) throw new Error(`Failed to add agenda: ${response.status}`);
+        const saved = await response.json();
+        setAgendas((prev) => [...prev, saved]);
+      } else {
+        await saveAgenda(newAgenda);
+        setAgendas((prev) => [...prev, newAgenda]);
+      }
     } catch (error) {
       console.error("Error adding agenda:", error);
       throw error;
@@ -48,13 +58,17 @@ export function useAgenda() {
 
   const updateAgenda = async (id: string, updates: Partial<Agenda>) => {
     try {
-      const response = await fetch(`${API_URL}/agendas/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...updates, userId: activeUserId }),
-      });
-      const updatedAgenda = await response.json();
-      setAgendas((prev) => prev.map((a) => (a.id === id ? updatedAgenda : a)));
+      if (USE_API) {
+        const response = await authFetch(`/api/agendas/${id}`, {
+          method: "PUT",
+          body: JSON.stringify({ ...updates, userId: activeUserId }),
+        });
+        const updatedData = await response.json();
+        setAgendas((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)));
+      } else {
+        await updateAgendaLocal(id, updates);
+        setAgendas((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)));
+      }
     } catch (error) {
       console.error("Error updating agenda:", error);
     }
@@ -62,7 +76,11 @@ export function useAgenda() {
 
   const deleteAgenda = async (id: string) => {
     try {
-      await fetch(`${API_URL}/agendas/${id}`, { method: "DELETE" });
+      if (USE_API) {
+        await authFetch(`/api/agendas/${id}`, { method: "DELETE" });
+      } else {
+        await deleteAgendaLocal(id);
+      }
       setAgendas((prev) => prev.filter((a) => a.id !== id));
     } catch (error) {
       console.error("Error deleting agenda:", error);

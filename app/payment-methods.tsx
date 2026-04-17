@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView, Alert } from "react-native";
 import { Appbar, List, FAB, Portal, Modal, TextInput, Button, Text, useTheme, Card, IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+import { authFetch } from "../utils/apiClient";
 
 interface PaymentMethod {
     id: string;
@@ -33,7 +32,7 @@ export default function PaymentMethodsScreen() {
 
     const fetchMethods = async () => {
         try {
-            const response = await fetch(`${API_URL}/paymentMethods`);
+            const response = await authFetch(`/api/paymentMethods`);
             if (response.ok) {
                 const data = await response.json();
                 setMethods(data);
@@ -53,9 +52,8 @@ export default function PaymentMethodsScreen() {
         };
 
         try {
-            const response = await fetch(`${API_URL}/paymentMethods`, {
+            const response = await authFetch(`/api/paymentMethods`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(newMethod),
             });
             if (response.ok) {
@@ -76,7 +74,7 @@ export default function PaymentMethodsScreen() {
                 style: "destructive",
                 onPress: async () => {
                     try {
-                        const response = await fetch(`${API_URL}/paymentMethods/${id}`, {
+                        const response = await authFetch(`/api/paymentMethods/${id}`, {
                             method: "DELETE",
                         });
                         if (response.ok) {

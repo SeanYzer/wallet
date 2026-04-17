@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Category } from "../types";
-import { getCategories, saveCategory, deleteCategoryLocal, getSetting } from "../utils/db";
+import { getCategories, saveCategory, deleteCategoryLocal, getSetting, USE_API } from "../utils/db";
+import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "1", name: "Food", type: "expense" },
@@ -46,18 +45,20 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
       }
       setCategories(data);
 
-      // 2. Background Sync if enabled
-      const autoBackup = await getSetting('autoBackup');
-      if (autoBackup !== 'false' && activeUserId) {
-        const response = await fetch(`${API_URL}/categories?userId=${activeUserId}`);
-        if (response.ok) {
+      // 2. Background Sync if enabled AND API mode is ON
+      if (USE_API && activeUserId) {
+        const autoBackup = await getSetting('autoBackup');
+        if (autoBackup !== 'false') {
+          const response = await authFetch(`/api/categories?userId=${activeUserId}`);
+          if (response.ok) {
             const remoteData = await response.json();
             if (Array.isArray(remoteData) && remoteData.length > 0) {
-                const { saveCategoriesBulk, getCategories: getLatest } = await import("../utils/db");
-                await saveCategoriesBulk(remoteData);
-                const mergedData = await getLatest();
-                setCategories(mergedData);
+              const { saveCategoriesBulk, getCategories: getLatest } = await import("../utils/db");
+              await saveCategoriesBulk(remoteData);
+              const mergedData = await getLatest();
+              setCategories(mergedData);
             }
+          }
         }
       }
     } catch (error) {
@@ -78,14 +79,15 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
       const newCategory = { ...category, id: Date.now().toString() };
       await saveCategory(newCategory);
       setCategories((prev) => [...prev, newCategory]);
-      
-      const autoBackup = await getSetting('autoBackup');
-      if (autoBackup !== 'false') {
-        fetch(`${API_URL}/categories`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...newCategory, userId: activeUserId }),
-        }).catch(err => console.error("Sync error:", err));
+
+      if (USE_API) {
+        const autoBackup = await getSetting('autoBackup');
+        if (autoBackup !== 'false') {
+          authFetch(`/api/categories`, {
+            method: "POST",
+            body: JSON.stringify({ ...newCategory, userId: activeUserId }),
+          }).catch(err => console.error("Sync error:", err));
+        }
       }
     } catch (error) {
       console.error("Error adding category:", error);
@@ -96,12 +98,14 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
     try {
       await deleteCategoryLocal(id);
       setCategories((prev) => prev.filter((c) => c.id !== id));
-      
-      const autoBackup = await getSetting('autoBackup');
-      if (autoBackup !== 'false') {
-        fetch(`${API_URL}/categories/${id}`, {
-          method: "DELETE",
-        }).catch(err => console.error("Sync error:", err));
+
+      if (USE_API) {
+        const autoBackup = await getSetting('autoBackup');
+        if (autoBackup !== 'false') {
+          authFetch(`/api/categories/${id}`, {
+            method: "DELETE",
+          }).catch(err => console.error("Sync error:", err));
+        }
       }
     } catch (error) {
       console.error("Error deleting category:", error);
