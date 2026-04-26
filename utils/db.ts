@@ -28,6 +28,8 @@ export const GLOBAL_PAYMENT_METHODS = [
   { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a16', name: 'Visa Card', type: 'card', icon: 'credit-card' },
 ];
 
+export const CURRENT_SEED_VERSION = 1;
+
 /**
  * --- Keys & Helpers ---
  * Data is stored as JSON strings.

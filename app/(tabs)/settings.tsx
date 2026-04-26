@@ -278,7 +278,7 @@ export default function SettingsScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
-      "Are you sure? This will remove your account from this device and attempt to clear your cloud data. This action is permanent.",
+      "WARNING: This action is permanent and cannot be undone. All your data in the cloud and on this device will be PERMANENTLY deleted. \n\nWe recommend downloading your JSON backup first if you wish to keep your records. \n\nContinue?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -288,30 +288,9 @@ export default function SettingsScreen() {
             if (activeUserId) {
               setIsSyncing(true);
               try {
-                // 1. Fetch user data from cloud to get IDs
-                const [txRes, catRes, profRes] = await Promise.all([
-                  authFetch(`transactions?userId=${activeUserId}`),
-                  authFetch(`categories?userId=${activeUserId}`),
-                  authFetch(`userProfiles?userId=${activeUserId}`)
-                ]);
-
-                const [txs, cats, profs] = await Promise.all([
-                  txRes.json(),
-                  catRes.json(),
-                  profRes.json()
-                ]);
-
-                // 2. Delete all from cloud
-                const deletePromises = [
-                  ...(Array.isArray(txs) ? txs.map(t => authFetch(`transactions/${t.id}`, { method: "DELETE" })) : []),
-                  ...(Array.isArray(cats) ? cats.map(c => authFetch(`categories/${c.id}`, { method: "DELETE" })) : []),
-                  ...(Array.isArray(profs) ? profs.map(p => authFetch(`userProfiles/${p.id}`, { method: "DELETE" })) : []),
-                  // Also delete from /users if applicable
-                  authFetch(`users/${activeUserId}`, { method: "DELETE" }).catch(() => { })
-                ];
-
-                await Promise.all(deletePromises);
-                console.log("Cloud account data cleared successfully");
+                // 1. Delete Account from Cloud (Cascades all tables)
+                await authFetch(`auth/account`, { method: "DELETE" });
+                console.log("Cloud account and all associated data deleted successfully");
 
                 // 3. Clear local tables (except master)
                 await clearAllLocalData();
