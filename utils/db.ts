@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import * as FileSystem from 'expo-file-system';
 import { Category, Transaction, Agenda, Subscription, SavingsGoal, Budget } from '../types';
 
 /**
@@ -516,7 +517,22 @@ export const exportData = async () => {
   const settingsFullKey = await getPrefixedKey('settings');
   const settings = await getItem(settingsFullKey, {});
   const categories = await getCategories();
-  const transactions = await getTransactions();
+  const rawTransactions = await getTransactions();
+
+  // Enhance transactions with Base64 images for self-contained backup
+  const transactions = await Promise.all(rawTransactions.map(async (t) => {
+    if (t.receiptUrl && (t.receiptUrl.startsWith('http') || t.receiptUrl.startsWith('file'))) {
+      try {
+        const base64 = await FileSystem.readAsStringAsync(t.receiptUrl, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        return { ...t, receiptBase64: base64 };
+      } catch (e) {
+        console.warn(`Could not embed image for transaction ${t.id}:`, e);
+      }
+    }
+    return t;
+  }));
 
   return JSON.stringify({
     profile,
@@ -542,7 +558,26 @@ export const importData = async (jsonString: string) => {
     await setItem(categoriesFullKey, data.categories);
   }
   if (data.transactions) {
+    // Restore images from Base64
+    const restoredTransactions = await Promise.all(data.transactions.map(async (t: any) => {
+      if (t.receiptBase64) {
+        try {
+          const filename = `receipt_${t.id}.jpg`;
+          const localUri = `${FileSystem.documentDirectory}${filename}`;
+          await FileSystem.writeAsStringAsync(localUri, t.receiptBase64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const updated = { ...t, receiptUrl: localUri };
+          delete updated.receiptBase64;
+          return updated;
+        } catch (e) {
+          console.error("Failed to restore image during import:", e);
+        }
+      }
+      return t;
+    }));
+
     const transactionsFullKey = await getPrefixedKey('transactions');
-    await setItem(transactionsFullKey, data.transactions);
+    await setItem(transactionsFullKey, restoredTransactions);
   }
 };

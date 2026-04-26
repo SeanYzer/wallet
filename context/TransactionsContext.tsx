@@ -11,6 +11,8 @@ import {
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
 import { generateUUID } from "../utils/uuid";
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer'; // Necessary for direct blob upload if needed
 
 interface TransactionsContextType {
     transactions: Transaction[];
@@ -61,11 +63,46 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             const autoBackup = await getSetting("autoBackup");
             if (autoBackup === "false") return;
 
+            // 1. Check for local images that need uploading to Supabase
+            const dataWithCloudImages = await Promise.all(localData.map(async (tx) => {
+                // If it's a local file URI, we need to upload it to our secured bucket
+                if (tx.receiptUrl && tx.receiptUrl.startsWith('file://')) {
+                    try {
+                        const fileName = `${tx.id}.jpg`;
+                        const securedPath = `${activeUserId}/${fileName}`; // Security Path Enforcement
+                        
+                        // We use a dedicated endpoint or direct Supabase upload logic here
+                        // For now, let's assume we use an authFetch-compatible upload route
+                        const base64 = await FileSystem.readAsStringAsync(tx.receiptUrl, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
+
+                        const uploadRes = await authFetch(`storage/upload`, {
+                            method: "POST",
+                            body: JSON.stringify({
+                                path: securedPath,
+                                fileBase64: base64,
+                                bucket: 'receipts'
+                            })
+                        });
+
+                        if (uploadRes.ok) {
+                            const { url } = await uploadRes.json();
+                            return { ...tx, receiptUrl: url };
+                        }
+                    } catch (e) {
+                        console.error("Failed to sync image to cloud:", e);
+                    }
+                }
+                return tx;
+            }));
+
+            // 2. Sync transactions with cloud-ready URLs
             const response = await authFetch(`transactions/sync`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    transactions: localData,
+                    transactions: dataWithCloudImages,
                     userId: activeUserId
                 })
             });
