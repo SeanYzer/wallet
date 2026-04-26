@@ -70,12 +70,17 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+import { useUserProfile } from "./UserProfileContext";
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
+    const { profile, updateProfile } = useUserProfile();
     const systemColorScheme = useColorScheme();
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    
+    // Use profile setting, fallback to system scheme if no profile
+    const isDarkMode = profile ? profile.isDarkMode : systemColorScheme === 'dark';
 
     const toggleTheme = () => {
-        setIsDarkMode((prev) => !prev);
+        updateProfile({ isDarkMode: !isDarkMode });
     };
 
     const theme = isDarkMode ? CombinedDarkTheme : CombinedDefaultTheme;

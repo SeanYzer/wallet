@@ -23,9 +23,13 @@ interface CurrencyContextType {
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
 
+import { useUserProfile } from "./UserProfileContext";
+
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>("PHP");
-  const [decimalPlaces, setDecimalPlaces] = useState(2);
+  const { profile, updateProfile } = useUserProfile();
+
+  const currencyCode = (profile?.currency as CurrencyCode) || "PHP";
+  const decimalPlaces = profile?.decimalPoints ?? 2;
 
   const currency = CURRENCIES[currencyCode];
 
@@ -38,7 +42,11 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   };
 
   const setCurrency = (code: CurrencyCode) => {
-    setCurrencyCode(code);
+    updateProfile({ currency: code });
+  };
+
+  const setDecimalPlaces = (places: number) => {
+    updateProfile({ decimalPoints: places });
   };
 
   return (

@@ -49,8 +49,15 @@ const translations = {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+import { useUserProfile } from "./UserProfileContext";
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>("en");
+  const { profile, updateProfile } = useUserProfile();
+  const language = (profile?.language as Language) || "en";
+
+  const setLanguage = (lang: Language) => {
+    updateProfile({ language: lang });
+  };
 
   const t = (key: string) => {
     return (translations[language] as any)[key] || key;

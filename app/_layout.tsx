@@ -170,26 +170,26 @@ export default function RootLayout() {
 
   return (
     <DbRecoveryProvider>
-      <ThemeProvider>
-        <LanguageProvider>
-          <AuthProvider>
-            <SystemResetManager />
-            <PasscodeProvider>
-              <CurrencyProvider>
-                <AuthLoader>
-                  <UserProfileProvider>
+      <AuthProvider>
+        <UserProfileProvider>
+          <SystemResetManager />
+          <ThemeProvider>
+            <LanguageProvider>
+              <PasscodeProvider>
+                <CurrencyProvider>
+                  <AuthLoader>
                     <CategoriesProvider>
                       <TransactionsProvider>
                         <MainLayout />
                       </TransactionsProvider>
                     </CategoriesProvider>
-                  </UserProfileProvider>
-                </AuthLoader>
-              </CurrencyProvider>
-            </PasscodeProvider>
-          </AuthProvider>
-        </LanguageProvider>
-      </ThemeProvider>
+                  </AuthLoader>
+                </CurrencyProvider>
+              </PasscodeProvider>
+            </LanguageProvider>
+          </ThemeProvider>
+        </UserProfileProvider>
+      </AuthProvider>
     </DbRecoveryProvider>
   );
 }

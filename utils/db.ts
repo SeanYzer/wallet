@@ -163,9 +163,11 @@ export const getUserProfile = async (overrideUserId?: string) => {
   return null;
 };
 
-export const saveUserProfile = async (name: string, isFirstRun: boolean, initialBalance: number, overrideUserId?: string) => {
+export const saveUserProfile = async (profile: Partial<UserProfile>, overrideUserId?: string) => {
   const fullKey = await getPrefixedKey('profile', overrideUserId);
-  await setItem(fullKey, { name, isFirstRun, initialBalance });
+  const current = await getUserProfile(overrideUserId) || {};
+  const updated = { ...current, ...profile };
+  await setItem(fullKey, updated);
 };
 
 // --- Payment Methods ---
@@ -553,7 +555,7 @@ export const importData = async (jsonString: string) => {
   await clearAllLocalData();
 
   if (data.profile) {
-    await saveUserProfile(data.profile.name, data.profile.isFirstRun, data.profile.initialBalance);
+    await saveUserProfile(data.profile);
   }
   if (data.settings) {
     const settingsFullKey = await getPrefixedKey('settings');

@@ -4,15 +4,33 @@ import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
 
 interface UserProfile {
-    isFirstRun: boolean;
     name: string;
+    isFirstRun: boolean;
     initialBalance: number;
+    isDarkMode: boolean;
+    language: string;
+    currency: string;
+    decimalPoints: number;
+    autoBackup: boolean;
 }
+
+const DEFAULT_PROFILE: UserProfile = {
+    name: "",
+    isFirstRun: true,
+    initialBalance: 0,
+    isDarkMode: false,
+    language: "en",
+    currency: "PHP",
+    decimalPoints: 2,
+    autoBackup: true
+};
 
 interface UserProfileContextType {
     profile: UserProfile | null;
     isLoading: boolean;
     completeSetup: (name: string) => Promise<void>;
+    updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+    resetProfileToDefaults: () => Promise<void>;
     refetch: () => Promise<void>;
 }
 
@@ -31,62 +49,66 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     const fetchProfile = async () => {
         setIsLoading(true);
         try {
-            // Local check first
             const local = await getUserProfile();
-            if (local) {
-                setProfile(local);
-                return;
-            }
-
+            
             if (API_URL && activeUserId) {
                 const response = await authFetch(`userProfiles?userId=${activeUserId}`);
                 if (response.ok) {
                     const cloudProfile = await response.json();
                     if (cloudProfile && cloudProfile.name) {
-                        setProfile({
-                            name: cloudProfile.name,
-                            isFirstRun: false,
-                            initialBalance: cloudProfile.initialBalance || 0,
-                        });
-                        await saveUserProfile(cloudProfile.name, false, cloudProfile.initialBalance || 0);
+                        const merged = { ...DEFAULT_PROFILE, ...cloudProfile, isFirstRun: false };
+                        setProfile(merged);
+                        await saveUserProfile(merged);
                         return;
                     }
                 }
-                setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
+            }
+
+            if (local) {
+                setProfile({ ...DEFAULT_PROFILE, ...local });
             } else {
-                setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
+                setProfile(DEFAULT_PROFILE);
             }
         } catch (e) {
             console.error("Error fetching profile:", e);
-            setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
+            setProfile(DEFAULT_PROFILE);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const updateProfile = async (name: string, isFirstRun: boolean, initialBalance: number) => {
-        await saveUserProfile(name, isFirstRun, initialBalance);
-        setProfile({ name, isFirstRun, initialBalance });
+    const updateProfile = async (updates: Partial<UserProfile>) => {
+        if (!profile) return;
+        const newProfile = { ...profile, ...updates };
+        
+        await saveUserProfile(newProfile);
+        setProfile(newProfile);
 
-            if (API_URL && activeUserId) {
+        // Only sync to cloud if autoBackup is enabled (as per integration.md)
+        if (API_URL && activeUserId && newProfile.autoBackup) {
             try {
-                const response = await authFetch(`userProfiles/${activeUserId}`, {
+                await authFetch(`userProfiles/${activeUserId}`, {
                     method: "PUT",
-                    body: JSON.stringify({ name, isFirstRun, initialBalance })
+                    body: JSON.stringify(newProfile)
                 });
-
-                if (!response.ok) {
-                    console.warn("Cloud profile sync failed with status:", response.status);
-                }
             } catch (e) {
                 console.error("Cloud profile sync error:", e);
             }
         }
     };
 
+    const resetProfileToDefaults = async () => {
+        if (!profile) return;
+        await updateProfile({ 
+            ...DEFAULT_PROFILE, 
+            name: profile.name, 
+            isFirstRun: false 
+        });
+    };
+
     const completeSetup = async (name: string) => {
         try {
-            await updateProfile(name, false, 0);
+            await updateProfile({ name, isFirstRun: false });
         } catch (error) {
             console.error("Error completing setup:", error);
             throw error;
@@ -94,7 +116,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <UserProfileContext.Provider value={{ profile, isLoading, completeSetup, refetch: fetchProfile }}>
+        <UserProfileContext.Provider value={{ profile, isLoading, completeSetup, updateProfile, resetProfileToDefaults, refetch: fetchProfile }}>
             {children}
         </UserProfileContext.Provider>
     );

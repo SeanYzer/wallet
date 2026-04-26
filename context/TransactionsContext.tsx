@@ -55,13 +55,15 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         }
     };
 
+import { useUserProfile } from "./UserProfileContext";
+
     /**
      * BACKGROUND SYNC (single endpoint)
      */
     const syncWithServer = async (localData: Transaction[]) => {
         try {
-            const autoBackup = await getSetting("autoBackup");
-            if (autoBackup === "false") return;
+            const { profile } = useUserProfile(); 
+            if (profile?.autoBackup === false) return;
 
             // 1. Check for local images that need uploading to Supabase
             const dataWithCloudImages = await Promise.all(localData.map(async (tx) => {

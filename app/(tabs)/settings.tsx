@@ -21,7 +21,7 @@ export default function SettingsScreen() {
   const paperTheme = usePaperTheme();
   const { currency, setCurrency, decimalPlaces, setDecimalPlaces } = useCurrency();
   const { theme, isDarkMode, toggleTheme } = useAppTheme();
-  const { profile, refetch: refetchProfile } = useUserProfile();
+  const { profile, updateProfile, resetProfileToDefaults, refetch: refetchProfile } = useUserProfile();
   const { language, setLanguage, t } = useLanguage();
   const { isPasscodeEnabled, setIsPasscodeEnabled, passcode, setPasscode, setIsUnlocked } = usePasscode();
   const { activeUserId, logout } = useAuth();
@@ -45,16 +45,10 @@ export default function SettingsScreen() {
     }
   };
 
-  const [autoBackup, setAutoBackup] = useState(true);
+  const autoBackup = profile?.autoBackup ?? true;
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinInput, setPinInput] = useState("");
-
-  useEffect(() => {
-    getSetting('autoBackup').then(val => {
-      setAutoBackup(val !== 'false');
-    });
-  }, []);
 
   const handleToggleAutoBackup = async (val: boolean) => {
     if (val) {
@@ -91,8 +85,7 @@ export default function SettingsScreen() {
                       {
                         text: "Keep Local",
                         onPress: async () => {
-                          setAutoBackup(true);
-                          await setSetting('autoBackup', 'true');
+                          updateProfile({ autoBackup: true });
                           handleManualBackup(); // Overwrite cloud with local
                         }
                       },
@@ -100,8 +93,7 @@ export default function SettingsScreen() {
                         text: "Keep Cloud",
                         style: "destructive",
                         onPress: async () => {
-                          setAutoBackup(true);
-                          await setSetting('autoBackup', 'true');
+                          updateProfile({ autoBackup: true });
                           await performRestore(); // Overwrite local with cloud
                         }
                       }
@@ -109,8 +101,7 @@ export default function SettingsScreen() {
                   );
                 } else {
                   // No cloud data, safe to just turn on
-                  setAutoBackup(true);
-                  await setSetting('autoBackup', 'true');
+                  updateProfile({ autoBackup: true });
                 }
               } catch (e) {
                 console.error("Conflict check failed:", e);
@@ -124,8 +115,7 @@ export default function SettingsScreen() {
       );
     } else {
       // Turning OFF is always safe locally
-      setAutoBackup(false);
-      await setSetting('autoBackup', 'false');
+      updateProfile({ autoBackup: false });
     }
   };
 
@@ -219,6 +209,7 @@ export default function SettingsScreen() {
 
         // 3. Clear local
         await clearAllLocalData();
+        await resetProfileToDefaults();
         setShowPinPrompt(false);
         setPinInput("");
 
