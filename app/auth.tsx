@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, useTheme as usePaperTheme } from 'react-native-paper';
+import { Text, TextInput, Button, Card, HelperText, useTheme as usePaperTheme } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { addUser, saveUserProfile } from '../utils/db';
@@ -14,16 +14,21 @@ export default function AuthScreen() {
     const [name, setName] = useState(""); // This is now used for email
     const [passcode, setPasscode] = useState("");
     const [loading, setLoading] = useState(false);
+    const [emailError, setEmailError] = useState("");
+    const [pinError, setPinError] = useState("");
 
-    const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_LOCAL_URL;
 
     const checkConnection = async () => {
+        // Platform agnostic check for known offline state
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+
         try {
-            const timeout = new Promise((_, reject) => 
+            const timeout = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Timeout')), 3000)
             );
             const response = await Promise.race([
-                fetch(`${API_URL}/api/paymentMethods`), // Lightweight ping
+                fetch(`${API_URL}/api/paymentMethods`),
                 timeout
             ]) as Response;
             return response.ok;
@@ -32,16 +37,43 @@ export default function AuthScreen() {
         }
     };
 
+    const showAlert = (title: string, message: string, buttons?: any[]) => {
+        if (Platform.OS === 'web') {
+            if (buttons && buttons.length > 0) {
+                const confirmMsg = confirm(`${title}\n\n${message}`);
+                if (confirmMsg) {
+                    buttons[0].onPress();
+                } else if (buttons.length > 1) {
+                    buttons[1].onPress();
+                }
+            } else {
+                alert(`${title}: ${message}`);
+            }
+        } else {
+            Alert.alert(title, message, buttons);
+        }
+    };
+
     const handleRegister = async () => {
-        if (!name.trim() || !passcode.trim()) {
-            Alert.alert("Error", "Email and PIN are required");
+        setEmailError("");
+        setPinError("");
+
+        if (!name.trim()) {
+            setEmailError("Email is required");
+            setLoading(false);
             return;
         }
 
-        // Basic email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(name.trim())) {
-            Alert.alert("Invalid Email", "Please enter a valid email address.");
+            setEmailError("Please enter a valid email address.");
+            setLoading(false);
+            return;
+        }
+
+        if (!passcode.trim()) {
+            setPinError("PIN is required");
+            setLoading(false);
             return;
         }
 
@@ -59,7 +91,7 @@ export default function AuthScreen() {
                 const responseData = await response.json();
 
                 if (!response.ok) {
-                    Alert.alert("Error", responseData.message || "Could not register account");
+                    showAlert("Authentication Error", responseData.message || "Email is not available or could not register account.");
                     setLoading(false);
                     return;
                 }
@@ -69,7 +101,7 @@ export default function AuthScreen() {
                 await login(responseData.data.user.id, responseData.data.token);
             } catch (e: any) {
                 console.error("Online registration failed:", e);
-                Alert.alert("Error", "Cloud registration failed. Please try again or check your connection.");
+                showAlert("Error", "Cloud registration failed. Please try again or check your connection.");
             } finally {
                 setLoading(false);
             }
@@ -77,10 +109,10 @@ export default function AuthScreen() {
             // Offline Registration
             const { generateUUID } = require('../utils/uuid');
             const offlineId = generateUUID();
-            
-            Alert.alert(
-                "Offline Account",
-                "You are currently offline. We will create a local account for you. You can sync this to the cloud later by turning on Auto-save in Settings.",
+
+            showAlert(
+                "Offline Account (No Internet)",
+                "You are currently offline. NOTE: Email uniqueness cannot be checked while offline. If this email is already registered on our cloud, you will be asked to resolve data conflicts later when you sync. Proceed?",
                 [
                     {
                         text: "Proceed",
@@ -90,7 +122,7 @@ export default function AuthScreen() {
                                 await saveUserProfile(name.trim(), true, 0, offlineId);
                                 await login(offlineId, "offline_token");
                             } catch (err) {
-                                Alert.alert("Error", "Failed to create local account.");
+                                showAlert("Error", "Failed to create local account.");
                             } finally {
                                 setLoading(false);
                             }
@@ -103,15 +135,22 @@ export default function AuthScreen() {
     };
 
     const handleLogin = async () => {
-        if (!name.trim() || !passcode.trim()) {
-            Alert.alert("Error", "Email and PIN are required");
+        setEmailError("");
+        setPinError("");
+
+        if (!name.trim()) {
+            setEmailError("Email is required");
             return;
         }
 
-        // Basic email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(name.trim())) {
-            Alert.alert("Invalid Email", "Please enter a valid email address.");
+            setEmailError("Please enter a valid email address.");
+            return;
+        }
+
+        if (!passcode.trim()) {
+            setPinError("PIN is required");
             return;
         }
 
@@ -129,7 +168,7 @@ export default function AuthScreen() {
                 const responseData = await response.json();
 
                 if (!response.ok) {
-                    Alert.alert("Error", responseData.message || "Invalid credentials");
+                    showAlert("Authentication Error", responseData.message || "Invalid credentials");
                     setLoading(false);
                     return;
                 }
@@ -164,18 +203,18 @@ export default function AuthScreen() {
                 if (isMatch) {
                     await login(localUser.id, "local_token");
                 } else {
-                    Alert.alert("Error", "Invalid local PIN");
+                    showAlert("Error", "Invalid local PIN");
                 }
             } catch (err) {
                 // Fallback for plain text legacy local users
                 if (localUser.passcode === passcode.trim()) {
                     await login(localUser.id, "local_token");
                 } else {
-                    Alert.alert("Error", "Invalid PIN");
+                    showAlert("Error", "Invalid PIN");
                 }
             }
         } else {
-            Alert.alert("Login Failed", "No local data found for this email. Please go online to sync your cloud account for the first time.");
+            showAlert("Login Failed", "No local data found for this email. Please go online to sync your cloud account for the first time.");
         }
     };
 
@@ -195,25 +234,34 @@ export default function AuthScreen() {
                                 <TextInput
                                     label="Email"
                                     value={name}
-                                    onChangeText={setName}
+                                    onChangeText={(text) => { setName(text); setEmailError(""); }}
                                     style={styles.input}
                                     mode="outlined"
                                     outlineColor="#e0e0e0"
                                     activeOutlineColor="#3949ab"
+                                    error={!!emailError}
                                     autoCapitalize="none"
                                     keyboardType="email-address"
                                 />
+                                <HelperText type="error" visible={!!emailError}>
+                                    {emailError}
+                                </HelperText>
+
                                 <TextInput
                                     label="PIN (4-digits)"
                                     value={passcode}
-                                    onChangeText={setPasscode}
+                                    onChangeText={(text) => { setPasscode(text); setPinError(""); }}
                                     keyboardType="numeric"
                                     secureTextEntry
                                     style={styles.input}
                                     mode="outlined"
                                     outlineColor="#e0e0e0"
                                     activeOutlineColor="#3949ab"
+                                    error={!!pinError}
                                 />
+                                <HelperText type="error" visible={!!pinError}>
+                                    {pinError}
+                                </HelperText>
 
                                 <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
                                     <Button
@@ -262,5 +310,5 @@ const styles = StyleSheet.create({
         shadowRadius: 8
     },
     createBtn: { marginTop: 20, marginBottom: 8, borderRadius: 12, paddingVertical: 4, backgroundColor: '#3949ab' },
-    input: { marginBottom: 12, backgroundColor: '#fff' }
+    input: { marginBottom: 4, backgroundColor: '#fff' }
 });
