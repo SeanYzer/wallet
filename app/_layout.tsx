@@ -13,8 +13,50 @@ import { PasscodeProvider, usePasscode } from "../context/PasscodeContext";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import PasscodeScreen from "./passcode-screen";
 import { DbRecoveryProvider } from "../context/DbRecoveryContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_URL, hardResetLocalData } from "../utils/db";
 
-function MainLayout() {
+function SystemResetManager() {
+  const router = useRouter();
+  const { logout } = useAuth();
+
+  useEffect(() => {
+    const checkReset = async () => {
+      try {
+        const response = await fetch(`${API_URL}/system/health`);
+        if (!response.ok) return;
+
+        const { data } = await response.json();
+        const serverEpoch = data.reset_epoch;
+        const localEpochStr = await AsyncStorage.getItem("system_reset_epoch");
+        const localEpoch = localEpochStr ? parseInt(localEpochStr) : null;
+
+        if (localEpoch === null) {
+          // New install, just save the current epoch
+          await AsyncStorage.setItem("system_reset_epoch", serverEpoch.toString());
+        } else if (serverEpoch > localEpoch) {
+          // RESET TRIGGERED
+          console.warn("SYSTEM RESET TRIGGERED BY SERVER");
+          await hardResetLocalData();
+          await AsyncStorage.setItem("system_reset_epoch", serverEpoch.toString());
+          
+          if (Platform.OS === 'web') {
+            window.location.reload();
+          } else {
+            router.replace("/auth");
+            alert("A system reset was requested. You have been logged out.");
+          }
+        }
+      } catch (e) {
+        console.error("Health check failed", e);
+      }
+    };
+
+    checkReset();
+  }, []);
+
+  return null;
+}
   const { theme } = useAppTheme();
   const { isPasscodeEnabled, isUnlocked } = usePasscode();
   const { activeUserId, isLoading } = useAuth();
@@ -129,6 +171,7 @@ export default function RootLayout() {
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>
+            <SystemResetManager />
             <PasscodeProvider>
               <CurrencyProvider>
                 <AuthLoader>

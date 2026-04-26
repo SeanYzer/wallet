@@ -510,6 +510,12 @@ export const deleteUser = async (id: string) => {
   await AsyncStorage.multiRemove(userKeys);
 };
 
+export const hardResetLocalData = async () => {
+  const keys = await AsyncStorage.getAllKeys();
+  const keysToWipe = keys.filter(k => k !== 'system_reset_epoch');
+  await AsyncStorage.multiRemove(keysToWipe);
+};
+
 // --- Import / Export ---
 
 export const exportData = async () => {
