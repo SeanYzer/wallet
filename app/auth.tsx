@@ -108,6 +108,13 @@ export default function AuthScreen() {
             return;
         }
 
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(name.trim())) {
+            Alert.alert("Invalid Email", "Please enter a valid email address.");
+            return;
+        }
+
         setLoading(true);
         const isOnline = await checkConnection();
 
