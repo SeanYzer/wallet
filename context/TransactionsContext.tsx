@@ -27,7 +27,7 @@ interface TransactionsContextType {
 const TransactionsContext = createContext<TransactionsContextType | undefined>(undefined);
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
-    const { activeUserId } = useAuth();
+    const { activeUserId, logout } = useAuth();
     const { profile } = useUserProfile();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
@@ -75,7 +75,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                         // We use a dedicated endpoint or direct Supabase upload logic here
                         // For now, let's assume we use an authFetch-compatible upload route
                         const base64 = await FileSystem.readAsStringAsync(tx.receiptUrl, {
-                            encoding: FileSystem.EncodingType.Base64,
+                            encoding: 'base64',
                         });
 
                         const uploadRes = await authFetch(`storage/upload`, {
@@ -107,6 +107,12 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                     userId: activeUserId
                 })
             });
+
+            if (response.status === 401) {
+                console.warn("Session expired during sync. Logging out.");
+                await logout();
+                return;
+            }
 
             if (!response.ok) return;
 

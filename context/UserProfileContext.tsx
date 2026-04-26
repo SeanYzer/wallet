@@ -115,7 +115,12 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
 
     const completeSetup = async (name: string, balance: number) => {
         try {
-            await updateProfile({ name, balance, isFirstRun: false });
+            await updateProfile({ 
+                name, 
+                balance, 
+                initialBalance: balance,
+                isFirstRun: false 
+            });
         } catch (error) {
             console.error("Error completing setup:", error);
             throw error;
