@@ -4,7 +4,10 @@ import { Text, TextInput, Button, Card, HelperText, useTheme as usePaperTheme } 
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { addUser, saveUserProfile } from '../utils/db';
+import * as Crypto from 'expo-crypto';
 import { LinearGradient } from 'expo-linear-gradient';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AuthScreen() {
     const router = useRouter();
@@ -28,7 +31,7 @@ export default function AuthScreen() {
                 setTimeout(() => reject(new Error('Timeout')), 3000)
             );
             const response = await Promise.race([
-                fetch(`${API_URL}/api/paymentMethods`),
+                fetch(`${API_URL}/paymentMethods`),
                 timeout
             ]) as Response;
             return response.ok;
@@ -60,62 +63,57 @@ export default function AuthScreen() {
 
         if (!name.trim()) {
             setEmailError("Email is required");
-            setLoading(false);
             return;
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(name.trim())) {
             setEmailError("Please enter a valid email address.");
-            setLoading(false);
             return;
         }
 
         if (!passcode.trim()) {
             setPinError("PIN is required");
-            setLoading(false);
             return;
         }
 
         setLoading(true);
-        const isOnline = await checkConnection();
 
-        if (isOnline) {
-            try {
-                const response = await fetch(`${API_URL}/api/auth/register`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: name.trim(), passcode: passcode.trim(), initialBalance: 0 }),
-                });
+        try {
+            // ALWAYS try Online first
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: name.trim(), passcode: passcode.trim(), initialBalance: 0 }),
+            });
 
-                const responseData = await response.json();
+            const responseData = await response.json();
 
-                if (!response.ok) {
-                    showAlert("Authentication Error", responseData.message || "Email is not available or could not register account.");
-                    setLoading(false);
-                    return;
-                }
-
+            if (response.ok) {
                 await addUser(responseData.data.user.id, name.trim(), passcode.trim());
                 await saveUserProfile(name.trim(), true, 0, responseData.data.user.id);
                 await login(responseData.data.user.id, responseData.data.token);
-            } catch (e: any) {
-                console.error("Online registration failed:", e);
-                showAlert("Error", "Cloud registration failed. Please try again or check your connection.");
-            } finally {
                 setLoading(false);
+                return;
+            } else {
+                // Definitive cloud error (e.g. Email Taken)
+                showAlert("Registration Error", responseData.message || "Email is not available.");
+                setLoading(false);
+                return;
             }
-        } else {
-            // Offline Registration
+        } catch (e: any) {
+            // Reachability error (Timeout / No Internet)
+            console.log("Could not reach cloud:", e.message);
+
             const { generateUUID } = require('../utils/uuid');
             const offlineId = generateUUID();
 
             showAlert(
-                "Offline Account (No Internet)",
-                "You are currently offline. NOTE: Email uniqueness cannot be checked while offline. If this email is already registered on our cloud, you will be asked to resolve data conflicts later when you sync. Proceed?",
+                "Cloud Unreachable",
+                "We couldn't connect to our servers to verify your account. Would you like to create a local-only account for now? NOTE: Uniqueness cannot be checked while offline.",
                 [
                     {
-                        text: "Proceed",
+                        text: "Proceed Offline",
                         onPress: async () => {
                             try {
                                 await addUser(offlineId, name.trim(), passcode.trim());
@@ -128,7 +126,7 @@ export default function AuthScreen() {
                             }
                         }
                     },
-                    { text: "Cancel", style: "cancel", onPress: () => setLoading(false) }
+                    { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }
                 ]
             );
         }
@@ -159,7 +157,7 @@ export default function AuthScreen() {
 
         if (isOnline) {
             try {
-                const response = await fetch(`${API_URL}/api/auth/login`, {
+                const response = await fetch(`${API_URL}/auth/login`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ name: name.trim(), passcode: passcode.trim() }),
@@ -195,23 +193,20 @@ export default function AuthScreen() {
         const localUser = users.find((u: any) => u.name === name.trim());
 
         if (localUser) {
-            const bcrypt = require('bcryptjs');
-            // If it's a local-only user, passcode might be plain or hashed.
-            // But addUser hashes it in recent versions.
+            // Local passcode is stored as SHA-256 hash or plain text (legacy)
             try {
-                const isMatch = await bcrypt.compare(passcode.trim(), localUser.passcode);
-                if (isMatch) {
-                    await login(localUser.id, "local_token");
-                } else {
-                    showAlert("Error", "Invalid local PIN");
-                }
-            } catch (err) {
-                // Fallback for plain text legacy local users
-                if (localUser.passcode === passcode.trim()) {
+                const hashedInput = await Crypto.digestStringAsync(
+                    Crypto.CryptoDigestAlgorithm.SHA256,
+                    passcode.trim()
+                );
+
+                if (localUser.passcode === hashedInput || localUser.passcode === passcode.trim()) {
                     await login(localUser.id, "local_token");
                 } else {
                     showAlert("Error", "Invalid PIN");
                 }
+            } catch (err) {
+                showAlert("Error", "Authentication failed. Error: " + (err as Error).message);
             }
         } else {
             showAlert("Login Failed", "No local data found for this email. Please go online to sync your cloud account for the first time.");

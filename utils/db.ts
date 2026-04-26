@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import { Category, Transaction, Agenda, Subscription, SavingsGoal, Budget } from '../types';
 
 /**
@@ -421,10 +422,11 @@ export const addUser = async (id: string, name: string, passcode: string) => {
   const users = await getUsers();
   const existingUser = users.find(u => u.id === id);
   if (!existingUser) {
-    const bcrypt = require('bcryptjs');
-    const salt = await bcrypt.genSalt(10);
-    const hashedPasscode = await bcrypt.hash(passcode, salt);
-
+    const hashedPasscode = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      passcode
+    );
+    
     users.push({ id, name, passcode: hashedPasscode });
     await setItem('master_users', users);
   }
