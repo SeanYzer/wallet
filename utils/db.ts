@@ -72,11 +72,12 @@ export const clearAllLocalData = async () => {
   const prefix = userId ? `user_${userId}_` : `default_`;
 
   const keys = await AsyncStorage.getAllKeys();
-  const userKeys = keys.filter(k => k.startsWith(prefix));
+  const userKeys = keys.filter(k => 
+    k.startsWith(prefix) && 
+    !k.endsWith('_profile') && 
+    !k.endsWith('_settings')
+  );
   await AsyncStorage.multiRemove(userKeys);
-
-  // Re-seed default settings
-  await setSetting('autoBackup', 'true');
 };
 
 // --- Settings CRUD ---

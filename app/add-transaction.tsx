@@ -199,48 +199,54 @@ export default function AddTransaction() {
 
         <Text variant="labelLarge" style={{ marginBottom: 8 }}>Payment Source</Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-          {["cash", "card", "bank", "e_wallet"].map((t) => (
-            <Chip
-              key={t}
-              selected={selectedMethodType === t}
-              onPress={() => {
-                setSelectedMethodType(t);
-                if (t === "cash") {
-                  setPaymentMethod("Cash");
-                } else {
-                  // Pre-select the first one of that type if available
-                  const firstOfColor = availablePaymentMethods.find(m => m.type === t);
-                  if (firstOfColor) setPaymentMethod(firstOfColor.name);
-                }
-              }}
-              mode="outlined"
-              style={{
-                backgroundColor: selectedMethodType === t ? theme.colors.primaryContainer : "transparent",
-                borderColor: selectedMethodType === t ? theme.colors.primary : theme.colors.outline
-              }}
-            >
-              {t.replace("_", " ").toUpperCase()}
-            </Chip>
-          ))}
+          {["cash", "card", "bank", "e_wallet"].map((t) => {
+            const isSelected = selectedMethodType.toLowerCase() === t.toLowerCase();
+            return (
+              <Chip
+                key={t}
+                selected={isSelected}
+                onPress={() => {
+                  setSelectedMethodType(t);
+                  // Find the first default method for this type
+                  const firstOfColor = availablePaymentMethods.find(m => m.type.toLowerCase() === t.toLowerCase());
+                  if (firstOfColor) {
+                    setPaymentMethod(firstOfColor.name);
+                  } else if (t === "cash") {
+                    setPaymentMethod("Cash");
+                  }
+                }}
+                mode="outlined"
+                style={{
+                  backgroundColor: isSelected ? theme.colors.primaryContainer : "transparent",
+                  borderColor: isSelected ? theme.colors.primary : theme.colors.outline
+                }}
+              >
+                {t.replace("_", " ").toUpperCase()}
+              </Chip>
+            );
+          })}
         </View>
 
-        {selectedMethodType !== "cash" && (
+        {selectedMethodType.toLowerCase() !== "cash" && (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: theme.colors.primaryContainer }}>
             {availablePaymentMethods
-              .filter(m => m.type === selectedMethodType)
-              .map((method) => (
-                <Chip
-                  key={method.id}
-                  icon={method.icon}
-                  selected={paymentMethod === method.name}
-                  onPress={() => setPaymentMethod(method.name)}
-                  mode="flat"
-                  selectedColor={theme.colors.primary}
-                  style={{ backgroundColor: paymentMethod === method.name ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
-                >
-                  {method.name}
-                </Chip>
-              ))}
+              .filter(m => m.type.toLowerCase() === selectedMethodType.toLowerCase())
+              .map((method) => {
+                const isMethodSelected = paymentMethod.toLowerCase() === method.name.toLowerCase();
+                return (
+                  <Chip
+                    key={method.id}
+                    icon={method.icon}
+                    selected={isMethodSelected}
+                    onPress={() => setPaymentMethod(method.name)}
+                    mode="flat"
+                    selectedColor={theme.colors.primary}
+                    style={{ backgroundColor: isMethodSelected ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
+                  >
+                    {method.name}
+                  </Chip>
+                );
+              })}
           </View>
         )}
 

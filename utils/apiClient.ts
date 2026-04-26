@@ -5,7 +5,7 @@ export const authFetch = async (endpoint: string, options: RequestInit = {}): Pr
     const token = await AsyncStorage.getItem('authToken');
 
     // Ensure the endpoint starts with a slash
-    const formattedEndpoint = !endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     console.info(endpoint, formattedEndpoint);
 
     const headers: Record<string, string> = {

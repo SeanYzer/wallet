@@ -57,8 +57,76 @@ export default function SettingsScreen() {
   }, []);
 
   const handleToggleAutoBackup = async (val: boolean) => {
-    setAutoBackup(val);
-    await setSetting('autoBackup', val.toString());
+    if (val) {
+      // Attempting to turn ON
+      Alert.alert(
+        "Enable Auto-save",
+        "Enabling Auto-save may overwrite your data during synchronization. Do you want to check for data on the server first?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Proceed",
+            onPress: async () => {
+              setIsSyncing(true);
+              try {
+                // Fetch for this user
+                const [txRes, catRes, profRes] = await Promise.all([
+                  authFetch(`transactions?userId=${activeUserId}`),
+                  authFetch(`categories?userId=${activeUserId}`),
+                  authFetch(`userProfiles?userId=${activeUserId}`)
+                ]);
+                const txs = await txRes.json();
+                const cats = await catRes.json();
+                const profs = await profRes.json();
+
+                const hasCloudData = (Array.isArray(txs) && txs.length > 0) ||
+                  (Array.isArray(cats) && cats.length > 0) ||
+                  (Array.isArray(profs) && profs.length > 0);
+
+                if (hasCloudData) {
+                  Alert.alert(
+                    "Sync Conflict",
+                    "We found data for your account on the server. Which version would you like to keep? (Warning: This will overwrite the other version entirely)",
+                    [
+                      {
+                        text: "Keep Local",
+                        onPress: async () => {
+                          setAutoBackup(true);
+                          await setSetting('autoBackup', 'true');
+                          handleManualBackup(); // Overwrite cloud with local
+                        }
+                      },
+                      {
+                        text: "Keep Cloud",
+                        style: "destructive",
+                        onPress: async () => {
+                          setAutoBackup(true);
+                          await setSetting('autoBackup', 'true');
+                          await performRestore(); // Overwrite local with cloud
+                        }
+                      }
+                    ]
+                  );
+                } else {
+                  // No cloud data, safe to just turn on
+                  setAutoBackup(true);
+                  await setSetting('autoBackup', 'true');
+                }
+              } catch (e) {
+                console.error("Conflict check failed:", e);
+                alert("Failed to check for server conflicts. Please check your connection.");
+              } finally {
+                setIsSyncing(false);
+              }
+            }
+          }
+        ]
+      );
+    } else {
+      // Turning OFF is always safe locally
+      setAutoBackup(false);
+      await setSetting('autoBackup', 'false');
+    }
   };
 
   const handleManualBackup = async () => {
@@ -116,28 +184,37 @@ export default function SettingsScreen() {
       try {
         if (activeUserId) {
           console.log("Syncing Clear Data to cloud for user:", activeUserId);
-          // 1. Fetch user data from cloud
-          const [txRes, catRes, profRes] = await Promise.all([
+          // 1. Fetch user data from cloud (Except Profile/User)
+          const [txRes, catRes, budRes, ageRes, subRes, savRes] = await Promise.all([
             authFetch(`transactions?userId=${activeUserId}`),
             authFetch(`categories?userId=${activeUserId}`),
-            authFetch(`userProfiles?userId=${activeUserId}`)
+            authFetch(`budgets?userId=${activeUserId}`),
+            authFetch(`agendas?userId=${activeUserId}`),
+            authFetch(`subscriptions?userId=${activeUserId}`),
+            authFetch(`savingsGoals?userId=${activeUserId}`)
           ]);
 
-          const [txs, cats, profs] = await Promise.all([
+          const [txs, cats, buds, ages, subs, savs] = await Promise.all([
             txRes.json(),
             catRes.json(),
-            profRes.json()
+            budRes.json(),
+            ageRes.json(),
+            subRes.json(),
+            savRes.json()
           ]);
 
           // 2. Delete all from cloud
           const deletePromises = [
             ...(Array.isArray(txs) ? txs.map(t => authFetch(`transactions/${t.id}`, { method: "DELETE" })) : []),
             ...(Array.isArray(cats) ? cats.map(c => authFetch(`categories/${c.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(profs) ? profs.map(p => authFetch(`userProfiles/${p.id}`, { method: "DELETE" })) : [])
+            ...(Array.isArray(buds) ? buds.map(b => authFetch(`budgets/${b.id}`, { method: "DELETE" })) : []),
+            ...(Array.isArray(ages) ? ages.map(a => authFetch(`agendas/${a.id}`, { method: "DELETE" })) : []),
+            ...(Array.isArray(subs) ? subs.map(s => authFetch(`subscriptions/${s.id}`, { method: "DELETE" })) : []),
+            ...(Array.isArray(savs) ? savs.map(s => authFetch(`savingsGoals/${s.id}`, { method: "DELETE" })) : [])
           ];
 
           await Promise.all(deletePromises);
-          console.log("Cloud data cleared successfully");
+          console.log("Cloud transactional data cleared successfully");
         }
 
         // 3. Clear local
