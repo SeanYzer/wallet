@@ -111,15 +111,25 @@ To ensure the product behaves consistently and independently from the network st
 
 ---
 
-## 4. Recommended Sequencing
+---
 
-1. **Phase 1: Architecture Core & Schema**
-   Update `wallet-api/supabase_schema.sql` to include missing columns (`isRecurring`, `icon`, `splitInfo`) and transition the `name` column in `users` to `email`.
-2. **Phase 2: Authentication Refactor**
-   Modify `AuthContext` to replace `name` with `email`. Implement the First Use Connection check, offline registration flow, and the Sync Conflict Prompt.
-3. **Phase 3: UUID Local Generation**
-   Add a UUID generator tool to `wallet/utils/` and refactor all Contexts (`TransactionsContext`, etc.) to use UUIDs instead of `Date.now().toString()`.
-4. **Phase 4: Auto-save Event Handlers**
-   Bind all local data mutation methods (Create/Update/Delete in contexts) to background API Sync calls wrapped in an `if (autoSaveEnabled && isOnline)` check.
-5. **Phase 5: Component Verification**
-   Run the application strictly offline, generate transactions, turn on internet, toggle Auto-save, and verify synchronization.
+## 4. Status & Progress Checklist
+
+### [x] Phase 1: Architecture Core & Schema
+- [x] Update `supabase_schema.sql` with `splitInfo` (JSONB), `isRecurring` (Agendas), and `icon` (SavingsGoals).
+- [x] Fix Payment Method UI in frontend (case-insensitive chips).
+- [x] Refine "Clear All Data" to preserve `userProfiles` and `users` both locally and in cloud.
+- [x] Implement Auto-save toggle logic with Conflict Resolution (Keep Local vs Keep Cloud).
+
+### [/] Phase 2: Authentication Refactor
+- [ ] Refactor `AuthContext` and `auth.tsx` to use **Email** instead of **Username**.
+- [ ] Implement Offline Registration flow using local UUID generation.
+- [ ] Add Online Connectivity Check to warn about registration uniqueness.
+
+### [ ] Phase 3: UUID Local Generation
+- [ ] Add `uuid` dependency to `wallet`.
+- [ ] Update all Contexts (`TransactionsContext`, etc.) to use UUIDs instead of `Date.now()`.
+
+### [ ] Phase 4: Sync Integration
+- [ ] Map all remaining endpoints (`budgets`, `agendas`, `subscriptions`).
+- [ ] Implement robust error handling for background sync failures.
