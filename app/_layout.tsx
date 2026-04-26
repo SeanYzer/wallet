@@ -57,6 +57,8 @@ function SystemResetManager() {
 
   return null;
 }
+
+function MainLayout() {
   const { theme } = useAppTheme();
   const { isPasscodeEnabled, isUnlocked } = usePasscode();
   const { activeUserId, isLoading } = useAuth();
