@@ -60,6 +60,7 @@ export function useSubscriptions() {
                     authFetch(`subscriptions`, {
                         method: "POST",
                         body: JSON.stringify({
+                            id: newSub.id,
                             name: newSub.name,
                             amount: newSub.amount,
                             dueDate: newSub.dueDate,

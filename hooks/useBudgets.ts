@@ -60,6 +60,7 @@ export function useBudgets() {
           authFetch(`budgets`, {
             method: "POST",
             body: JSON.stringify({
+              id: newBudget.id,
               amount: newBudget.amount,
               month: newBudget.month,
               categoryId: newBudget.categoryId ?? null,

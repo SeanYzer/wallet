@@ -60,10 +60,12 @@ export function useSavings() {
                     authFetch(`savingsGoals`, {
                         method: "POST",
                         body: JSON.stringify({
+                            id: newGoal.id,
                             title: newGoal.title,
                             targetAmount: newGoal.targetAmount,
                             currentAmount: newGoal.currentAmount ?? 0,
                             color: newGoal.color ?? null,
+                            icon: newGoal.icon ?? null,
                             userId: activeUserId,
                         }),
                     }).catch(err => console.error("Sync error:", err));

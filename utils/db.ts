@@ -72,9 +72,9 @@ export const clearAllLocalData = async () => {
   const prefix = userId ? `user_${userId}_` : `default_`;
 
   const keys = await AsyncStorage.getAllKeys();
-  const userKeys = keys.filter(k => 
-    k.startsWith(prefix) && 
-    !k.endsWith('_profile') && 
+  const userKeys = keys.filter(k =>
+    k.startsWith(prefix) &&
+    !k.endsWith('_profile') &&
     !k.endsWith('_settings')
   );
   await AsyncStorage.multiRemove(userKeys);
@@ -419,8 +419,15 @@ export const getUsers = async () => {
 
 export const addUser = async (id: string, name: string, passcode: string) => {
   const users = await getUsers();
-  users.push({ id, name, passcode });
-  await setItem('master_users', users);
+  const existingUser = users.find(u => u.id === id);
+  if (!existingUser) {
+    const bcrypt = require('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    const hashedPasscode = await bcrypt.hash(passcode, salt);
+
+    users.push({ id, name, passcode: hashedPasscode });
+    await setItem('master_users', users);
+  }
 };
 
 export const deleteUser = async (id: string) => {

@@ -144,8 +144,8 @@ export default function AuthScreen() {
     };
 
     const attemptLocalLogin = async () => {
-        const { getMasterUsers } = require('../utils/db');
-        const users = await getMasterUsers();
+        const { getUsers } = require('../utils/db');
+        const users = await getUsers();
         const localUser = users.find((u: any) => u.name === name.trim());
 
         if (localUser) {

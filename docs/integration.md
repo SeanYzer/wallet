@@ -130,6 +130,7 @@ To ensure the product behaves consistently and independently from the network st
 - [x] Add `uuid` dependency to `wallet`.
 - [x] Update all Contexts (`TransactionsContext`, etc.) to use UUIDs instead of `Date.now()`.
 
-### [ ] Phase 4: Sync Integration
-- [ ] Map all remaining endpoints (`budgets`, `agendas`, `subscriptions`).
-- [ ] Implement robust error handling for background sync failures.
+### [x] Phase 4: Sync Integration
+- [x] Map all remaining endpoints (`budgets`, `agendas`, `subscriptions`, `savingsGoals`).
+- [x] Implement robust background sync payload mapping (including UUIDs and missing fields like `isRecurring` and `icon`).
+- [x] Add error logging for background sync failures.

@@ -60,10 +60,12 @@ export function useAgenda() {
           authFetch(`agendas`, {
             method: "POST",
             body: JSON.stringify({
+              id: newAgenda.id,
               title: newAgenda.title,
               date: newAgenda.date,
               amount: newAgenda.amount ?? 0,
               completed: newAgenda.completed ?? false,
+              isRecurring: newAgenda.isRecurring ?? false,
               userId: activeUserId,
             }),
           }).catch(err => console.error("Sync error:", err));
