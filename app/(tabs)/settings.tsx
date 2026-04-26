@@ -48,74 +48,46 @@ export default function SettingsScreen() {
   const autoBackup = profile?.autoBackup ?? true;
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPinPrompt, setShowPinPrompt] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showBackupDialog, setShowBackupDialog] = useState(false);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [pinInput, setPinInput] = useState("");
 
   const handleToggleAutoBackup = async (val: boolean) => {
     if (val) {
-      // Attempting to turn ON
-      Alert.alert(
-        "Enable Auto-save",
-        "Enabling Auto-save may overwrite your data during synchronization. Do you want to check for data on the server first?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Proceed",
-            onPress: async () => {
-              setIsSyncing(true);
-              try {
-                // Fetch for this user
-                const [txRes, catRes, profRes] = await Promise.all([
-                  authFetch(`transactions?userId=${activeUserId}`),
-                  authFetch(`categories?userId=${activeUserId}`),
-                  authFetch(`userProfiles?userId=${activeUserId}`)
-                ]);
-                const txs = await txRes.json();
-                const cats = await catRes.json();
-                const profs = await profRes.json();
-
-                const hasCloudData = (Array.isArray(txs) && txs.length > 0) ||
-                  (Array.isArray(cats) && cats.length > 0) ||
-                  (Array.isArray(profs) && profs.length > 0);
-
-                if (hasCloudData) {
-                  Alert.alert(
-                    "Sync Conflict",
-                    "We found data for your account on the server. Which version would you like to keep? (Warning: This will overwrite the other version entirely)",
-                    [
-                      {
-                        text: "Keep Local",
-                        onPress: async () => {
-                          updateProfile({ autoBackup: true });
-                          handleManualBackup(); // Overwrite cloud with local
-                        }
-                      },
-                      {
-                        text: "Keep Cloud",
-                        style: "destructive",
-                        onPress: async () => {
-                          updateProfile({ autoBackup: true });
-                          await performRestore(); // Overwrite local with cloud
-                        }
-                      }
-                    ]
-                  );
-                } else {
-                  // No cloud data, safe to just turn on
-                  updateProfile({ autoBackup: true });
-                }
-              } catch (e) {
-                console.error("Conflict check failed:", e);
-                alert("Failed to check for server conflicts. Please check your connection.");
-              } finally {
-                setIsSyncing(false);
-              }
-            }
-          }
-        ]
-      );
+      setShowBackupDialog(true);
     } else {
-      // Turning OFF is always safe locally
       updateProfile({ autoBackup: false });
+    }
+  };
+
+  const proceedWithBackupEnable = async () => {
+    setIsSyncing(true);
+    setShowBackupDialog(false);
+    try {
+      const [txRes, catRes, profRes] = await Promise.all([
+        authFetch(`transactions?userId=${activeUserId}`),
+        authFetch(`categories?userId=${activeUserId}`),
+        authFetch(`userProfiles?userId=${activeUserId}`)
+      ]);
+      const txs = await txRes.json();
+      const cats = await catRes.json();
+      const profs = await profRes.json();
+
+      const hasCloudData = (Array.isArray(txs) && txs.length > 0) ||
+        (Array.isArray(cats) && cats.length > 0) ||
+        (Array.isArray(profs) && profs.length > 0);
+
+      if (hasCloudData) {
+        setShowConflictDialog(true);
+      } else {
+        updateProfile({ autoBackup: true });
+      }
+    } catch (e) {
+      console.error("Conflict check failed:", e);
+      alert("Failed to check for server conflicts. Please check your connection.");
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -267,47 +239,31 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "WARNING: This action is permanent and cannot be undone. All your data in the cloud and on this device will be PERMANENTLY deleted. \n\nWe recommend downloading your JSON backup first if you wish to keep your records. \n\nContinue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            if (activeUserId) {
-              setIsSyncing(true);
-              try {
-                // 1. Delete Account from Cloud (Cascades all tables)
-                await authFetch(`auth/account`, { method: "DELETE" });
-                console.log("Cloud account and all associated data deleted successfully");
+    setShowDeleteDialog(true);
+  };
 
-                // 3. Clear local tables (except master)
-                await clearAllLocalData();
-
-                // 4. Remove from master.db
-                await deleteUser(activeUserId);
-
-                // 5. Logout and redirect
-                await logout();
-                router.replace("/auth");
-                alert("Account and all associated data deleted successfully.");
-              } catch (e) {
-                console.error("Delete account sync failed:", e);
-                alert("Failed to fully clear cloud data. Account was deleted locally.");
-                await clearAllLocalData();
-                await deleteUser(activeUserId);
-                await logout();
-                router.replace("/auth");
-              } finally {
-                setIsSyncing(false);
-              }
-            }
-          }
-        }
-      ]
-    );
+  const executeDelete = async () => {
+    if (activeUserId) {
+      setIsSyncing(true);
+      try {
+        await authFetch(`auth/account`, { method: "DELETE" });
+        await clearAllLocalData();
+        await deleteUser(activeUserId);
+        await logout();
+        router.replace("/auth");
+        alert("Account and all associated data deleted successfully.");
+      } catch (e) {
+        console.error("Delete account sync failed:", e);
+        alert("Failed to fully clear cloud data. Account was deleted locally.");
+        await clearAllLocalData();
+        await deleteUser(activeUserId);
+        await logout();
+        router.replace("/auth");
+      } finally {
+        setIsSyncing(false);
+        setShowDeleteDialog(false);
+      }
+    }
   };
 
   const performRestore = async () => {
@@ -575,6 +531,42 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <Portal>
+        <Dialog visible={showDeleteDialog} onDismiss={() => setShowDeleteDialog(false)}>
+          <Dialog.Title>Delete Account</Dialog.Title>
+          <Dialog.Content>
+            <Text style={{ color: paperTheme.colors.error }}>WARNING: This action is permanent and cannot be undone.</Text>
+            <Text style={{ marginTop: 8 }}>All your data in the cloud and on this device will be PERMANENTLY deleted. We recommend downloading a JSON backup first.</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button onPress={executeDelete} textColor={paperTheme.colors.error} loading={isSyncing} disabled={isSyncing}>Delete Permanently</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={showBackupDialog} onDismiss={() => setShowBackupDialog(false)}>
+          <Dialog.Title>Enable Auto-save</Dialog.Title>
+          <Dialog.Content>
+            <Text>Enabling Auto-save may overwrite your data during synchronization. Do you want to check for data on the server first?</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowBackupDialog(false)}>Cancel</Button>
+            <Button onPress={proceedWithBackupEnable} loading={isSyncing} disabled={isSyncing}>Proceed</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={showConflictDialog} onDismiss={() => setShowConflictDialog(false)}>
+          <Dialog.Title>Sync Conflict</Dialog.Title>
+          <Dialog.Content>
+            <Text>We found data for your account on the server. Which version would you like to keep?</Text>
+            <Text style={{ color: paperTheme.colors.error, marginTop: 8 }}>Warning: This will overwrite the other version entirely.</Text>
+          </Dialog.Content>
+          <Dialog.Actions style={{ flexDirection: 'column' }}>
+            <Button mode="contained" onPress={() => { setShowConflictDialog(false); updateProfile({ autoBackup: true }); handleManualBackup(); }} style={{ width: '100%', marginBottom: 8 }}>Keep Local</Button>
+            <Button mode="outlined" onPress={() => { setShowConflictDialog(false); updateProfile({ autoBackup: true }); performRestore(); }} style={{ width: '100%' }}>Keep Cloud</Button>
+            <Button onPress={() => setShowConflictDialog(false)}>Cancel</Button>
+          </Dialog.Actions>
+        </Dialog>
+
         <Dialog visible={showPinPrompt} onDismiss={() => setShowPinPrompt(false)}>
           <Dialog.Title>Enter PIN to Clear Data</Dialog.Title>
           <Dialog.Content>
