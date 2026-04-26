@@ -10,6 +10,7 @@ import {
 } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
+import { useUserProfile } from "./UserProfileContext";
 import { generateUUID } from "../utils/uuid";
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer'; // Necessary for direct blob upload if needed
@@ -27,6 +28,7 @@ const TransactionsContext = createContext<TransactionsContextType | undefined>(u
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
     const { activeUserId } = useAuth();
+    const { profile } = useUserProfile();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -55,14 +57,11 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         }
     };
 
-import { useUserProfile } from "./UserProfileContext";
-
     /**
      * BACKGROUND SYNC (single endpoint)
      */
     const syncWithServer = async (localData: Transaction[]) => {
         try {
-            const { profile } = useUserProfile(); 
             if (profile?.autoBackup === false) return;
 
             // 1. Check for local images that need uploading to Supabase
