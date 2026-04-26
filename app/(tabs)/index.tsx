@@ -17,6 +17,7 @@ import { TransactionList } from "../../components/TransactionList";
 import { FinancialTip } from "../../components/FinancialTip";
 import { BudgetCard } from "../../components/BudgetCard";
 import { DashboardSkeleton } from "../../components/SkeletonLoader";
+import { CloudLinkBanner } from "../../components/CloudLinkBanner";
 
 
 export default function Dashboard() {
@@ -65,6 +66,8 @@ export default function Dashboard() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        <CloudLinkBanner />
+
         <View style={{ marginTop: 8 }}>
           <SummaryCard transactions={transactions} />
         </View>

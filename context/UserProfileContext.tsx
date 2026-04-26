@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getUserProfile, saveUserProfile, getSetting, USE_API } from "../utils/db";
+import { getUserProfile, saveUserProfile, getSetting, API_URL } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
 
@@ -38,7 +38,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            if (USE_API && activeUserId) {
+            if (API_URL && activeUserId) {
                 const response = await authFetch(`userProfiles?userId=${activeUserId}`);
                 if (response.ok) {
                     const cloudProfile = await response.json();
@@ -68,7 +68,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         await saveUserProfile(name, isFirstRun, initialBalance);
         setProfile({ name, isFirstRun, initialBalance });
 
-        if (USE_API && activeUserId) {
+            if (API_URL && activeUserId) {
             try {
                 const response = await authFetch(`userProfiles/${activeUserId}`, {
                     method: "PUT",

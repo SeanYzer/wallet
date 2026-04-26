@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Agenda } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { USE_API, getAgendas, saveAgenda, saveAgendasBulk, deleteAgendaLocal, updateAgendaLocal, getSetting } from "../utils/db";
+import { API_URL, getAgendas, saveAgenda, saveAgendasBulk, deleteAgendaLocal, updateAgendaLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { generateUUID } from "../utils/uuid";
 
@@ -24,7 +24,7 @@ export function useAgenda() {
       setAgendas(localData);
 
       // 2. Background sync from API if enabled
-      if (USE_API && activeUserId) {
+      if (API_URL && activeUserId) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           const response = await authFetch(`agendas`);
@@ -54,7 +54,7 @@ export function useAgenda() {
       setAgendas((prev) => [...prev, newAgenda]);
 
       // 2. Background sync to API
-      if (USE_API) {
+      if (API_URL) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           authFetch(`agendas`, {
@@ -84,7 +84,7 @@ export function useAgenda() {
       setAgendas((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)));
 
       // 2. Background sync to API
-      if (USE_API) {
+      if (API_URL) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           authFetch(`agendas/${id}`, {
@@ -105,7 +105,7 @@ export function useAgenda() {
       setAgendas((prev) => prev.filter((a) => a.id !== id));
 
       // 2. Background sync to API
-      if (USE_API) {
+      if (API_URL) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           authFetch(`agendas/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));

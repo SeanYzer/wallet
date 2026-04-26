@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Text, TextInput, Button, Card, HelperText, useTheme as usePaperTheme } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
-import { addUser, saveUserProfile } from '../utils/db';
+import { useUserProfile } from '../context/UserProfileContext';
+import { addUser, saveUserProfile, API_URL, initDb } from '../utils/db';
 import * as Crypto from 'expo-crypto';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -11,7 +12,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AuthScreen() {
     const router = useRouter();
-    const { login } = useAuth();
+    const { login, token } = useAuth();
+    const { profile } = useUserProfile();
+
+    useFocusEffect(
+        useCallback(() => {
+            if (token === 'offline_token' && profile?.name) {
+                setName(profile.name);
+            }
+        }, [token, profile])
+    );
 
     // UI state
     const [name, setName] = useState(""); // This is now used for email
@@ -20,9 +30,15 @@ export default function AuthScreen() {
     const [emailError, setEmailError] = useState("");
     const [pinError, setPinError] = useState("");
 
-    const API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_LOCAL_URL;
-
-    const checkConnection = async () => {
+    const getDeviceId = async () => {
+        let deviceId = await AsyncStorage.getItem('localDeviceId');
+        if (!deviceId) {
+            const { generateUUID } = require('../utils/uuid');
+            deviceId = generateUUID();
+            await AsyncStorage.setItem('localDeviceId', deviceId);
+        }
+        return deviceId;
+    };    const checkConnection = async () => {
         // Platform agnostic check for known offline state
         if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
 
@@ -90,8 +106,13 @@ export default function AuthScreen() {
             const responseData = await response.json();
 
             if (response.ok) {
+                const { setSetting } = require('../utils/db');
                 await addUser(responseData.data.user.id, name.trim(), passcode.trim());
                 await saveUserProfile(name.trim(), true, 0, responseData.data.user.id);
+                // Trigger local seeds
+                await initDb(responseData.data.user.id);
+                // Default autoBackup to ON for online registration
+                await setSetting('autoBackup', 'true');
                 await login(responseData.data.user.id, responseData.data.token);
                 setLoading(false);
                 return;
@@ -116,8 +137,13 @@ export default function AuthScreen() {
                         text: "Proceed Offline",
                         onPress: async () => {
                             try {
+                                const { setSetting } = require('../utils/db');
                                 await addUser(offlineId, name.trim(), passcode.trim());
                                 await saveUserProfile(name.trim(), true, 0, offlineId);
+                                // Trigger local seeds
+                                await initDb(offlineId);
+                                // Default autoBackup to OFF for offline registration
+                                await setSetting('autoBackup', 'false');
                                 await login(offlineId, "offline_token");
                             } catch (err) {
                                 showAlert("Error", "Failed to create local account.");
@@ -132,7 +158,7 @@ export default function AuthScreen() {
         }
     };
 
-    const handleLogin = async () => {
+    const handleLogin = async (force = false) => {
         setEmailError("");
         setPinError("");
 
@@ -153,35 +179,44 @@ export default function AuthScreen() {
         }
 
         setLoading(true);
-        const isOnline = await checkConnection();
+        const deviceId = await getDeviceId();
 
-        if (isOnline) {
-            try {
-                const response = await fetch(`${API_URL}/auth/login`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: name.trim(), passcode: passcode.trim() }),
-                });
+        // 1. Attempt Online Login
+        try {
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: name.trim(), passcode: passcode.trim(), deviceId, force }),
+            });
 
-                const responseData = await response.json();
+            const responseData = await response.json();
 
-                if (!response.ok) {
-                    showAlert("Authentication Error", responseData.message || "Invalid credentials");
+            if (response.ok) {
+                const data = responseData.data;
+
+                // Handle Session Conflict (Multi-device management)
+                if (data.sessionConflict) {
                     setLoading(false);
+                    showAlert(
+                        "Session Active",
+                        "This account is already logged in on another device. Logging in here will log you out of the other device. Proceed?",
+                        [
+                            { text: "Yes, Log In", onPress: () => handleLogin(true) },
+                            { text: "No", style: "cancel" }
+                        ]
+                    );
                     return;
                 }
 
-                await addUser(responseData.data.user.id, name.trim(), passcode.trim());
-                await saveUserProfile(name.trim(), false, 0, responseData.data.user.id);
-                await login(responseData.data.user.id, responseData.data.token);
-            } catch (e: any) {
-                console.error("Online login failed:", e);
-                // Attempt local login if cloud fails due to network
-                await attemptLocalLogin();
-            } finally {
+                await addUser(data.user.id, name.trim(), passcode.trim());
+                await saveUserProfile(name.trim(), false, 0, data.user.id);
+                await login(data.user.id, data.token);
+            } else {
+                showAlert("Authentication Error", responseData.message || "Invalid credentials");
                 setLoading(false);
             }
-        } else {
+        } catch (e: any) {
+            console.error("Online login failed, attempting local fallback:", e);
             await attemptLocalLogin();
             setLoading(false);
         }
@@ -222,7 +257,12 @@ export default function AuthScreen() {
                 <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
                     <View style={styles.container}>
                         <Text style={styles.appName}>WiseWallet</Text>
-                        <Text style={styles.tagline}>Welcome Back</Text>
+                        <Text style={styles.tagline}>{token === 'offline_token' ? 'Link Your Account' : 'Welcome Back'}</Text>
+                        {token === 'offline_token' && (
+                            <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 12, opacity: 0.8 }}>
+                                Register your local account to the cloud to enable sync.
+                            </Text>
+                        )}
 
                         <Card style={styles.card}>
                             <Card.Content>

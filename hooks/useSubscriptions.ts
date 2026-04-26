@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Subscription } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { USE_API, getSubscriptions, saveSubscription, saveSubscriptionsBulk, deleteSubscriptionLocal, updateSubscriptionLocal, getSetting } from "../utils/db";
+import { API_URL, getSubscriptions, saveSubscription, saveSubscriptionsBulk, deleteSubscriptionLocal, updateSubscriptionLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { generateUUID } from "../utils/uuid";
 
@@ -24,7 +24,7 @@ export function useSubscriptions() {
             setSubscriptions(localData);
 
             // 2. Background sync from API if enabled
-            if (USE_API && activeUserId) {
+            if (API_URL && activeUserId) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
                     const response = await authFetch(`subscriptions`);
@@ -54,7 +54,7 @@ export function useSubscriptions() {
             setSubscriptions((prev) => [...prev, newSub]);
 
             // 2. Background sync to API
-            if (USE_API) {
+            if (API_URL) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
                     authFetch(`subscriptions`, {
@@ -83,7 +83,7 @@ export function useSubscriptions() {
             setSubscriptions((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
 
             // 2. Background sync to API
-            if (USE_API) {
+            if (API_URL) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
                     authFetch(`subscriptions/${id}`, {
@@ -104,7 +104,7 @@ export function useSubscriptions() {
             setSubscriptions((prev) => prev.filter((s) => s.id !== id));
 
             // 2. Background sync to API
-            if (USE_API) {
+            if (API_URL) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
                     authFetch(`subscriptions/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));

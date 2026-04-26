@@ -5,8 +5,28 @@ import { Category, Transaction, Agenda, Subscription, SavingsGoal, Budget } from
 /**
  * --- Configuration ---
  */
-export const USE_API = process.env.EXPO_PUBLIC_USE_API === 'true';
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001";
+export const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+export const GLOBAL_CATEGORIES: Category[] = [
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b11', name: 'Food', type: 'expense', isGlobal: true },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b12', name: 'Bills', type: 'expense', isGlobal: true },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b13', name: 'Transport', type: 'expense', isGlobal: true },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b14', name: 'Shopping', type: 'expense', isGlobal: true },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b15', name: 'Entertainment', type: 'expense', isGlobal: true },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b16', name: 'Salary', type: 'income', isGlobal: true },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b17', name: 'Freelance', type: 'income', isGlobal: true },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b18', name: 'Others', type: 'expense', isGlobal: true },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b19', name: 'Others', type: 'income', isGlobal: true },
+];
+
+export const GLOBAL_PAYMENT_METHODS = [
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Cash', type: 'cash', icon: 'cash' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', name: 'BPI Debit', type: 'bank', icon: 'bank' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', name: 'UnionBank', type: 'bank', icon: 'bank' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', name: 'GCash', type: 'e_wallet', icon: 'wallet' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15', name: 'Maya', type: 'e_wallet', icon: 'wallet' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a16', name: 'Visa Card', type: 'card', icon: 'credit-card' },
+];
 
 /**
  * --- Keys & Helpers ---
@@ -51,11 +71,41 @@ function deduplicate<T extends { id: any }>(items: T[]): T[] {
 
 export const initDb = async (overrideUserId?: string): Promise<void> => {
   // AsyncStorage doesn't need schema initialization
+  if (overrideUserId) {
+    await seedDefaults(overrideUserId);
+  }
   return Promise.resolve();
 };
 
 export const initMasterDb = async (): Promise<void> => {
+  const userId = await AsyncStorage.getItem('activeUserId');
+  if (userId) {
+    await seedDefaults(userId);
+  }
   return Promise.resolve();
+};
+
+const seedDefaults = async (userId: string) => {
+  const versionKey = 'last_seed_version';
+  const lastVersion = parseInt(await getSetting(versionKey) || '0', 10);
+
+  if (lastVersion < CURRENT_SEED_VERSION) {
+    // 1. Merge Categories
+    const catKey = `user_${userId}_categories`;
+    const existingCats = await getItem<any[]>(catKey, []);
+    const mergedCats = deduplicate([...existingCats, ...GLOBAL_CATEGORIES]);
+    await setItem(catKey, mergedCats);
+
+    // 2. Merge Payment Methods
+    const pmKey = `user_${userId}_paymentMethods`;
+    const existingPMs = await getItem<any[]>(pmKey, []);
+    const mergedPMs = deduplicate([...existingPMs, ...GLOBAL_PAYMENT_METHODS]);
+    await setItem(pmKey, mergedPMs);
+
+    // 3. Update local version tracking
+    await setSetting(versionKey, CURRENT_SEED_VERSION.toString());
+    console.info(`Database seeded to version ${CURRENT_SEED_VERSION}`);
+  }
 };
 
 export const getDb = async () => ({
@@ -113,6 +163,20 @@ export const getUserProfile = async (overrideUserId?: string) => {
 export const saveUserProfile = async (name: string, isFirstRun: boolean, initialBalance: number, overrideUserId?: string) => {
   const fullKey = await getPrefixedKey('profile', overrideUserId);
   await setItem(fullKey, { name, isFirstRun, initialBalance });
+};
+
+// --- Payment Methods ---
+
+export const getPaymentMethods = async () => {
+  const fullKey = await getPrefixedKey('paymentMethods');
+  return getItem<any[]>(fullKey, []);
+};
+
+export const savePaymentMethod = async (method: any) => {
+  const fullKey = await getPrefixedKey('paymentMethods');
+  const methods = await getItem<any[]>(fullKey, []);
+  methods.push(method);
+  await setItem(fullKey, deduplicate(methods));
 };
 
 // --- Categories CRUD ---

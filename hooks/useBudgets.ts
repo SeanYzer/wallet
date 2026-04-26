@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Budget } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { USE_API, getBudgets, saveBudget, saveBudgetsBulk, deleteBudgetLocal, updateBudgetLocal, getSetting } from "../utils/db";
+import { API_URL, getBudgets, saveBudget, saveBudgetsBulk, deleteBudgetLocal, updateBudgetLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { generateUUID } from "../utils/uuid";
 
@@ -24,7 +24,7 @@ export function useBudgets() {
       setBudgets(localData);
 
       // 2. Background sync from API if enabled
-      if (USE_API && activeUserId) {
+      if (API_URL && activeUserId) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           const response = await authFetch(`budgets`);
@@ -54,7 +54,7 @@ export function useBudgets() {
       setBudgets((prev) => [...prev, newBudget]);
 
       // 2. Background sync to API
-      if (USE_API) {
+      if (API_URL) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           authFetch(`budgets`, {
@@ -82,7 +82,7 @@ export function useBudgets() {
       setBudgets((prev) => prev.map((b) => (b.id === id ? { ...b, ...updates } : b)));
 
       // 2. Background sync to API
-      if (USE_API) {
+      if (API_URL) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           authFetch(`budgets/${id}`, {
@@ -103,7 +103,7 @@ export function useBudgets() {
       setBudgets((prev) => prev.filter((b) => b.id !== id));
 
       // 2. Background sync to API
-      if (USE_API) {
+      if (API_URL) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           authFetch(`budgets/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));

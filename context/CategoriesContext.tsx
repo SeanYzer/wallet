@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Category } from "../types";
-import { getCategories, saveCategory, deleteCategoryLocal, getSetting, USE_API } from "../utils/db";
+import { getCategories, saveCategory, deleteCategoryLocal, getSetting, API_URL } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
 import { generateUUID } from "../utils/uuid";
@@ -51,7 +51,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
       }
 
       // 2️⃣ Always sync from API if enabled
-      if (USE_API && activeUserId) {
+      if (API_URL && activeUserId) {
         const response = await authFetch("categories");
 
         if (response.ok) {
@@ -93,7 +93,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
   //     setCategories(uniqueInitialData);
 
   //     // 2. Background Sync if enabled AND API mode is ON
-  //     if (USE_API && activeUserId) {
+  //     if (API_URL && activeUserId) {
   //       const autoBackup = await getSetting('autoBackup');
   //       if (autoBackup !== 'false') {
   //         const response = await authFetch(`categories`);
@@ -129,7 +129,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
       await saveCategory(newCategory);
       setCategories((prev) => [...prev, newCategory]);
 
-      if (USE_API) {
+      if (API_URL) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           authFetch(`categories`, {
@@ -148,7 +148,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
       await deleteCategoryLocal(id);
       setCategories((prev) => prev.filter((c) => c.id !== id));
 
-      if (USE_API) {
+      if (API_URL) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
           authFetch(`categories/${id}`, {

@@ -25,12 +25,16 @@ To ensure the product behaves consistently and independently from the network st
 - **Offline Fallback**: If offline, the user is still allowed to register and use the app normally (offline registration).
 - **Conflict Resolution (The Loophole)**: If a user registered offline and eventually turns on auto-save (or attempts to restore/backup) to a sync server where their account *already exists*, the app must trigger a warning. The user must be prompted to explicitly choose which version of the data to keep (Local vs Remote). We are intentionally allowing this loophole for now, but the resolution prompt needs to be built.
 
-### C. Authentication (Mapping 'Email' to 'name' Column)
-- **Account Identification**: We will use **Email Address** for registration/login in the UI.
-- **Database Mapping**: To avoid schema noise, we will keep the column name as `name` in the `users` table, but the application will populate it with the user's email.
-- **Uniqueness**: 
-  - **Online**: The app will check for availability; if an email is already taken, it notifies the user.
-  - **Offline**: Users are allowed to register locally. The conflict resolution ("Keep Local" vs "Keep Cloud") will handle identity overlaps when they eventually sync.
+### C. Authentication & Session Management
+- **Account Identification**: We will use **Email Address** for registration/login.
+- **Single Session Enforcement**: 
+  - To prevent data conflicts across multiple active devices, the app enforces a **single active session** per user.
+  - The API tracks a `currentSessionId` (Device Identity). 
+  - Logging in on a new device will prompt the user to terminate the session on their previous device.
+- **Uniqueness & Auto-Backup Defaults**: 
+  - **Online Registration**: Defaults `autoBackup` to **ON** (`true`). Uniqueness is guaranteed by the API.
+  - **Offline Registration**: Defaults `autoBackup` to **OFF** (`false`). User identity is local-only until linked.
+- **Linking to Cloud**: Accounts created offline are tagged with an `offline_token`. When internet is restored, the app will prompt the user to "Link to Cloud" to claim their email on the server and enable sync.
 - **Validation**: UI-side only (email format validation), no backend verification loop for now.
 
 ---
@@ -130,7 +134,10 @@ To ensure the product behaves consistently and independently from the network st
 - [x] Add `uuid` dependency to `wallet`.
 - [x] Update all Contexts (`TransactionsContext`, etc.) to use UUIDs instead of `Date.now()`.
 
-### [x] Phase 4: Sync Integration
+### [x] Phase 4: Sync Integration & Session Security
 - [x] Map all remaining endpoints (`budgets`, `agendas`, `subscriptions`, `savingsGoals`).
 - [x] Implement robust background sync payload mapping (including UUIDs and missing fields like `isRecurring` and `icon`).
 - [x] Add error logging for background sync failures.
+- [x] Implement Single-Session enforcement (Device Identity check).
+- [x] Implement "Link to Cloud" upgrade flow for offline registrations.
+- [x] Standardize default `autoBackup` behavior (ON for Online, OFF for Offline).

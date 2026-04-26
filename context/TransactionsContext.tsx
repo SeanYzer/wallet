@@ -6,7 +6,7 @@ import {
     updateTransactionLocal,
     deleteTransactionLocal,
     getSetting,
-    USE_API
+    API_URL
 } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
@@ -42,7 +42,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             const localData = await getTransactions();
             setTransactions(localData);
 
-            if (USE_API && activeUserId) {
+            if (API_URL && activeUserId) {
                 syncWithServer(localData); // background
             }
 
@@ -116,7 +116,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             await saveTransaction(newTransaction);
             setTransactions(prev => [...prev, newTransaction]);
 
-            if (USE_API && activeUserId) {
+            if (API_URL && activeUserId) {
                 syncWithServer([...transactions, newTransaction]);
             }
 
@@ -139,7 +139,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
             setTransactions(updatedTransactions);
 
-            if (USE_API && activeUserId) {
+            if (API_URL && activeUserId) {
                 syncWithServer(updatedTransactions);
             }
 
@@ -159,7 +159,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             const updatedTransactions = transactions.filter(t => t.id !== id);
             setTransactions(updatedTransactions);
 
-            if (USE_API && activeUserId) {
+            if (API_URL && activeUserId) {
                 syncWithServer(updatedTransactions);
             }
 

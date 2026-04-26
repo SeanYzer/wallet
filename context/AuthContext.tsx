@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, Platform } from "react-native";
-import { USE_API, API_URL } from "../utils/db";
+import { API_URL } from "../utils/db";
 
 interface AuthContextType {
   activeUserId: string | null;
+  token: string | null;
   isLoading: boolean;
   login: (userId: string, token: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -14,11 +15,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem('activeUserId').then(id => {
+    Promise.all([
+      AsyncStorage.getItem('activeUserId'),
+      AsyncStorage.getItem('authToken')
+    ]).then(([id, t]) => {
       if (id) setActiveUserId(id);
+      if (t) setToken(t);
       setIsLoading(false);
     });
   }, []);
@@ -27,16 +33,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem('authToken', token);
     await AsyncStorage.setItem('activeUserId', String(userId));
     setActiveUserId(String(userId));
+    setToken(token);
   };
 
   const logout = async () => {
     await AsyncStorage.removeItem('activeUserId');
     await AsyncStorage.removeItem('authToken');
     setActiveUserId(null);
+    setToken(null);
   };
 
   return (
-    <AuthContext.Provider value={{ activeUserId, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ activeUserId, token, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

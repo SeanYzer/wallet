@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { SavingsGoal } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { USE_API, getSavingsGoals, saveSavingsGoal, saveSavingsGoalsBulk, deleteSavingsGoalLocal, updateSavingsGoalLocal, getSetting } from "../utils/db";
+import { API_URL, getSavingsGoals, saveSavingsGoal, saveSavingsGoalsBulk, deleteSavingsGoalLocal, updateSavingsGoalLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { generateUUID } from "../utils/uuid";
 
@@ -24,7 +24,7 @@ export function useSavings() {
             setGoals(localData);
 
             // 2. Background sync from API if enabled
-            if (USE_API && activeUserId) {
+            if (API_URL && activeUserId) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
                     const response = await authFetch(`savingsGoals?userId=${activeUserId}`);
@@ -54,7 +54,7 @@ export function useSavings() {
             setGoals((prev) => [...prev, newGoal]);
 
             // 2. Background sync to API
-            if (USE_API) {
+            if (API_URL) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
                     authFetch(`savingsGoals`, {
@@ -84,7 +84,7 @@ export function useSavings() {
             setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
 
             // 2. Background sync to API
-            if (USE_API) {
+            if (API_URL) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
                     authFetch(`savingsGoals/${id}`, {
@@ -105,7 +105,7 @@ export function useSavings() {
             setGoals((prev) => prev.filter((g) => g.id !== id));
 
             // 2. Background sync to API
-            if (USE_API) {
+            if (API_URL) {
                 const autoBackup = await getSetting('autoBackup');
                 if (autoBackup !== 'false') {
                     authFetch(`savingsGoals/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
