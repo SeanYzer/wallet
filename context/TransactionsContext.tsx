@@ -10,6 +10,7 @@ import {
 } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
+import { generateUUID } from "../utils/uuid";
 
 interface TransactionsContextType {
     transactions: Transaction[];
@@ -109,7 +110,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         try {
             const newTransaction: Transaction = {
                 ...transaction,
-                id: Date.now().toString()
+                id: generateUUID()
             };
 
             await saveTransaction(newTransaction);

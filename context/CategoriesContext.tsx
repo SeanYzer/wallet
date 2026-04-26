@@ -3,6 +3,7 @@ import { Category } from "../types";
 import { getCategories, saveCategory, deleteCategoryLocal, getSetting, USE_API } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
+import { generateUUID } from "../utils/uuid";
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "1", name: "Food", type: "expense" },
@@ -124,7 +125,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
 
   const addCategory = async (category: Omit<Category, "id">) => {
     try {
-      const newCategory = { ...category, id: Date.now().toString() };
+      const newCategory = { ...category, id: generateUUID() };
       await saveCategory(newCategory);
       setCategories((prev) => [...prev, newCategory]);
 

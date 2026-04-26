@@ -3,6 +3,7 @@ import { Agenda } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { USE_API, getAgendas, saveAgenda, saveAgendasBulk, deleteAgendaLocal, updateAgendaLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
+import { generateUUID } from "../utils/uuid";
 
 export function useAgenda() {
   const [agendas, setAgendas] = useState<Agenda[]>([]);
@@ -46,7 +47,7 @@ export function useAgenda() {
 
   const addAgenda = async (agenda: Omit<Agenda, "id">) => {
     try {
-      const newAgenda = { ...agenda, id: Date.now().toString(), userId: activeUserId } as Agenda;
+      const newAgenda = { ...agenda, id: generateUUID(), userId: activeUserId } as Agenda;
 
       // 1. Save locally first
       await saveAgenda(newAgenda);

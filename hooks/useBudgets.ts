@@ -3,6 +3,7 @@ import { Budget } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { USE_API, getBudgets, saveBudget, saveBudgetsBulk, deleteBudgetLocal, updateBudgetLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
+import { generateUUID } from "../utils/uuid";
 
 export function useBudgets() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -46,7 +47,7 @@ export function useBudgets() {
 
   const addBudget = async (budget: Omit<Budget, "id">) => {
     try {
-      const newBudget = { ...budget, id: Date.now().toString(), userId: activeUserId } as Budget;
+      const newBudget = { ...budget, id: generateUUID(), userId: activeUserId } as Budget;
 
       // 1. Save locally first
       await saveBudget(newBudget);

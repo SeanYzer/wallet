@@ -3,6 +3,7 @@ import { SavingsGoal } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { USE_API, getSavingsGoals, saveSavingsGoal, saveSavingsGoalsBulk, deleteSavingsGoalLocal, updateSavingsGoalLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
+import { generateUUID } from "../utils/uuid";
 
 export function useSavings() {
     const [goals, setGoals] = useState<SavingsGoal[]>([]);
@@ -46,7 +47,7 @@ export function useSavings() {
 
     const addGoal = async (goal: Omit<SavingsGoal, "id">) => {
         try {
-            const newGoal = { ...goal, id: Date.now().toString(), userId: activeUserId } as any;
+            const newGoal = { ...goal, id: generateUUID(), userId: activeUserId } as any;
 
             // 1. Save locally first
             await saveSavingsGoal(newGoal);

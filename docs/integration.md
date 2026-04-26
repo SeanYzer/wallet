@@ -121,14 +121,14 @@ To ensure the product behaves consistently and independently from the network st
 - [x] Refine "Clear All Data" to preserve `userProfiles` and `users` both locally and in cloud.
 - [x] Implement Auto-save toggle logic with Conflict Resolution (Keep Local vs Keep Cloud).
 
-### [/] Phase 2: Authentication Refactor
-- [ ] Refactor `AuthContext` and `auth.tsx` to use **Email** instead of **Username**.
-- [ ] Implement Offline Registration flow using local UUID generation.
-- [ ] Add Online Connectivity Check to warn about registration uniqueness.
+### [x] Phase 2: Authentication Refactor
+- [x] Refactor `AuthContext` and `auth.tsx` to use **Email** instead of **Username**.
+- [x] Implement Offline Registration flow using local UUID generation.
+- [x] Add Online Connectivity Check to warn about registration uniqueness.
 
-### [ ] Phase 3: UUID Local Generation
-- [ ] Add `uuid` dependency to `wallet`.
-- [ ] Update all Contexts (`TransactionsContext`, etc.) to use UUIDs instead of `Date.now()`.
+### [x] Phase 3: UUID Local Generation
+- [x] Add `uuid` dependency to `wallet`.
+- [x] Update all Contexts (`TransactionsContext`, etc.) to use UUIDs instead of `Date.now()`.
 
 ### [ ] Phase 4: Sync Integration
 - [ ] Map all remaining endpoints (`budgets`, `agendas`, `subscriptions`).

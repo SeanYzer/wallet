@@ -3,6 +3,7 @@ import { Subscription } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { USE_API, getSubscriptions, saveSubscription, saveSubscriptionsBulk, deleteSubscriptionLocal, updateSubscriptionLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
+import { generateUUID } from "../utils/uuid";
 
 export function useSubscriptions() {
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -46,7 +47,7 @@ export function useSubscriptions() {
 
     const addSubscription = async (subscription: Omit<Subscription, "id">) => {
         try {
-            const newSub = { ...subscription, id: Date.now().toString(), userId: activeUserId } as any;
+            const newSub = { ...subscription, id: generateUUID(), userId: activeUserId } as any;
 
             // 1. Save locally first
             await saveSubscription(newSub);
