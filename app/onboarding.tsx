@@ -4,19 +4,25 @@ import { Text, TextInput, Button, HelperText } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useUserProfile } from "../context/UserProfileContext";
+import { useTransactionsContext } from "../context/TransactionsContext";
 
 export default function OnboardingScreen() {
     const router = useRouter();
     const { completeSetup } = useUserProfile();
+    const { addTransaction } = useTransactionsContext();
 
     const [name, setName] = useState("");
+    const [balance, setBalance] = useState("0");
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState<{ name?: string }>({});
+    const [errors, setErrors] = useState<{ name?: string; balance?: string }>({});
 
     const validate = () => {
-        const newErrors: { name?: string } = {};
+        const newErrors: { name?: string; balance?: string } = {};
         if (!name.trim()) {
             newErrors.name = "Please enter your name.";
+        }
+        if (isNaN(parseFloat(balance))) {
+            newErrors.balance = "Please enter a valid number.";
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -26,7 +32,23 @@ export default function OnboardingScreen() {
         if (!validate()) return;
         setLoading(true);
         try {
-            await completeSetup(name.trim());
+            const initialBalance = parseFloat(balance) || 0;
+            
+            // 1. Update Profile (Sets the current balance field)
+            await completeSetup(name.trim(), initialBalance);
+
+            // 2. Create the Ledger Entry (Transaction history)
+            if (initialBalance !== 0) {
+                await addTransaction({
+                    title: "Opening Balance",
+                    amount: initialBalance,
+                    type: "income",
+                    date: new Date().toISOString(),
+                    categoryId: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b19", // Standard ID for income (Others)
+                    note: "Initial account setup",
+                });
+            }
+
             router.replace("/");
         } catch (e) {
             console.error("Setup failed:", e);
@@ -63,6 +85,7 @@ export default function OnboardingScreen() {
                             onChangeText={setName}
                             mode="outlined"
                             style={styles.input}
+                            textColor="#1a237e"
                             left={<TextInput.Icon icon="account" />}
                             error={!!errors.name}
                             autoCapitalize="words"
@@ -70,6 +93,22 @@ export default function OnboardingScreen() {
                         />
                         <HelperText type="error" visible={!!errors.name}>
                             {errors.name}
+                        </HelperText>
+
+                        {/* Initial Balance Field */}
+                        <TextInput
+                            label="Initial Balance"
+                            value={balance}
+                            onChangeText={setBalance}
+                            mode="outlined"
+                            style={styles.input}
+                            textColor="#1a237e"
+                            keyboardType="numeric"
+                            left={<TextInput.Icon icon="cash-multiple" />}
+                            error={!!errors.balance}
+                        />
+                        <HelperText type="error" visible={!!errors.balance}>
+                            {errors.balance}
                         </HelperText>
 
                         {/* CTA Button */}
@@ -88,7 +127,7 @@ export default function OnboardingScreen() {
                     </View>
 
                     <Text style={styles.footerText}>
-                        You can always update your balance later by adding a transaction.
+                        Your initial balance will be recorded as your first income transaction.
                     </Text>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -117,11 +156,17 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         color: "#fff",
         letterSpacing: 1.5,
+        textShadowColor: 'rgba(0, 0, 0, 0.4)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 10
     },
     tagline: {
         fontSize: 14,
-        color: "rgba(255,255,255,0.7)",
+        color: "rgba(255,255,255,0.9)",
         marginTop: 4,
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3
     },
     card: {
         backgroundColor: "#fff",

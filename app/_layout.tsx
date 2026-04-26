@@ -6,7 +6,7 @@ import { PaperProvider } from "react-native-paper";
 import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
 import { CurrencyProvider } from "../context/CurrencyContext";
 import { TransactionsProvider } from "../context/TransactionsContext";
-import { UserProfileProvider } from "../context/UserProfileContext";
+import { UserProfileProvider, useUserProfile } from "../context/UserProfileContext";
 import { CategoriesProvider } from "../context/CategoriesContext";
 import { LanguageProvider } from "../context/LanguageContext";
 import { PasscodeProvider, usePasscode } from "../context/PasscodeContext";
@@ -61,30 +61,48 @@ function SystemResetManager() {
 function MainLayout() {
   const { theme } = useAppTheme();
   const { isPasscodeEnabled, isUnlocked } = usePasscode();
-  const { activeUserId, isLoading } = useAuth();
+  const { activeUserId, isLoading: authLoading } = useAuth();
+  const { profile, isLoading: profileLoading } = useUserProfile();
   const segments = useSegments();
   const router = useRouter();
   const navigationState = useRootNavigationState();
 
   useEffect(() => {
-    if (isLoading || !navigationState?.key) return;
+    if (authLoading || profileLoading || !navigationState?.key) return;
     
     const inAuthGroup = segments[0] === 'auth';
+    const inOnboarding = segments[0] === 'onboarding';
+
+    console.log(`[Nav] State -> User: ${activeUserId}, FirstRun: ${profile?.isFirstRun}, Path: /${segments.join('/')}`);
     
     if (!activeUserId && !inAuthGroup) {
+      // 1. Not logged in -> Go to Auth
+      console.log("[Nav] Redirecting to Auth");
       if (Platform.OS === 'web') {
         setTimeout(() => router.replace('/auth'), 0);
       } else {
         router.replace('/auth');
       }
-    } else if (activeUserId && inAuthGroup) {
-      if (Platform.OS === 'web') {
-        setTimeout(() => router.replace('/'), 0);
-      } else {
-        router.replace('/');
+    } else if (activeUserId) {
+      if (profile?.isFirstRun && !inOnboarding) {
+        // 2. Logged in but first run -> Go to Onboarding
+        console.log("[Nav] Redirecting to Onboarding");
+        if (Platform.OS === 'web') {
+          setTimeout(() => router.replace('/onboarding'), 0);
+        } else {
+          router.replace('/onboarding');
+        }
+      } else if (!profile?.isFirstRun && (inAuthGroup || inOnboarding)) {
+        // 3. Logged in and setup done -> Go to Home
+        console.log("[Nav] Redirecting to Dashboard");
+        if (Platform.OS === 'web') {
+          setTimeout(() => router.replace('/'), 0);
+        } else {
+          router.replace('/');
+        }
       }
     }
-  }, [activeUserId, isLoading, segments, navigationState?.key]);
+  }, [activeUserId, authLoading, profileLoading, profile?.isFirstRun, segments, navigationState?.key]);
 
   if (isPasscodeEnabled && !isUnlocked) {
       return <PasscodeScreen />;

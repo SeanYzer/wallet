@@ -28,7 +28,7 @@ const DEFAULT_PROFILE: UserProfile = {
 interface UserProfileContextType {
     profile: UserProfile | null;
     isLoading: boolean;
-    completeSetup: (name: string) => Promise<void>;
+    completeSetup: (name: string, balance: number) => Promise<void>;
     updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
     resetProfileToDefaults: () => Promise<void>;
     refetch: () => Promise<void>;
@@ -63,7 +63,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 if (response.ok) {
                     const cloudProfile = await response.json();
                     if (cloudProfile && cloudProfile.name) {
-                        const merged = { ...DEFAULT_PROFILE, ...cloudProfile, isFirstRun: false };
+                        const merged = { ...DEFAULT_PROFILE, ...cloudProfile };
                         setProfile(merged);
                         await saveUserProfile(merged);
                         return;
@@ -113,9 +113,9 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         });
     };
 
-    const completeSetup = async (name: string) => {
+    const completeSetup = async (name: string, balance: number) => {
         try {
-            await updateProfile({ name, isFirstRun: false });
+            await updateProfile({ name, balance, isFirstRun: false });
         } catch (error) {
             console.error("Error completing setup:", error);
             throw error;

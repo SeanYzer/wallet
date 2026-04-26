@@ -271,6 +271,7 @@ export default function AuthScreen() {
                                     value={name}
                                     onChangeText={(text) => { setName(text); setEmailError(""); }}
                                     style={styles.input}
+                                    textColor="#1a237e"
                                     mode="outlined"
                                     outlineColor="#e0e0e0"
                                     activeOutlineColor="#3949ab"
@@ -289,6 +290,7 @@ export default function AuthScreen() {
                                     keyboardType="numeric"
                                     secureTextEntry
                                     style={styles.input}
+                                    textColor="#1a237e"
                                     mode="outlined"
                                     outlineColor="#e0e0e0"
                                     activeOutlineColor="#3949ab"
@@ -301,7 +303,7 @@ export default function AuthScreen() {
                                 <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
                                     <Button
                                         mode="contained"
-                                        onPress={handleLogin}
+                                        onPress={() => handleLogin(false)}
                                         loading={loading}
                                         disabled={loading}
                                         style={[styles.createBtn, { flex: 1, marginTop: 0 }]}
@@ -310,7 +312,7 @@ export default function AuthScreen() {
                                     </Button>
                                     <Button
                                         mode="outlined"
-                                        onPress={handleRegister}
+                                        onPress={() => handleRegister()}
                                         loading={loading}
                                         disabled={loading}
                                         style={[styles.createBtn, { flex: 1, marginTop: 0, backgroundColor: 'transparent', borderColor: '#3949ab' }]}
@@ -332,8 +334,27 @@ const styles = StyleSheet.create({
     gradient: { flex: 1 },
     scrollContainer: { flexGrow: 1, justifyContent: 'center' },
     container: { padding: 24 },
-    appName: { fontSize: 36, fontWeight: "bold", color: "#fff", textAlign: 'center', marginBottom: 8 },
-    tagline: { fontSize: 16, color: "rgba(255,255,255,0.7)", textAlign: 'center', marginBottom: 32 },
+    appName: { 
+        fontSize: 42, 
+        fontWeight: "bold", 
+        color: "#fff", 
+        textAlign: 'center', 
+        marginBottom: 8,
+        letterSpacing: 1,
+        textShadowColor: 'rgba(0, 0, 0, 0.4)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 10
+    },
+    tagline: { 
+        fontSize: 18, 
+        color: "rgba(255,255,255,0.9)", 
+        textAlign: 'center', 
+        marginBottom: 32,
+        fontWeight: '500',
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3
+    },
     card: {
         backgroundColor: '#fff',
         borderRadius: 24,
