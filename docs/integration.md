@@ -34,86 +34,33 @@ To ensure the product behaves consistently and independently from the network st
 - **Uniqueness & Auto-Backup Defaults**: 
   - **Online Registration**: Defaults `autoBackup` to **ON** (`true`). Uniqueness is guaranteed by the API.
   - **Offline Registration**: Defaults `autoBackup` to **OFF** (`false`). User identity is local-only until linked.
-- **Linking to Cloud**: Accounts created offline are tagged with an `offline_token`. When internet is restored, the app will prompt the user to "Link to Cloud" to claim their email on the server and enable sync.
-- **Validation**: UI-side only (email format validation), no backend verification loop for now.
+- **Session Invalidation (401 Handler)**: If the backend returns a 401 (e.g., user deleted or token expired), the frontend `UserProfileProvider` automatically triggers a `logout()` and redirects to `/auth`.
+- **System Reset Endpoint**: Developers can trigger a global app wipe by hitting `POST /api/system/reset`, which increments the `reset_epoch`.
 
 ---
 
 ## 2. Data Type & Schema Mismatches (SQL vs Frontend)
 
-### ID Generation (Critical)
-- **Supabase**: Primary keys (`id`) across all tables are defined as `UUID` default `gen_random_uuid()`.
-- **Frontend**: Currently generates IDs using `Date.now().toString()` (e.g., in `TransactionsContext.tsx`). 
-- **Action**: Sending timestamp strings as UUIDs to the `wallet-api` will result in Postgres `uuid invalid` errors. 
-- **Fix**: The frontend must switch to generating valid UUIDv4 strings locally so they can be seamlessly synced.
+### ID Generation (Critical) [COMPLETED]
+- **Supabase**: Primary keys (`id`) across all tables are defined as `UUID`.
+- **Fix**: The frontend now uses `generateUUID()` (UUIDv4) for all local records.
 
-### Transactions
-- **Frontend Model**: 
-  - `category` is an object (`Category`).
-  - `splitInfo` is an object.
-- **SQL Schema**: 
-  - Expects `categoryId` (UUID) instead of a `category` object. 
-  - `splitInfo` does not exist in the database.
-- **Fix**: 
-  1. The API GET `/api/transactions` should probably perform a `JOIN` to attach the `category` object, OR the frontend needs to be refactored to just use `categoryId` and map it locally.
-  2. If `splitInfo` is required, add a `splitInfo JSONB` column to the `transactions` table.
-
-### Agendas
-- **Frontend Model**: Has `isRecurring` (boolean).
-- **SQL Schema**: Missing `isRecurring`.
-- **Fix**: Add `"isRecurring" BOOLEAN DEFAULT FALSE` to the `agendas` table migration.
-
-### Savings Goals
-- **Frontend Model**: Has `icon` and `color`.
-- **SQL Schema**: Has `color` but is missing `icon`.
-- **Fix**: Add `"icon" TEXT` to the `savingsGoals` table migration.
-
-### Date Handling
-- **Supabase**: Uses `TIMESTAMPTZ`.
-- **Frontend**: Uses ISO strings.
-- **Fix**: Standardize on sending full ISO strings from the frontend; Postgres will parse them to `TIMESTAMPTZ` correctly.
+### User Profiles & Preferences [COMPLETED]
+- **Schema**: Added `isDarkMode`, `language`, `currency`, `decimalPoints`, and `autoBackup` to `profiles`.
+- **Sync**: `UserProfileContext` automatically pushes preference updates to the cloud if `autoBackup` is enabled.
+- **Wipe Logic**: "Clear All Data" resets preferences to defaults but preserves the user record and identity.
 
 ---
 
 ## 3. Endpoint & Page Itemization Plan
 
-### 1. Authentication & Profiles (`AuthContext`, `UserProfileContext`)
+### 1. Authentication & Profiles (`AuthContext`, `UserProfileContext`) [COMPLETED]
 - **API Endpoints**: `/api/auth/login`, `/api/auth/register`, `/api/userProfiles/{id}`
-- **Frontend Task**: 
-  - Update local Auth definition to require an `Email` instead of `Name`. Verify DB constraint uses `email`.
-  - Registration flows must handle the connection check (`navigator.onLine` / NetInfo) and store the account locally if offline, triggering the backend sync only when connection is restored.
+- **Security**: Backend uses `SUPABASE_SERVICE_ROLE_KEY` to bypass RLS for administrative tasks (registration/deletion).
 
-### 2. Transactions (`TransactionsContext`)
+### 2. Transactions (`TransactionsContext`) [IN PROGRESS]
 - **API Endpoints**: `/api/transactions`, `/api/transactions/sync`
-- **Payload mapping on sync**: 
-  - Fire a sync payload in the background only if Auto-Save is ON.
-  - IDs must be pre-formatted as valid UUIDs locally.
-
-### 3. Categories (`CategoriesContext`)
-- **API Endpoints**: `/api/categories`
-- **Data flow**: App pulls global categories and pushes user custom categories.
-
-### 4. Budgets (`useBudgets.ts`)
-- **API Endpoints**: `/api/budgets`
-- **Data flow**: Amount is `NUMERIC` in DB. Background sync array of budgets when Auto-save is on.
-
-### 5. Agendas (`useAgenda.ts`)
-- **API Endpoints**: `/api/agendas`
-- **Action**: Add `isRecurring` to DB before attempting to sync recurrent agendas.
-
-### 6. Subscriptions (`useSubscriptions.ts`)
-- **API Endpoints**: `/api/subscriptions`
-- **Action**: Ensure `id` is a UUID.
-
-### 7. Savings Goals (`useSavings.ts`)
-- **API Endpoints**: `/api/savingsGoals`
-- **Action**: Add `icon` to schema. Verify that progress updates (`currentAmount`) correctly hit the sync endpoint seamlessly.
-
-### 8. Payment Methods
-- **API Endpoints**: `/api/paymentMethods`
-- **Action**: Frontend should GET `/api/paymentMethods` to cache them locally for offline usage, replacing the hardcoded ones.
-
----
+- **Status**: Background sync logic implemented. Currently debugging payload `undefined` issues in production.
 
 ---
 
@@ -124,20 +71,24 @@ To ensure the product behaves consistently and independently from the network st
 - [x] Fix Payment Method UI in frontend (case-insensitive chips).
 - [x] Refine "Clear All Data" to preserve `userProfiles` and `users` both locally and in cloud.
 - [x] Implement Auto-save toggle logic with Conflict Resolution (Keep Local vs Keep Cloud).
+- [x] Add Cloud-Synced User Preferences (Dark Mode, Language, etc.).
 
 ### [x] Phase 2: Authentication Refactor
 - [x] Refactor `AuthContext` and `auth.tsx` to use **Email** instead of **Username**.
 - [x] Implement Offline Registration flow using local UUID generation.
 - [x] Add Online Connectivity Check to warn about registration uniqueness.
+- [x] Implement backend Service Role integration to resolve RLS registration errors.
 
 ### [x] Phase 3: UUID Local Generation
 - [x] Add `uuid` dependency to `wallet`.
 - [x] Update all Contexts (`TransactionsContext`, etc.) to use UUIDs instead of `Date.now()`.
 
-### [x] Phase 4: Sync Integration & Session Security
+### [/] Phase 4: Sync Integration & Session Security
 - [x] Map all remaining endpoints (`budgets`, `agendas`, `subscriptions`, `savingsGoals`).
-- [x] Implement robust background sync payload mapping (including UUIDs and missing fields like `isRecurring` and `icon`).
-- [x] Add error logging for background sync failures.
-- [x] Implement Single-Session enforcement (Device Identity check).
-- [x] Implement "Link to Cloud" upgrade flow for offline registrations.
-- [x] Standardize default `autoBackup` behavior (ON for Online, OFF for Offline).
+- [x] Implement robust background sync payload mapping.
+- [x] Implement Session Invalidation (401 auto-logout).
+- [x] Add `POST /api/system/reset` developer tool.
+- [ ] Finalize background sync payload debugging (Transactions sync body).
+- [/] Implement Single-Session enforcement (Device Identity check).
+- [ ] Implement "Link to Cloud" upgrade flow for offline registrations.
+
