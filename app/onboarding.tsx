@@ -33,7 +33,7 @@ export default function OnboardingScreen() {
         setLoading(true);
         try {
             const initialBalance = parseFloat(balance) || 0;
-            
+
             // 1. Update Profile (Sets the current balance field)
             await completeSetup(name.trim(), initialBalance);
 
@@ -44,7 +44,7 @@ export default function OnboardingScreen() {
                     amount: initialBalance,
                     type: "income",
                     date: new Date().toISOString(),
-                    categoryId: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b19", // Standard ID for income (Others)
+                    category: { id: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b19", name: "Others", type: "income" },
                     note: "Initial account setup",
                 });
             }

@@ -9,6 +9,7 @@ export interface Category {
 
 export interface Transaction {
   id: string;
+  title?: string;
   amount: number;
   category: Category;
   date: string; // ISO string

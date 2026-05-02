@@ -81,7 +81,7 @@ export default function CalendarScreen() {
               {dayTransactions.map((item, index) => (
                 <View key={item.id}>
                   <List.Item
-                    title={item.category?.name || "Unknown"}
+                    title={item.category?.name || "Others"}
                     description={item.note || item.establishment || ""}
                     left={(props) => (
                       <List.Icon

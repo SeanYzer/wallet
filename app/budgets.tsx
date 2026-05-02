@@ -49,7 +49,7 @@ export default function BudgetsScreen() {
   };
 
   const getCategoryName = (categoryId: string) => {
-    return categories.find(c => c.id.toString() === categoryId.toString())?.name || "Unknown Category";
+    return categories.find(c => c.id.toString() === categoryId.toString())?.name || "Others";
   };
 
   return (

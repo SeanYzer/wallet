@@ -70,7 +70,7 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
 
           <View style={{ flex: 1 }}>
             <Text variant="bodyLarge" style={{ fontWeight: "600", color: theme.colors.onSurface }}>
-              {item.category?.name || "Unknown"}
+              {item.category?.name || "Others"}
             </Text>
             <Text variant="bodySmall" style={{ color: theme.colors.outline, marginTop: 2 }}>
               {item.establishment || (item.note?.replace(/\s*\[Split Bill\].*$/s, "").trim()) || "No details"}

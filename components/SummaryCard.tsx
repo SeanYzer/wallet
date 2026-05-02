@@ -15,7 +15,7 @@ export function SummaryCard({ transactions }: { transactions: Transaction[] }) {
   const initialBalance = profile?.initialBalance ?? 0;
 
   const income = transactions
-    .filter((t) => t.type === "income")
+    .filter((t) => t.type === "income" && t.title !== "Opening Balance")
     .reduce((sum, t) => sum + (t.amount || 0), 0);
 
   const expense = transactions

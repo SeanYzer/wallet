@@ -51,8 +51,8 @@ export default function TransactionDetails() {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
         <Appbar.Content title="Transaction Details" />
-        <Appbar.Action icon="pencil" onPress={() => router.push(`/edit-transaction?id=${transaction.id}`)} />
-        <Appbar.Action icon="delete" onPress={() => setDeleteDialogVisible(true)} />
+        {/* <Appbar.Action icon="pencil" onPress={() => router.push(`/edit-transaction?id=${transaction.id}`)} />
+        <Appbar.Action icon="delete" onPress={() => setDeleteDialogVisible(true)} /> */}
       </Appbar.Header>
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -71,7 +71,7 @@ export default function TransactionDetails() {
           <Card.Content>
             <View style={{ marginBottom: 12 }}>
               <Text variant="labelSmall" style={{ color: "gray" }}>Category</Text>
-              <Text variant="titleMedium">{transaction.category?.name || "Unknown"}</Text>
+              <Text variant="titleMedium">{transaction.category?.name || "Others"}</Text>
             </View>
             <Divider style={{ marginVertical: 8 }} />
 
@@ -139,23 +139,23 @@ export default function TransactionDetails() {
           </Card>
         )}
 
-        <Button
+        {/* <Button
           mode="outlined"
           icon="pencil"
           onPress={() => router.push(`/edit-transaction?id=${transaction.id}`)}
           style={{ marginBottom: 8 }}
         >
           Edit Transaction
-        </Button>
+        </Button> */}
 
-        <Button
+        {/* <Button
           mode="outlined"
           icon="delete"
           textColor={theme.colors.error}
           onPress={() => setDeleteDialogVisible(true)}
         >
           Delete Transaction
-        </Button>
+        </Button> */}
       </ScrollView>
 
       <Portal>
