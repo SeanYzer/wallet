@@ -44,6 +44,7 @@ export interface Agenda {
   completed?: boolean;
   budgetId?: string;
   savingsGoalId?: string;
+  type?: TransactionType;
 }
 
 export interface Subscription {

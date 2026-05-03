@@ -33,7 +33,10 @@ export function useAgenda() {
             if (Array.isArray(remoteData) && remoteData.length > 0) {
               await saveAgendasBulk(remoteData);
               const merged = await getAgendas();
-              setAgendas(merged);
+              
+              // Strict deduplication before state update
+              const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
+              setAgendas(unique);
             }
           }
         }

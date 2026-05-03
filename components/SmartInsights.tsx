@@ -1,13 +1,29 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { Card, Text, IconButton, useTheme } from "react-native-paper";
+import { Card, Text, IconButton, useTheme, Button } from "react-native-paper";
 import { useInsights, Insight } from "../hooks/useInsights";
 
 export function SmartInsights() {
   const { insights } = useInsights();
   const theme = useTheme();
+  const [dismissedIds, setDismissedIds] = React.useState<string[]>([]);
+  const [showDismissed, setShowDismissed] = React.useState(false);
 
   if (insights.length === 0) return null;
+
+  const activeInsights = insights.filter(i => !dismissedIds.includes(i.id));
+  const displayInsights = showDismissed ? insights : activeInsights;
+
+  if (displayInsights.length === 0 && !showDismissed) {
+    if (dismissedIds.length > 0) {
+      return (
+        <View style={styles.container}>
+          <Button mode="text" onPress={() => setShowDismissed(true)}>View Dismissed Insights ({dismissedIds.length})</Button>
+        </View>
+      );
+    }
+    return null;
+  }
 
   const getTypeStyles = (type: Insight["type"]) => {
     switch (type) {
@@ -46,10 +62,14 @@ export function SmartInsights() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text variant="titleMedium" style={styles.headerText}>Smart Insights</Text>
-        <IconButton icon="lightbulb-on-outline" size={20} />
+        <IconButton 
+          icon={showDismissed ? "eye-off-outline" : "history"} 
+          size={20} 
+          onPress={() => setShowDismissed(!showDismissed)}
+        />
       </View>
       
-      {insights.map((insight) => {
+      {displayInsights.map((insight) => {
         const styles_type = getTypeStyles(insight.type);
         return (
           <Card 
@@ -72,6 +92,14 @@ export function SmartInsights() {
                   {insight.message}
                 </Text>
               </View>
+              {!showDismissed && (
+                <IconButton 
+                  icon="close" 
+                  size={16} 
+                  iconColor={styles_type.text}
+                  onPress={() => setDismissedIds([...dismissedIds, insight.id])}
+                />
+              )}
             </Card.Content>
           </Card>
         );

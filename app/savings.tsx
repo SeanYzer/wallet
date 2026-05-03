@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { View, ScrollView, Alert } from "react-native";
-import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, IconButton, useTheme, ProgressBar } from "react-native-paper";
+import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, IconButton, useTheme, ProgressBar, Chip } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSavings } from "../hooks/useSavings";
 import { useCurrency } from "../context/CurrencyContext";
@@ -14,7 +14,7 @@ export default function SavingsScreen() {
     const theme = useTheme();
     const { goals, loading, addGoal, updateGoal, deleteGoal, refetch } = useSavings();
     const { formatAmount } = useCurrency();
-    const { addTransaction } = useTransactions();
+    const { transactions, addTransaction } = useTransactions();
     const { categories } = useCategories();
     const { budgets, addBudget } = useBudgets();
 
@@ -82,6 +82,21 @@ export default function SavingsScreen() {
         const budget = budgets.find(b => b.id === selectedBudgetId);
 
         if (goal && budget) {
+            // Calculate current spent for this budget to find "real" remaining planning space
+            const spent = transactions
+                .filter(t => t.type === "expense" && (t.budgetId === budget.id || (t.category.id.toString() === budget.categoryId.toString() && t.date.slice(0, 7) === budget.month)))
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            const remaining = budget.amount - spent;
+
+            if (amount > remaining) {
+                Alert.alert(
+                    "Insufficient Budget Balance", 
+                    `You only have ${formatAmount(remaining)} remaining in this budget's planning allocation. You cannot transfer more than what is unspent.`
+                );
+                return;
+            }
+
             try {
                 // 1. Reduce Budget Limit
                 await addBudget({

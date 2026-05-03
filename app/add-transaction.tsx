@@ -276,7 +276,7 @@ export default function AddTransaction() {
         )}
 
         <View style={{ marginBottom: 16 }}>
-          <Text variant="labelLarge" style={{ marginBottom: 8 }}>Link to Plan (Optional)</Text>
+          <Text variant="labelLarge" style={{ marginBottom: 8 }}>Link to Budget or Savings Goal (Optional)</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: "row", gap: 8 }}>
               {/* Budgets for current month - ONLY for Expenses */}
@@ -287,14 +287,21 @@ export default function AddTransaction() {
                     key={b.id}
                     selected={selectedBudgetId === b.id}
                     onPress={() => {
-                      setSelectedBudgetId(selectedBudgetId === b.id ? null : b.id);
+                      const isCurrentlySelected = selectedBudgetId === b.id;
+                      const nextBudgetId = isCurrentlySelected ? null : b.id;
+                      
+                      setSelectedBudgetId(nextBudgetId);
                       setSelectedSavingsGoalId(null);
-                      if (selectedBudgetId !== b.id) {
+                      
+                      if (nextBudgetId) {
                          const cat = availableCategories.find(c => String(c.id) === String(b.categoryId));
                          if (cat) setSelectedCategory(cat);
                       }
                     }}
                     mode="flat"
+                    icon="chart-donut"
+                    selectedColor={theme.colors.primary}
+                    style={{ backgroundColor: selectedBudgetId === b.id ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
                   >
                     Budget: {catName}
                   </Chip>
@@ -311,6 +318,8 @@ export default function AddTransaction() {
                   }}
                   mode="flat"
                   icon="piggy-bank"
+                  selectedColor="#2E7D32"
+                  style={{ backgroundColor: selectedSavingsGoalId === g.id ? "#C8E6C9" : theme.colors.surfaceVariant }}
                 >
                   Goal: {g.title}
                 </Chip>

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { View, ScrollView } from "react-native";
-import { Appbar, Text, Card, FAB, Portal, Modal, TextInput, Button, List, Checkbox, useTheme, Divider, Chip } from "react-native-paper";
+import { Appbar, Text, Card, FAB, Portal, Modal, TextInput, Button, List, Checkbox, useTheme, Divider, Chip, IconButton } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useCurrency } from "../context/CurrencyContext";
@@ -9,6 +9,7 @@ import { useAgenda } from "../hooks/useAgenda";
 import { useBudgets } from "../hooks/useBudgets";
 import { useSavings } from "../hooks/useSavings";
 import { useTransactions } from "../hooks/useTransactions";
+import { useCategories } from "../context/CategoriesContext";
 
 export default function AgendaScreen() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function AgendaScreen() {
   const { goals } = useSavings();
   const { addTransaction } = useTransactions();
   const { categories } = useCategories();
+  const [type, setType] = useState<"expense" | "income">("expense");
 
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState("");
@@ -27,9 +29,10 @@ export default function AgendaScreen() {
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
   const [selectedSavingsGoalId, setSelectedSavingsGoalId] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
 
   const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === "ios");
+    setShowDatePicker(false); // Close on selection for both platforms
     if (selectedDate) {
       setDate(selectedDate);
     }
@@ -56,29 +59,39 @@ export default function AgendaScreen() {
       completed: false,
       budgetId: selectedBudgetId || undefined,
       savingsGoalId: selectedSavingsGoalId || undefined,
+      type,
+      isRecurring,
     });
     setTitle("");
     setAmount("");
     setDate(new Date());
     setSelectedBudgetId(null);
     setSelectedSavingsGoalId(null);
+    setIsRecurring(false);
     setModalVisible(false);
   };
 
   const recordTransactionFromAgenda = async (item: any) => {
-    if (!item.amount) return;
+    if (!item.amount) {
+      Alert.alert("Missing Amount", "Please add an amount to the reminder first.");
+      return;
+    }
 
     try {
       await addTransaction({
         title: item.title,
         amount: item.amount,
-        type: "expense",
+        type: item.type || "expense",
         date: new Date().toISOString(),
-        category: { id: "8", name: "Others", type: "expense" }, // Default category
+        category: categories.find(c => c.type === (item.type || "expense")) || { id: "8", name: "Others", type: "expense" },
         budgetId: item.budgetId,
         savingsGoalId: item.savingsGoalId,
       });
       Alert.alert("Success", "Transaction recorded successfully.");
+      // Optionally mark as completed
+      if (!item.completed) {
+        await updateAgenda(item.id, { completed: true });
+      }
     } catch (error) {
       console.error("Failed to record transaction:", error);
     }
@@ -91,6 +104,23 @@ export default function AgendaScreen() {
     await updateAgenda(id, { completed: newStatus });
 
     if (newStatus && item?.amount) {
+      // Handle Recurrence spawning
+      if (item.isRecurring) {
+        const nextDate = new Date(item.date);
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        
+        await addAgenda({
+          title: item.title,
+          date: nextDate.toISOString(),
+          amount: item.amount,
+          completed: false,
+          budgetId: item.budgetId,
+          savingsGoalId: item.savingsGoalId,
+          type: item.type,
+          isRecurring: true,
+        });
+      }
+
       Alert.alert(
         "Record Transaction?",
         `Would you like to record "${item.title}" (${formatAmount(item.amount)}) as a transaction?`,
@@ -125,26 +155,41 @@ export default function AgendaScreen() {
         ) : (
           <Card style={{ marginBottom: 16 }}>
             <Card.Content>
-              {upcoming.map((item, index) => (
-                <View key={item.id}>
-                  <List.Item
-                    title={item.title}
-                    description={`${new Date(item.date).toLocaleDateString()}${item.amount ? `  ${formatAmount(item.amount)}` : ""}`}
-                    left={() => (
-                      <Checkbox
-                        status={item.completed ? "checked" : "unchecked"}
-                        onPress={() => toggleComplete(item.id, item.completed || false)}
-                      />
-                    )}
-                    right={() => (
-                      <Button icon="delete" onPress={() => handleDelete(item.id)} textColor={theme.colors.error}>
-                        Delete
-                      </Button>
-                    )}
-                  />
-                  {index < upcoming.length - 1 && <Divider />}
-                </View>
-              ))}
+              {Array.from(new Map(upcoming.map(item => [item.id, item])).values()).map((item, index, arr) => {
+                const isToday = new Date(item.date).toDateString() === new Date().toDateString();
+                const itemType = item.type || "expense";
+                
+                return (
+                  <View key={item.id}>
+                    <List.Item
+                      title={item.title}
+                      titleStyle={{ fontWeight: isToday ? "bold" : "normal" }}
+                      description={`${new Date(item.date).toLocaleDateString()}${item.amount ? `  ${formatAmount(item.amount)}` : ""}`}
+                      left={() => (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Checkbox
+                            status={item.completed ? "checked" : "unchecked"}
+                            onPress={() => toggleComplete(item.id, item.completed || false)}
+                          />
+                          <IconButton 
+                            icon={itemType === "income" ? "arrow-up-circle" : "arrow-down-circle"} 
+                            iconColor={itemType === "income" ? "#2E7D32" : "#D32F2F"} 
+                            size={20}
+                          />
+                        </View>
+                      )}
+                      right={() => (
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          {isToday && <Text variant="labelSmall" style={{ color: theme.colors.primary, marginRight: 8, fontWeight: 'bold' }}>DUE TODAY</Text>}
+                          <Button mode="outlined" compact onPress={() => recordTransactionFromAgenda(item)} style={{ marginRight: 8 }}>Record</Button>
+                          <IconButton icon="delete" onPress={() => handleDelete(item.id)} iconColor={theme.colors.error} />
+                        </View>
+                      )}
+                    />
+                    {index < arr.length - 1 && <Divider />}
+                  </View>
+                );
+              })}
             </Card.Content>
           </Card>
         )}
@@ -180,6 +225,29 @@ export default function AgendaScreen() {
         <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
           <Text variant="titleLarge" style={{ marginBottom: 16 }}>New Reminder</Text>
 
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+            <Chip 
+              selected={type === "expense"} 
+              onPress={() => setType("expense")} 
+              icon="arrow-down-circle"
+              selectedColor="#D32F2F"
+            >Expense</Chip>
+            <Chip 
+              selected={type === "income"} 
+              onPress={() => setType("income")} 
+              icon="arrow-up-circle"
+              selectedColor="#2E7D32"
+            >Income</Chip>
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingRight: 8 }}>
+            <Text variant="bodyLarge">Monthly Recurring</Text>
+            <Checkbox
+              status={isRecurring ? "checked" : "unchecked"}
+              onPress={() => setIsRecurring(!isRecurring)}
+            />
+          </View>
+
           <TextInput label="Title" value={title} onChangeText={setTitle} mode="outlined" style={{ marginBottom: 12 }} />
           <TextInput 
             label="Amount (Optional)" 
@@ -207,7 +275,7 @@ export default function AgendaScreen() {
             />
           )}
 
-          <Text variant="labelMedium" style={{ marginTop: 12, marginBottom: 8 }}>Link to Plan (Optional)</Text>
+          <Text variant="labelMedium" style={{ marginTop: 12, marginBottom: 8 }}>Link to Budget or Savings Goal (Optional)</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: "row", gap: 8 }}>
               {/* Budgets for current month */}
@@ -222,9 +290,11 @@ export default function AgendaScreen() {
                       setSelectedSavingsGoalId(null);
                     }}
                     mode="flat"
-                    style={{ borderRadius: 16 }}
+                    icon="chart-donut"
+                    selectedColor={theme.colors.primary}
+                    style={{ borderRadius: 16, backgroundColor: selectedBudgetId === b.id ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
                   >
-                    {catName}: {formatAmount(b.amount)}
+                    Budget: {catName}
                   </Chip>
                 );
               })}
@@ -239,9 +309,10 @@ export default function AgendaScreen() {
                   }}
                   mode="flat"
                   icon="piggy-bank"
-                  style={{ borderRadius: 16 }}
+                  selectedColor="#2E7D32"
+                  style={{ borderRadius: 16, backgroundColor: selectedSavingsGoalId === g.id ? "#C8E6C9" : theme.colors.surfaceVariant }}
                 >
-                  {g.title}
+                  Goal: {g.title}
                 </Chip>
               ))}
             </View>
