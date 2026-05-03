@@ -279,8 +279,8 @@ export default function AddTransaction() {
           <Text variant="labelLarge" style={{ marginBottom: 8 }}>Link to Plan (Optional)</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: "row", gap: 8 }}>
-              {/* Budgets for current month */}
-              {budgets.filter(b => b.month === date.toISOString().slice(0, 7)).map(b => {
+              {/* Budgets for current month - ONLY for Expenses */}
+              {type === "expense" && budgets.filter(b => b.month === date.toISOString().slice(0, 7)).map(b => {
                  const catName = availableCategories.find(c => String(c.id) === String(b.categoryId))?.name || "Budget";
                  return (
                   <Chip
@@ -300,7 +300,7 @@ export default function AddTransaction() {
                   </Chip>
                  );
               })}
-              {/* Savings Goals */}
+              {/* Savings Goals - Always show */}
               {goals.map(g => (
                 <Chip
                   key={g.id}
