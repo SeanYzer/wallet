@@ -26,7 +26,7 @@ import { useCurrency } from "../context/CurrencyContext";
 
 export default function AddTransaction() {
   const router = useRouter();
-  const { addTransaction } = useTransactions();
+  const { transactions, addTransaction } = useTransactions();
   const { categories: availableCategories } = useCategories();
 
   const [amount, setAmount] = useState("");
@@ -224,6 +224,51 @@ export default function AddTransaction() {
                     </Card.Content>
                   </Card>
                 );
+              }
+              return null;
+            })()}
+          </View>
+        )}
+
+        {/* Real-time Overspending Warning */}
+        {type === "expense" && selectedCategory && amount && (
+          <View style={{ marginBottom: 16 }}>
+            {(() => {
+              const numAmount = parseFloat(amount);
+              if (isNaN(numAmount)) return null;
+
+              const currentMonth = date.toISOString().slice(0, 7);
+              const budget = budgets.find(b => 
+                String(b.categoryId) === String(selectedCategory.id) && 
+                b.month === currentMonth
+              );
+              
+              if (budget) {
+                // Calculate current spent for this budget
+                const spent = transactions
+                  .filter(t => t.type === "expense" && (t.budgetId === budget.id || (t.category.id.toString() === budget.categoryId.toString() && t.date.slice(0, 7) === budget.month)))
+                  .reduce((sum, t) => sum + t.amount, 0);
+                
+                const projectedSpent = spent + numAmount;
+                const overBy = projectedSpent - budget.amount;
+
+                if (overBy > 0) {
+                  return (
+                    <Card style={{ backgroundColor: "#FEE2E2", borderLeftWidth: 4, borderLeftColor: "#B91C1C" }}>
+                      <Card.Content style={{ paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}>
+                        <IconButton icon="alert-octagon" size={24} iconColor="#B91C1C" />
+                        <View style={{ flex: 1 }}>
+                          <Text variant="labelLarge" style={{ color: "#991B1B", fontWeight: '700' }}>
+                            Overbudget Warning
+                          </Text>
+                          <Text variant="bodySmall" style={{ color: "#991B1B" }}>
+                            Adding this will put you {formatAmount(overBy)} over your {selectedCategory.name} budget.
+                          </Text>
+                        </View>
+                      </Card.Content>
+                    </Card>
+                  );
+                }
               }
               return null;
             })()}

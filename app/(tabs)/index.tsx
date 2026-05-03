@@ -18,6 +18,7 @@ import { FinancialTip } from "../../components/FinancialTip";
 import { BudgetCard } from "../../components/BudgetCard";
 import { DashboardSkeleton } from "../../components/SkeletonLoader";
 import { CloudLinkBanner } from "../../components/CloudLinkBanner";
+import { SmartInsights } from "../../components/SmartInsights";
 
 
 export default function Dashboard() {
@@ -70,6 +71,10 @@ export default function Dashboard() {
 
         <View style={{ marginTop: 8 }}>
           <SummaryCard transactions={transactions} />
+        </View>
+
+        <View style={{ paddingHorizontal: 16 }}>
+          <SmartInsights />
         </View>
 
         <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", paddingHorizontal: 16, marginTop: 20 }}>

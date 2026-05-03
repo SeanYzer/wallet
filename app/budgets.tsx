@@ -17,8 +17,11 @@ export default function BudgetsScreen() {
   const { categories } = useCategories();
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [budgetAmount, setBudgetAmount] = useState("");
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [editAmount, setEditAmount] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -42,9 +45,34 @@ export default function BudgetsScreen() {
     setModalVisible(false);
   };
 
-  const getCategorySpending = (categoryId: string) => {
+  const handleUpdateBudget = async () => {
+    if (!editingBudget || !editAmount) return;
+
+    await addBudget({
+      ...editingBudget,
+      amount: parseFloat(editAmount),
+    });
+
+    setEditingBudget(null);
+    setEditAmount("");
+    setEditModalVisible(false);
+  };
+
+  const getBudgetSpending = (budget: Budget) => {
     return transactions
-      .filter((t: Transaction) => t.type === "expense" && t.category.id.toString() === categoryId.toString())
+      .filter((t: Transaction) => {
+        if (t.type !== "expense") return false;
+        
+        // Match by explicit link
+        if (t.budgetId === budget.id) return true;
+
+        // Match by category and month (for auto-linking regular transactions)
+        const txMonth = t.date.slice(0, 7);
+        return (
+          t.category.id.toString() === budget.categoryId.toString() && 
+          txMonth === budget.month
+        );
+      })
       .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
   };
 
@@ -68,7 +96,7 @@ export default function BudgetsScreen() {
           </Card>
         ) : (
           budgets.map((budget: Budget) => {
-            const spent = getCategorySpending(budget.categoryId.toString());
+            const spent = getBudgetSpending(budget);
             const percentage = Math.min(spent / budget.amount, 1);
             const isOverBudget = spent > budget.amount;
             const remaining = budget.amount - spent;
@@ -91,12 +119,23 @@ export default function BudgetsScreen() {
                         {formatAmount(spent)} / {formatAmount(budget.amount)}
                       </Text>
                     </View>
-                    <IconButton
-                      icon="delete-outline"
-                      iconColor={theme.colors.error}
-                      size={20}
-                      onPress={() => deleteBudget(budget.id)}
-                    />
+                    <View style={{ flexDirection: "row" }}>
+                      <IconButton
+                        icon="pencil-outline"
+                        size={20}
+                        onPress={() => {
+                          setEditingBudget(budget);
+                          setEditAmount(budget.amount.toString());
+                          setEditModalVisible(true);
+                        }}
+                      />
+                      <IconButton
+                        icon="delete-outline"
+                        iconColor={theme.colors.error}
+                        size={20}
+                        onPress={() => deleteBudget(budget.id)}
+                      />
+                    </View>
                   </View>
 
                   <ProgressBar
@@ -152,6 +191,28 @@ export default function BudgetsScreen() {
 
           <Button mode="contained" onPress={handleAddBudget} disabled={!selectedCategory || !budgetAmount}>
             Save Budget
+          </Button>
+        </Modal>
+
+        {/* Edit Budget Modal */}
+        <Modal visible={editModalVisible} onDismiss={() => setEditModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
+          <Text variant="titleLarge" style={{ marginBottom: 16 }}>Edit Budget</Text>
+          <Text variant="labelLarge" style={{ marginBottom: 8 }}>
+            Category: {editingBudget ? getCategoryName(editingBudget.categoryId.toString()) : ""}
+          </Text>
+          
+          <TextInput
+            label="Budget Amount"
+            value={editAmount}
+            onChangeText={(text) => setEditAmount(text.replace(/[^0-9.]/g, ""))}
+            keyboardType="numeric"
+            mode="outlined"
+            left={<TextInput.Affix text="₱" />}
+            style={{ marginBottom: 16 }}
+          />
+
+          <Button mode="contained" onPress={handleUpdateBudget} disabled={!editAmount}>
+            Update Budget
           </Button>
         </Modal>
       </Portal>

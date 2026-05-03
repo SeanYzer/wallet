@@ -6,12 +6,8 @@ import { useTransactions } from "../hooks/useTransactions";
 import { useCurrency } from "../context/CurrencyContext";
 import { Transaction } from "../types";
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: " Cash",
-  card: " Card",
-  bank_transfer: " Bank Transfer",
-  e_wallet: " E-Wallet",
-};
+import { useBudgets } from "../hooks/useBudgets";
+import { useSavings } from "../hooks/useSavings";
 
 export default function TransactionDetails() {
   const router = useRouter();
@@ -19,6 +15,8 @@ export default function TransactionDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { transactions, deleteTransaction } = useTransactions();
   const { formatAmount } = useCurrency();
+  const { budgets } = useBudgets();
+  const { goals } = useSavings();
 
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -83,9 +81,33 @@ export default function TransactionDetails() {
 
             <View style={{ marginBottom: 12 }}>
               <Text variant="labelSmall" style={{ color: "gray" }}>Payment Method</Text>
-              <Text variant="titleMedium">{PAYMENT_METHOD_LABELS[transaction.paymentMethod || "cash"]}</Text>
+              <Text variant="titleMedium">{transaction.paymentMethod || "Cash"}</Text>
             </View>
             <Divider style={{ marginVertical: 8 }} />
+
+            {transaction.budgetId && (
+              <>
+                <View style={{ marginBottom: 12 }}>
+                  <Text variant="labelSmall" style={{ color: "gray" }}>Linked Budget</Text>
+                  <Text variant="titleMedium" style={{ color: theme.colors.primary }}>
+                    {budgets.find(b => b.id === transaction.budgetId)?.month || "Budget"} Plan
+                  </Text>
+                </View>
+                <Divider style={{ marginVertical: 8 }} />
+              </>
+            )}
+
+            {transaction.savingsGoalId && (
+              <>
+                <View style={{ marginBottom: 12 }}>
+                  <Text variant="labelSmall" style={{ color: "gray" }}>Linked Savings Goal</Text>
+                  <Text variant="titleMedium" style={{ color: theme.colors.primary }}>
+                    {goals.find(g => g.id === transaction.savingsGoalId)?.title || "Savings Goal"}
+                  </Text>
+                </View>
+                <Divider style={{ marginVertical: 8 }} />
+              </>
+            )}
 
             {transaction.establishment && (
               <>
