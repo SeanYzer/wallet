@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { View, ScrollView } from "react-native";
-import { Appbar, Text, Card, FAB, Portal, Modal, TextInput, Button, List, Checkbox, useTheme, Divider } from "react-native-paper";
+import { Appbar, Text, Card, FAB, Portal, Modal, TextInput, Button, List, Checkbox, useTheme, Divider, Chip } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useCurrency } from "../context/CurrencyContext";
@@ -18,6 +18,7 @@ export default function AgendaScreen() {
   const { budgets } = useBudgets();
   const { goals } = useSavings();
   const { addTransaction } = useTransactions();
+  const { categories } = useCategories();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState("");
@@ -209,35 +210,39 @@ export default function AgendaScreen() {
           <Text variant="labelMedium" style={{ marginTop: 12, marginBottom: 8 }}>Link to Plan (Optional)</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: "row", gap: 8 }}>
-              {/* Budgets */}
-              {budgets.map(b => (
-                <Button
-                  key={b.id}
-                  mode={selectedBudgetId === b.id ? "contained" : "outlined"}
-                  compact
-                  onPress={() => {
-                    setSelectedBudgetId(selectedBudgetId === b.id ? null : b.id);
-                    setSelectedSavingsGoalId(null);
-                  }}
-                  style={{ borderRadius: 16 }}
-                >
-                  Budget: {b.month}
-                </Button>
-              ))}
-              {/* Savings */}
+              {/* Budgets for current month */}
+              {budgets.filter(b => b.month === new Date().toISOString().slice(0, 7)).map(b => {
+                const catName = categories.find(c => String(c.id) === String(b.categoryId))?.name || "Budget";
+                return (
+                  <Chip
+                    key={b.id}
+                    selected={selectedBudgetId === b.id}
+                    onPress={() => {
+                      setSelectedBudgetId(selectedBudgetId === b.id ? null : b.id);
+                      setSelectedSavingsGoalId(null);
+                    }}
+                    mode="flat"
+                    style={{ borderRadius: 16 }}
+                  >
+                    {catName}: {formatAmount(b.amount)}
+                  </Chip>
+                );
+              })}
+              {/* Savings Goals */}
               {goals.map(g => (
-                <Button
+                <Chip
                   key={g.id}
-                  mode={selectedSavingsGoalId === g.id ? "contained" : "outlined"}
-                  compact
+                  selected={selectedSavingsGoalId === g.id}
                   onPress={() => {
                     setSelectedSavingsGoalId(selectedSavingsGoalId === g.id ? null : g.id);
                     setSelectedBudgetId(null);
                   }}
+                  mode="flat"
+                  icon="piggy-bank"
                   style={{ borderRadius: 16 }}
                 >
-                  Goal: {g.title}
-                </Button>
+                  {g.title}
+                </Chip>
               ))}
             </View>
           </ScrollView>

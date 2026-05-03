@@ -63,10 +63,13 @@ export default function BudgetsScreen() {
       .filter((t: Transaction) => {
         if (t.type !== "expense") return false;
         
-        // Match by explicit link
+        // If the transaction is explicitly linked to a DIFFERENT budget, exclude it
+        if (t.budgetId && t.budgetId !== budget.id) return false;
+        
+        // Match by explicit link to THIS budget
         if (t.budgetId === budget.id) return true;
 
-        // Match by category and month (for auto-linking regular transactions)
+        // Match by category and month (only if NOT explicitly linked elsewhere)
         const txMonth = t.date.slice(0, 7);
         return (
           t.category.id.toString() === budget.categoryId.toString() && 

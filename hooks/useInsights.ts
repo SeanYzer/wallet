@@ -31,6 +31,7 @@ export function useInsights() {
     const spent = transactions
       .filter((t) => {
         if (t.type !== "expense") return false;
+        if (t.budgetId && t.budgetId !== budget.id) return false;
         if (t.budgetId === budget.id) return true;
         const txMonth = t.date.slice(0, 7);
         return t.category.id.toString() === budget.categoryId.toString() && txMonth === budget.month;
