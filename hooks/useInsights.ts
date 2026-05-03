@@ -110,19 +110,5 @@ export function useInsights() {
     });
   });
 
-  // 4. General Insights
-  const totalExpenseThisMonth = transactions
-    .filter(t => t.type === "expense" && t.date.slice(0, 7) === currentMonth)
-    .reduce((sum, t) => sum + t.amount, 0);
-  
-  if (totalExpenseThisMonth > 0 && budgets.length === 0) {
-    insights.push({
-        id: 'no-budgets',
-        type: 'info',
-        title: 'Financial Tip',
-        message: 'Setting up budgets for your top categories can help you save up to 20% more each month.'
-    });
-  }
-
   return { insights };
 }
