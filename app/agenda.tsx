@@ -6,17 +6,25 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useCurrency } from "../context/CurrencyContext";
 import { Alert, Platform } from "react-native";
 import { useAgenda } from "../hooks/useAgenda";
+import { useBudgets } from "../hooks/useBudgets";
+import { useSavings } from "../hooks/useSavings";
+import { useTransactions } from "../hooks/useTransactions";
 
 export default function AgendaScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { formatAmount } = useCurrency();
   const { agendas, addAgenda, updateAgenda, deleteAgenda, refetch } = useAgenda();
+  const { budgets } = useBudgets();
+  const { goals } = useSavings();
+  const { addTransaction } = useTransactions();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date());
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
+  const [selectedSavingsGoalId, setSelectedSavingsGoalId] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const onDateChange = (event: any, selectedDate?: Date) => {
@@ -45,15 +53,52 @@ export default function AgendaScreen() {
       date: date.toISOString(),
       amount: numAmount,
       completed: false,
+      budgetId: selectedBudgetId || undefined,
+      savingsGoalId: selectedSavingsGoalId || undefined,
     });
     setTitle("");
     setAmount("");
     setDate(new Date());
+    setSelectedBudgetId(null);
+    setSelectedSavingsGoalId(null);
     setModalVisible(false);
   };
 
+  const recordTransactionFromAgenda = async (item: any) => {
+    if (!item.amount) return;
+
+    try {
+      await addTransaction({
+        title: item.title,
+        amount: item.amount,
+        type: "expense",
+        date: new Date().toISOString(),
+        category: { id: "8", name: "Others", type: "expense" }, // Default category
+        budgetId: item.budgetId,
+        savingsGoalId: item.savingsGoalId,
+      });
+      Alert.alert("Success", "Transaction recorded successfully.");
+    } catch (error) {
+      console.error("Failed to record transaction:", error);
+    }
+  };
+
   const toggleComplete = async (id: string, completed: boolean) => {
-    await updateAgenda(id, { completed: !completed });
+    const item = agendas.find(a => a.id === id);
+    const newStatus = !completed;
+    
+    await updateAgenda(id, { completed: newStatus });
+
+    if (newStatus && item?.amount) {
+      Alert.alert(
+        "Record Transaction?",
+        `Would you like to record "${item.title}" (${formatAmount(item.amount)}) as a transaction?`,
+        [
+          { text: "No", style: "cancel" },
+          { text: "Yes, Record", onPress: () => recordTransactionFromAgenda(item) }
+        ]
+      );
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -160,6 +205,42 @@ export default function AgendaScreen() {
               onChange={onDateChange}
             />
           )}
+
+          <Text variant="labelMedium" style={{ marginTop: 12, marginBottom: 8 }}>Link to Plan (Optional)</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {/* Budgets */}
+              {budgets.map(b => (
+                <Button
+                  key={b.id}
+                  mode={selectedBudgetId === b.id ? "contained" : "outlined"}
+                  compact
+                  onPress={() => {
+                    setSelectedBudgetId(selectedBudgetId === b.id ? null : b.id);
+                    setSelectedSavingsGoalId(null);
+                  }}
+                  style={{ borderRadius: 16 }}
+                >
+                  Budget: {b.month}
+                </Button>
+              ))}
+              {/* Savings */}
+              {goals.map(g => (
+                <Button
+                  key={g.id}
+                  mode={selectedSavingsGoalId === g.id ? "contained" : "outlined"}
+                  compact
+                  onPress={() => {
+                    setSelectedSavingsGoalId(selectedSavingsGoalId === g.id ? null : g.id);
+                    setSelectedBudgetId(null);
+                  }}
+                  style={{ borderRadius: 16 }}
+                >
+                  Goal: {g.title}
+                </Button>
+              ))}
+            </View>
+          </ScrollView>
 
           <Button mode="contained" onPress={handleAdd} disabled={!title}>Add Reminder</Button>
         </Modal>

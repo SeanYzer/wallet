@@ -24,6 +24,8 @@ export interface Transaction {
     notes?: string;
     participants?: { name: string; amount: number; paid: boolean }[];
   };
+  budgetId?: string;
+  savingsGoalId?: string;
 }
 
 export interface Budget {
@@ -40,6 +42,8 @@ export interface Agenda {
   amount?: number;
   isRecurring?: boolean;
   completed?: boolean;
+  budgetId?: string;
+  savingsGoalId?: string;
 }
 
 export interface Subscription {

@@ -20,6 +20,9 @@ import { Calendar } from "react-native-calendars";
 import { useTransactions } from "../hooks/useTransactions";
 import { Category, TransactionType, PaymentMethod } from "../types";
 import { useCategories } from "../context/CategoriesContext";
+import { useBudgets } from "../hooks/useBudgets";
+import { useSavings } from "../hooks/useSavings";
+import { useCurrency } from "../context/CurrencyContext";
 
 export default function AddTransaction() {
   const router = useRouter();
@@ -36,6 +39,13 @@ export default function AddTransaction() {
   const [date, setDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const { budgets } = useBudgets();
+  const { goals } = useSavings();
+  const { formatAmount } = useCurrency();
+
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
+  const [selectedSavingsGoalId, setSelectedSavingsGoalId] = useState<string | null>(null);
 
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<{ id: string; name: string; type: string; icon: string }[]>([]);
   const [selectedMethodType, setSelectedMethodType] = useState<string>("cash");
@@ -119,6 +129,8 @@ export default function AddTransaction() {
         paymentMethod,
         establishment: establishment || undefined,
         receiptUrl: receiptImage || undefined,
+        budgetId: selectedBudgetId || undefined,
+        savingsGoalId: selectedSavingsGoalId || undefined,
       });
       router.back();
     } catch (error) {
@@ -186,6 +198,80 @@ export default function AddTransaction() {
                 {cat.name}
               </Chip>
             ))}
+        </View>
+
+        {/* Budget Status Indicator */}
+        {type === "expense" && selectedCategory && (
+          <View style={{ marginBottom: 16 }}>
+            {(() => {
+              const currentMonth = date.toISOString().slice(0, 7);
+              const budget = budgets.find(b => 
+                String(b.categoryId) === String(selectedCategory.id) && 
+                b.month === currentMonth
+              );
+              
+              if (budget) {
+                // For simplicity, we'd ideally calculate spending here too, 
+                // but showing the limit is a good start. 
+                // Let's just show that a budget exists for now.
+                return (
+                  <Card style={{ backgroundColor: theme.colors.primaryContainer }}>
+                    <Card.Content style={{ paddingVertical: 8, flexDirection: 'row', alignItems: 'center' }}>
+                      <IconButton icon="chart-donut" size={20} />
+                      <Text variant="bodySmall" style={{ color: theme.colors.onPrimaryContainer }}>
+                        Budget active for {selectedCategory.name}: {formatAmount(budget.amount)} limit.
+                      </Text>
+                    </Card.Content>
+                  </Card>
+                );
+              }
+              return null;
+            })()}
+          </View>
+        )}
+
+        <View style={{ marginBottom: 16 }}>
+          <Text variant="labelLarge" style={{ marginBottom: 8 }}>Link to Plan (Optional)</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {/* Budgets for current month */}
+              {budgets.filter(b => b.month === date.toISOString().slice(0, 7)).map(b => {
+                 const catName = availableCategories.find(c => String(c.id) === String(b.categoryId))?.name || "Budget";
+                 return (
+                  <Chip
+                    key={b.id}
+                    selected={selectedBudgetId === b.id}
+                    onPress={() => {
+                      setSelectedBudgetId(selectedBudgetId === b.id ? null : b.id);
+                      setSelectedSavingsGoalId(null);
+                      if (selectedBudgetId !== b.id) {
+                         const cat = availableCategories.find(c => String(c.id) === String(b.categoryId));
+                         if (cat) setSelectedCategory(cat);
+                      }
+                    }}
+                    mode="flat"
+                  >
+                    Budget: {catName}
+                  </Chip>
+                 );
+              })}
+              {/* Savings Goals */}
+              {goals.map(g => (
+                <Chip
+                  key={g.id}
+                  selected={selectedSavingsGoalId === g.id}
+                  onPress={() => {
+                    setSelectedSavingsGoalId(selectedSavingsGoalId === g.id ? null : g.id);
+                    setSelectedBudgetId(null);
+                  }}
+                  mode="flat"
+                  icon="piggy-bank"
+                >
+                  Goal: {g.title}
+                </Chip>
+              ))}
+            </View>
+          </ScrollView>
         </View>
 
         <TextInput

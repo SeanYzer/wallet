@@ -5,12 +5,16 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useSavings } from "../hooks/useSavings";
 import { useCurrency } from "../context/CurrencyContext";
 import { PiggyBank } from "../components/PiggyBank";
+import { useTransactions } from "../hooks/useTransactions";
+import { useCategories } from "../context/CategoriesContext";
 
 export default function SavingsScreen() {
     const router = useRouter();
     const theme = useTheme();
     const { goals, loading, addGoal, updateGoal, deleteGoal, refetch } = useSavings();
     const { formatAmount } = useCurrency();
+    const { addTransaction } = useTransactions();
+    const { categories, addCategory } = useCategories();
 
     const [modalVisible, setModalVisible] = useState(false);
     const [addAmountModalVisible, setAddAmountModalVisible] = useState(false);
@@ -58,13 +62,32 @@ export default function SavingsScreen() {
         const goal = goals.find(g => g.id === selectedGoalId);
         if (goal) {
             try {
+                // 1. Update Goal Amount
                 await updateGoal(selectedGoalId, {
                     currentAmount: goal.currentAmount + numDeposit,
                 });
+
+                // 2. Create Transaction Link
+                let savingsCat = categories.find(c => c.name === "Savings" && c.type === "expense");
+                if (!savingsCat) {
+                    // Use a fallback or wait for category creation (simplified for now)
+                    savingsCat = categories.find(c => c.id === "8") || categories[0];
+                }
+
+                await addTransaction({
+                    title: `Savings: ${goal.title}`,
+                    amount: numDeposit,
+                    type: "expense",
+                    date: new Date().toISOString(),
+                    category: savingsCat,
+                    savingsGoalId: goal.id
+                });
+
                 setAddAmountModalVisible(false);
                 setDepositAmount("");
                 setSelectedGoalId(null);
             } catch (error) {
+                console.error("Failed to update savings or create transaction:", error);
                 Alert.alert("Error", "Failed to update savings.");
             }
         }
