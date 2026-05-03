@@ -232,7 +232,16 @@ export const deleteCategoryLocal = async (id: string) => {
 export const getBudgets = async (): Promise<Budget[]> => {
   const fullKey = await getPrefixedKey('budgets');
   const items = await getItem<Budget[]>(fullKey, []);
-  return deduplicate(items);
+  const uniqueById = deduplicate(items);
+  
+  // Logical deduplication (Category + Month)
+  const seen = new Set();
+  return uniqueById.filter(b => {
+    const key = `${b.categoryId}_${b.month}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };
 
 export const saveBudget = async (budget: Budget) => {
@@ -438,7 +447,16 @@ export const updateSubscriptionLocal = async (id: string, updates: Partial<Subsc
 export const getSavingsGoals = async (): Promise<SavingsGoal[]> => {
   const fullKey = await getPrefixedKey('savingsGoals');
   const items = await getItem<SavingsGoal[]>(fullKey, []);
-  return deduplicate(items);
+  const uniqueById = deduplicate(items);
+  
+  // Logical deduplication (Title)
+  const seen = new Set();
+  return uniqueById.filter(g => {
+    const key = g.title.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };
 
 export const saveSavingsGoal = async (goal: SavingsGoal) => {

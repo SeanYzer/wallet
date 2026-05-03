@@ -17,7 +17,7 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
   const router = useRouter();
   const { formatAmount } = useCurrency();
 
-  const recentTransactions = [...transactions].reverse().slice(0, 10);
+  const recentTransactions = [...transactions].reverse();
 
   return (
     <View style={{ marginHorizontal: 16, marginTop: 8 }}>

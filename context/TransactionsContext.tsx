@@ -3,6 +3,7 @@ import { Transaction } from "../types";
 import {
     getTransactions,
     saveTransaction,
+    saveTransactionsBulk,
     updateTransactionLocal,
     deleteTransactionLocal,
     getSetting,
@@ -71,7 +72,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                     try {
                         const fileName = `${tx.id}.jpg`;
                         const securedPath = `${activeUserId}/${fileName}`; // Security Path Enforcement
-                        
+
                         // We use a dedicated endpoint or direct Supabase upload logic here
                         // For now, let's assume we use an authFetch-compatible upload route
                         const base64 = await FileSystem.readAsStringAsync(tx.receiptUrl, {
@@ -136,17 +137,26 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
      */
     const mergeTransactions = async (remoteData: Transaction[]) => {
         const localData = await getTransactions();
-        const localMap = new Map(localData.map(t => [t.id, t]));
 
-        for (const remoteTx of remoteData) {
-            if (!localMap.has(remoteTx.id)) {
-                await saveTransaction(remoteTx);
-            } else {
-                await updateTransactionLocal(remoteTx.id, remoteTx);
-            }
+        const mergedMap = new Map<string, Transaction>();
+
+        // local first
+        for (const tx of localData) {
+            mergedMap.set(tx.id, tx);
         }
-    };
 
+        // remote overrides local if same id
+        for (const tx of remoteData) {
+            mergedMap.set(tx.id, tx);
+        }
+
+        const merged = Array.from(mergedMap.values());
+
+        // persist clean dataset in bulk to avoid race conditions and improve performance
+        await saveTransactionsBulk(merged);
+
+        return merged;
+    };
     /**
      * ADD
      */
@@ -158,11 +168,14 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             };
 
             await saveTransaction(newTransaction);
-            setTransactions(prev => [...prev, newTransaction]);
-
-            if (API_URL && activeUserId) {
-                syncWithServer([...transactions, newTransaction]);
-            }
+            
+            setTransactions(prev => {
+                const updated = [...prev, newTransaction];
+                if (API_URL && activeUserId) {
+                    syncWithServer(updated);
+                }
+                return updated;
+            });
 
         } catch (error) {
             console.error("Error adding transaction:", error);

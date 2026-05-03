@@ -29,11 +29,37 @@ export function useSavings() {
                 if (autoBackup !== 'false') {
                     const response = await authFetch(`savingsGoals?userId=${activeUserId}`);
                     if (response.ok) {
-                        const remoteData = await response.json();
-                        if (Array.isArray(remoteData) && remoteData.length > 0) {
-                            await saveSavingsGoalsBulk(remoteData);
-                            const merged = await getSavingsGoals();
-                            setGoals(merged);
+                        const remoteData: SavingsGoal[] = await response.json();
+                        if (Array.isArray(remoteData)) {
+                            // Logical merge by title and ID
+                            const localMap = new Map(localData.map(g => [g.id, g]));
+                            const remoteMap = new Map(remoteData.map(g => [g.id, g]));
+                            const remoteTitleMap = new Map(remoteData.map(g => [g.title.toLowerCase(), g]));
+
+                            const mergedMap = new Map<string, SavingsGoal>();
+
+                            // 1. Remote is authoritative
+                            for (const remoteGoal of remoteData) {
+                                mergedMap.set(remoteGoal.id, remoteGoal);
+                            }
+
+                            // 2. Add local-only goals that don't logically exist on remote
+                            for (const localGoal of localData) {
+                                if (remoteMap.has(localGoal.id)) continue;
+                                if (remoteTitleMap.has(localGoal.title.toLowerCase())) continue;
+
+                                mergedMap.set(localGoal.id, localGoal);
+
+                                // Push missing local goal
+                                authFetch(`savingsGoals`, {
+                                    method: "POST",
+                                    body: JSON.stringify(localGoal),
+                                }).catch(err => console.error("Sync missing goal:", err));
+                            }
+
+                            const mergedGoals = Array.from(mergedMap.values());
+                            await saveSavingsGoalsBulk(mergedGoals);
+                            setGoals(mergedGoals);
                         }
                     }
                 }
@@ -47,6 +73,13 @@ export function useSavings() {
 
     const addGoal = async (goal: Omit<SavingsGoal, "id">) => {
         try {
+            // Check for existing goal with the same title
+            const existing = goals.find(g => g.title.toLowerCase() === goal.title.toLowerCase());
+            if (existing) {
+                await updateGoal(existing.id, goal);
+                return;
+            }
+
             const newGoal = { ...goal, id: generateUUID(), userId: activeUserId } as any;
 
             // 1. Save locally first

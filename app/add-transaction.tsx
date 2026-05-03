@@ -120,11 +120,11 @@ export default function AddTransaction() {
         establishment: establishment || undefined,
         receiptUrl: receiptImage || undefined,
       });
-      setLoading(false);
       router.back();
     } catch (error) {
-      setLoading(false);
       Alert.alert("Error", "Failed to save transaction. Please check your connection.");
+    } finally {
+      setLoading(false);
     }
   };
 

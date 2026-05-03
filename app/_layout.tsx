@@ -43,7 +43,7 @@ function SystemResetManager() {
           if (Platform.OS === 'web') {
             window.location.reload();
           } else {
-            router.replace("/auth");
+            setTimeout(() => router.replace("/auth"), 0);
             alert("A system reset was requested. You have been logged out.");
           }
         }
@@ -78,28 +78,16 @@ function MainLayout() {
     if (!activeUserId && !inAuthGroup) {
       // 1. Not logged in -> Go to Auth
       console.log("[Nav] Redirecting to Auth");
-      if (Platform.OS === 'web') {
-        setTimeout(() => router.replace('/auth'), 0);
-      } else {
-        router.replace('/auth');
-      }
+      setTimeout(() => router.replace('/auth'), 0);
     } else if (activeUserId) {
       if (profile?.isFirstRun && !inOnboarding) {
         // 2. Logged in but first run -> Go to Onboarding
         console.log("[Nav] Redirecting to Onboarding");
-        if (Platform.OS === 'web') {
-          setTimeout(() => router.replace('/onboarding'), 0);
-        } else {
-          router.replace('/onboarding');
-        }
+        setTimeout(() => router.replace('/onboarding'), 0);
       } else if (!profile?.isFirstRun && (inAuthGroup || inOnboarding)) {
         // 3. Logged in and setup done -> Go to Home
         console.log("[Nav] Redirecting to Dashboard");
-        if (Platform.OS === 'web') {
-          setTimeout(() => router.replace('/'), 0);
-        } else {
-          router.replace('/');
-        }
+        setTimeout(() => router.replace('/'), 0);
       }
     }
   }, [activeUserId, authLoading, profileLoading, profile?.isFirstRun, segments, navigationState?.key]);
