@@ -72,25 +72,12 @@ export function SmartInsights() {
       {displayInsights.map((insight) => {
         const styles_type = getTypeStyles(insight.type);
         return (
-          <Card 
-            key={insight.id} 
-            style={[styles.card, { backgroundColor: styles_type.bg }]}
-            elevation={0}
-          >
+          <Card key={insight.id} style={[styles.card, { backgroundColor: styles_type.bg }]} elevation={0}>
             <Card.Content style={styles.cardContent}>
-              <IconButton 
-                icon={styles_type.icon} 
-                iconColor={styles_type.iconColor} 
-                size={24} 
-                style={styles.icon}
-              />
+              <IconButton icon={styles_type.icon} iconColor={styles_type.iconColor} size={24} style={styles.icon} />
               <View style={styles.textContainer}>
-                <Text style={[styles.title, { color: styles_type.text }]}>
-                  {insight.title}
-                </Text>
-                <Text style={[styles.message, { color: styles_type.text }]}>
-                  {insight.message}
-                </Text>
+                <Text style={[styles.title, { color: styles_type.text }]}>{insight.title}</Text>
+                <Text style={[styles.message, { color: styles_type.text }]}>{insight.message}</Text>
               </View>
               {!showDismissed && (
                 <IconButton 

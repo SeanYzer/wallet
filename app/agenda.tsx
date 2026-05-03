@@ -17,7 +17,6 @@ export default function AgendaScreen() {
   const { formatAmount } = useCurrency();
   const { agendas, addAgenda, updateAgenda, deleteAgenda, refetch } = useAgenda();
   const { budgets } = useBudgets();
-  const { goals } = useSavings();
   const { addTransaction } = useTransactions();
   const { categories } = useCategories();
   const [type, setType] = useState<"expense" | "income">("expense");
@@ -27,7 +26,6 @@ export default function AgendaScreen() {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date());
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
-  const [selectedSavingsGoalId, setSelectedSavingsGoalId] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
 
@@ -58,7 +56,6 @@ export default function AgendaScreen() {
       amount: numAmount,
       completed: false,
       budgetId: selectedBudgetId || undefined,
-      savingsGoalId: selectedSavingsGoalId || undefined,
       type,
       isRecurring,
     });
@@ -66,7 +63,6 @@ export default function AgendaScreen() {
     setAmount("");
     setDate(new Date());
     setSelectedBudgetId(null);
-    setSelectedSavingsGoalId(null);
     setIsRecurring(false);
     setModalVisible(false);
   };
@@ -115,7 +111,6 @@ export default function AgendaScreen() {
           amount: item.amount,
           completed: false,
           budgetId: item.budgetId,
-          savingsGoalId: item.savingsGoalId,
           type: item.type,
           isRecurring: true,
         });
@@ -158,7 +153,6 @@ export default function AgendaScreen() {
               {Array.from(new Map(upcoming.map(item => [item.id, item])).values()).map((item, index, arr) => {
                 const isToday = new Date(item.date).toDateString() === new Date().toDateString();
                 const itemType = item.type || "expense";
-                
                 return (
                   <View key={item.id}>
                     <List.Item
@@ -275,7 +269,7 @@ export default function AgendaScreen() {
             />
           )}
 
-          <Text variant="labelMedium" style={{ marginTop: 12, marginBottom: 8 }}>Link to Budget or Savings Goal (Optional)</Text>
+          <Text variant="labelMedium" style={{ marginTop: 12, marginBottom: 8 }}>Link to Budget Plan (Optional)</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: "row", gap: 8 }}>
               {/* Budgets for current month */}
@@ -287,7 +281,6 @@ export default function AgendaScreen() {
                     selected={selectedBudgetId === b.id}
                     onPress={() => {
                       setSelectedBudgetId(selectedBudgetId === b.id ? null : b.id);
-                      setSelectedSavingsGoalId(null);
                     }}
                     mode="flat"
                     icon="chart-donut"
@@ -298,23 +291,6 @@ export default function AgendaScreen() {
                   </Chip>
                 );
               })}
-              {/* Savings Goals */}
-              {goals.map(g => (
-                <Chip
-                  key={g.id}
-                  selected={selectedSavingsGoalId === g.id}
-                  onPress={() => {
-                    setSelectedSavingsGoalId(selectedSavingsGoalId === g.id ? null : g.id);
-                    setSelectedBudgetId(null);
-                  }}
-                  mode="flat"
-                  icon="piggy-bank"
-                  selectedColor="#2E7D32"
-                  style={{ borderRadius: 16, backgroundColor: selectedSavingsGoalId === g.id ? "#C8E6C9" : theme.colors.surfaceVariant }}
-                >
-                  Goal: {g.title}
-                </Chip>
-              ))}
             </View>
           </ScrollView>
 

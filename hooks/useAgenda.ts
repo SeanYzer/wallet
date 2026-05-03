@@ -69,6 +69,7 @@ export function useAgenda() {
               amount: newAgenda.amount ?? 0,
               completed: newAgenda.completed ?? false,
               isRecurring: newAgenda.isRecurring ?? false,
+              type: newAgenda.type,
               userId: activeUserId,
             }),
           }).catch(err => console.error("Sync error:", err));

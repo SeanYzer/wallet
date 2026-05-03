@@ -7,6 +7,7 @@ import { useAppTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { useTransactions } from "../../hooks/useTransactions";
 import { useBudgets } from "../../hooks/useBudgets";
+import { useSavings } from "../../hooks/useSavings";
 import { useSubscriptions } from "../../hooks/useSubscriptions";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useUserProfile } from "../../context/UserProfileContext";
@@ -26,6 +27,7 @@ export default function Dashboard() {
   const { profile, isLoading: profileLoading } = useUserProfile();
   const { transactions, loading: txLoading, refetch: refetchTx } = useTransactions();
   const { budgets, loading: budgetsLoading, refetch: refetchBudgets } = useBudgets();
+  const { goals, refetch: refetchGoals } = useSavings();
   const { subscriptions, refetch: refetchSubs } = useSubscriptions();
   const { formatAmount } = useCurrency();
   const { theme } = useAppTheme();
@@ -38,6 +40,7 @@ export default function Dashboard() {
       if (activeUserId) {
         refetchTx();
         refetchBudgets();
+        refetchGoals();
         refetchSubs();
       }
     }, [activeUserId])
@@ -70,7 +73,7 @@ export default function Dashboard() {
         <CloudLinkBanner />
 
         <View style={{ marginTop: 8 }}>
-          <SummaryCard transactions={transactions} />
+          <SummaryCard transactions={transactions} budgets={budgets} goals={goals} />
         </View>
 
         <View style={{ paddingHorizontal: 16 }}>

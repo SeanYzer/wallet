@@ -46,6 +46,8 @@ export default function AddTransaction() {
 
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
   const [selectedSavingsGoalId, setSelectedSavingsGoalId] = useState<string | null>(null);
+  const [contributionAmount, setContributionAmount] = useState("");
+  const { updateGoal } = useSavings();
 
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<{ id: string; name: string; type: string; icon: string }[]>([]);
   const [selectedMethodType, setSelectedMethodType] = useState<string>("cash");
@@ -132,6 +134,18 @@ export default function AddTransaction() {
         budgetId: selectedBudgetId || undefined,
         savingsGoalId: selectedSavingsGoalId || undefined,
       });
+
+      // Handle Savings Contribution if income
+      if (type === "income" && selectedSavingsGoalId && contributionAmount) {
+        const goal = goals.find(g => g.id === selectedSavingsGoalId);
+        const cAmount = parseFloat(contributionAmount);
+        if (goal && !isNaN(cAmount)) {
+           await updateGoal(selectedSavingsGoalId, {
+             currentAmount: goal.currentAmount + cAmount
+           });
+        }
+      }
+
       router.back();
     } catch (error) {
       Alert.alert("Error", "Failed to save transaction. Please check your connection.");
@@ -276,7 +290,9 @@ export default function AddTransaction() {
         )}
 
         <View style={{ marginBottom: 16 }}>
-          <Text variant="labelLarge" style={{ marginBottom: 8 }}>Link to Budget or Savings Goal (Optional)</Text>
+          <Text variant="labelLarge" style={{ marginBottom: 8 }}>
+            {type === "income" ? "Contribute to Savings Goal (Optional)" : "Link to Budget or Savings Goal (Optional)"}
+          </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: "row", gap: 8 }}>
               {/* Budgets for current month - ONLY for Expenses */}
@@ -307,14 +323,18 @@ export default function AddTransaction() {
                   </Chip>
                  );
               })}
-              {/* Savings Goals - Always show */}
+              {/* Savings Goals - Always show, but prioritized for Income */}
               {goals.map(g => (
                 <Chip
                   key={g.id}
                   selected={selectedSavingsGoalId === g.id}
                   onPress={() => {
-                    setSelectedSavingsGoalId(selectedSavingsGoalId === g.id ? null : g.id);
+                    const isSelected = selectedSavingsGoalId === g.id;
+                    setSelectedSavingsGoalId(isSelected ? null : g.id);
                     setSelectedBudgetId(null);
+                    if (!isSelected && type === "income") {
+                       setContributionAmount(amount); // Default to full income amount
+                    }
                   }}
                   mode="flat"
                   icon="piggy-bank"
@@ -326,6 +346,25 @@ export default function AddTransaction() {
               ))}
             </View>
           </ScrollView>
+
+          {/* Allocation Nudge Input */}
+          {type === "income" && selectedSavingsGoalId && (
+            <Card style={{ marginTop: 12, backgroundColor: "#E8F5E9" }}>
+              <Card.Content style={{ paddingVertical: 8 }}>
+                 <Text variant="labelSmall" style={{ color: "#2E7D32", marginBottom: 4 }}>How much to allocate to this goal?</Text>
+                 <TextInput
+                    value={contributionAmount}
+                    onChangeText={setContributionAmount}
+                    placeholder="Enter amount"
+                    keyboardType="numeric"
+                    dense
+                    mode="flat"
+                    style={{ backgroundColor: "transparent" }}
+                    left={<TextInput.Affix text="₱" />}
+                 />
+              </Card.Content>
+            </Card>
+          )}
         </View>
 
         <TextInput
