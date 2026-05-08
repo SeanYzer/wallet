@@ -86,9 +86,10 @@ Three token types:
 
 ### Auth Screen Flow (`app/auth.tsx`)
 
-- **Login:** `POST /auth/login` → handles `sessionConflict` (multi-device force prompt) → fallback to local users table
-- **Register:** `POST /auth/register` → on network error, offers offline fallback (generates UUID, saves locally, `autoBackup: false`)
-- **Offline detection:** 3s timeout HEAD request to `${API_URL}/paymentMethods`
+- **API_URL guard:** If `API_URL` is falsy (`.env` missing), skip all online attempts — go straight to local-only mode
+- **Login:** `if (!API_URL)` → `attemptLocalLogin()` (SHA-256 passcode match against local users table). Otherwise `POST /auth/login` → handles `sessionConflict` (multi-device force prompt) → catch network error → fallback to `attemptLocalLogin()`
+- **Register:** `if (!API_URL)` → create local-only account (UUID, `autoBackup: false`). Otherwise `POST /auth/register` → on network error, offers offline fallback (UUID, saves locally, `autoBackup: false`)
+- **Offline detection:** 3s timeout HEAD request to `${API_URL}/paymentMethods` (skipped if no `API_URL`)
 
 ---
 
@@ -382,6 +383,7 @@ User enters PIN → confirm
 | 6 | `budget.categoryId.toString()` crashes when categoryId is undefined | `app/budgets.tsx:75`, `hooks/useInsights.ts:41`, `app/add-transaction.tsx:263`, `app/savings.tsx:87` | Changed to `categoryId?.toString()` with null guard |
 | 7 | Budget logical dedup collides when `categoryId` is undefined | `utils/db.ts:237-244` | Changed dedup key from `categoryId+month` to `name+month` |
 | 8 | `b.name.toLowerCase()` crashes on remote budgets without `name` (pre-schema data) | `hooks/useBudgets.ts:42,132`, `utils/db.ts:250` | Added `(b.name || '').toLowerCase()` guards; remote data migrated with `name: b.name \|\| 'Others'` before merge |
+| 9 | API calls fail with 404 when `.env` missing (`API_URL` = `undefined` → relative URL `"undefined/auth/login"`) | `app/auth.tsx:50,100,186` | Added `if (!API_URL)` guard in `checkConnection`, `handleLogin`, `handleRegister` — skip online attempt, go straight to local-only mode |
 
 ---
 
@@ -534,3 +536,38 @@ Key behaviors:
 |--------|-------------|------|-------|
 | `budgetSchema.js` | `name` | `z.string().optional()` | Already accepted `categoryId: z.string().nullable().optional()` |
 | `savingsGoalSchema.js` | `categoryId` | `z.string().nullable().optional()` | New field |
+
+---
+
+## 15. Setup Requirements & Critical Context
+
+### `.env` File (gitignored — must exist per-machine)
+
+The app requires a `.env` file at the project root with:
+
+```env
+EXPO_PUBLIC_API_URL="https://wallet-api-xi-plum.vercel.app/api"
+```
+
+Without it, `API_URL` is `undefined` and the app runs in **local-only mode** (all API calls skip the online attempt — see auth.tsx guards in §3). `.env` is gitignored, so it must be manually created after each `git clone`.
+
+### Ports
+
+| Port | Service | Note |
+|------|---------|------|
+| `8082` | Expo Metro bundler (dev server) | Falls to 8082 when 8081 is busy — NOT the API |
+| `3000` | Local mock API (`json-server`) | Optional for local development |
+
+### API URLs
+
+| Environment | URL |
+|-------------|-----|
+| Production | `https://wallet-api-xi-plum.vercel.app/api` |
+| Local mock | `http://localhost:3000` |
+
+---
+
+## 16. Next Steps
+
+1. **`.env` file** — ensure it's present on any new machine after clone
+2. **"Link to Cloud" upgrade flow** — allows offline-registered users to link their local account to an existing cloud account with conflict resolution (Keep Local / Keep Cloud)

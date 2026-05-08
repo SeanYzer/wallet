@@ -1,5 +1,7 @@
 # Wallet & Wallet-API Integration Plan
 
+> ⚠️ **Historical reference** — see [`savepoint.md`](./savepoint.md) for current architecture, decisions, and status.
+
 This document outlines the architecture principles mapping the React Native frontend (`wallet`) alongside the Supabase-backed API (`wallet-api`), followed by the schema discrepancies and an endpoint implementation checklist.
 
 ---
@@ -83,12 +85,12 @@ To ensure the product behaves consistently and independently from the network st
 - [x] Add `uuid` dependency to `wallet`.
 - [x] Update all Contexts (`TransactionsContext`, etc.) to use UUIDs instead of `Date.now()`.
 
-### [/] Phase 4: Sync Integration & Session Security
+### [x] Phase 4: Sync Integration & Session Security
 - [x] Map all remaining endpoints (`budgets`, `agendas`, `subscriptions`, `savingsGoals`).
 - [x] Implement robust background sync payload mapping.
 - [x] Implement Session Invalidation (401 auto-logout).
 - [x] Add `POST /api/system/reset` developer tool.
-- [ ] Finalize background sync payload debugging (Transactions sync body).
-- [/] Implement Single-Session enforcement (Device Identity check).
+- [x] Finalize background sync payload debugging (Transactions sync body).
+- [x] Implement Single-Session enforcement (Device Identity check).
 - [ ] Implement "Link to Cloud" upgrade flow for offline registrations.
 

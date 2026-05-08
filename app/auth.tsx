@@ -39,7 +39,7 @@ export default function AuthScreen() {
         }
         return deviceId;
     };    const checkConnection = async () => {
-        // Platform agnostic check for known offline state
+        if (!API_URL) return false;
         if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
 
         try {
@@ -94,6 +94,21 @@ export default function AuthScreen() {
         }
 
         setLoading(true);
+
+        // Skip online attempt if no API_URL configured → local-only registration
+        if (!API_URL) {
+            console.log("No API_URL configured, registering locally");
+            const { generateUUID } = require('../utils/uuid');
+            const offlineId = generateUUID();
+            const { setSetting } = require('../utils/db');
+            await addUser(offlineId, name.trim(), passcode.trim());
+            await saveUserProfile(name.trim(), true, 0, offlineId);
+            await initDb(offlineId);
+            await setSetting('autoBackup', 'false');
+            await login(offlineId, "offline_token");
+            setLoading(false);
+            return;
+        }
 
         try {
             // ALWAYS try Online first
@@ -181,7 +196,13 @@ export default function AuthScreen() {
         setLoading(true);
         const deviceId = await getDeviceId();
 
-        // 1. Attempt Online Login
+        // 1. Attempt Online Login (skip if no API_URL configured → local-only mode)
+        if (!API_URL) {
+            console.log("No API_URL configured, using local-only login");
+            await attemptLocalLogin();
+            setLoading(false);
+            return;
+        }
         try {
             const response = await fetch(`${API_URL}/auth/login`, {
                 method: "POST",
