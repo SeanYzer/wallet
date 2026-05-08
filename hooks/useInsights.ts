@@ -38,7 +38,7 @@ export function useInsights() {
         if (t.budgetId && t.budgetId !== budget.id) return false;
         if (t.budgetId === budget.id) return true;
         const txMonth = t.date.slice(0, 7);
-        return t.category.id.toString() === budget.categoryId.toString() && txMonth === budget.month;
+        return t.category.id.toString() === budget.categoryId?.toString() && txMonth === budget.month;
       })
       .reduce((sum, t) => sum + t.amount, 0);
 

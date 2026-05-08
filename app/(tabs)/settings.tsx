@@ -531,6 +531,14 @@ export default function SettingsScreen() {
             </View>
           </Card.Content>
         </Card>
+
+        <Card style={{ marginTop: 16 }}>
+          <Card.Content>
+            <Button mode="text" icon="help-circle-outline" onPress={() => router.push("/help")}>
+              Help & FAQ
+            </Button>
+          </Card.Content>
+        </Card>
       </ScrollView>
 
       <Portal>

@@ -59,6 +59,7 @@ app/
   budgets.tsx, calendar.tsx, agenda.tsx, subscriptions.tsx, savings.tsx
   add-transaction.tsx, edit-transaction.tsx, transaction-details.tsx
   payment-methods.tsx, category-settings.tsx, learning-detail.tsx
+  help.tsx                         ← Balance FAQ/help screen
   (tabs)/
     _layout.tsx             ← 4-tab navigator
     index.tsx               ← Dashboard
@@ -130,11 +131,13 @@ Each entity follows one of two patterns:
 | Entity | Merge | Authoritative | Dedup |
 |--------|-------|---------------|-------|
 | Transactions | ID-map | Remote overrides same ID, local items kept | By ID |
-| Budgets | ID-map + logical | Remote first, local-only pushed to API | ID + categoryId+month |
+| Budgets | ID-map + logical | Remote first, local-only pushed to API | ID + name+month |
 | Categories | ID-map | Remote (API fetch replaces local) | By ID |
 | Savings Goals | ID-map + logical | Remote first, local-only pushed | ID + title (lowercased) |
 | Agendas | ID-map | Local first, remote merged | Strict by ID |
 | Subscriptions | ID-map | Local first, remote merged | By ID |
+
+**Change (2026-05-09):** Budgets dedup key changed from `categoryId+month` to `name+month` to reflect that budgets are now standalone plans with a free-text name, not tied to categories. See §14.
 
 ---
 
@@ -223,12 +226,12 @@ Error responses propagate through `next(error)` and are caught by a global `AppE
 
 | Schema File | Create Fields | Notes |
 |------------|--------------|-------|
-| `budgetSchema` | `amount` (positive number), `month` (YYYY-MM), `categoryId` (nullable string), **`id` (optional string)** | **Fix applied:** `id` added so frontend-generated UUID passes through validation |
+| `budgetSchema` | `name` (optional string), `amount` (positive number), `month` (YYYY-MM), `categoryId` (nullable string), **`id` (optional string)** | **`name` added 2026-05-09:** free-text label, budgets no longer require a category; `categoryId` is now purely optional metadata |
 | `transactionSchema` | `amount`, `date`, `type`, `categoryId` + optional fields | No `id` in schema, but the `/sync` endpoint handles this differently |
 | `categorySchema` | `name`, `type`, `icon?` | — |
 | `agendaSchema` | `title`, `date`, optional fields | — |
 | `subscriptionSchema` | `name`, `amount`, `dueDate`, `category` | — |
-| `savingsGoalSchema` | `title`, `targetAmount`, optional fields | — |
+| `savingsGoalSchema` | `title`, `targetAmount`, `categoryId` (nullable string, optional), optional fields | **`categoryId` added 2026-05-09:** optional category reference for deposit transaction categorization |
 | `userSchema` | `name` (email), `passcode` (4-digit), optional `initialBalance` | — |
 
 **Critical behavior:** Zod's `z.object().parse()` strips unknown fields by default. This means any field not declared in the schema is silently removed from `req.body`. This was the root cause of the budget ID mismatch bug — the frontend sent `{ id, amount, month, categoryId, userId }`, but the schema only declared `{ amount, month, categoryId }`, so `id` was dropped, Supabase auto-generated a new ID, and subsequent deletes by the frontend ID returned 404.
@@ -285,7 +288,7 @@ Error responses propagate through `next(error)` and are caught by a global `AppE
 | `users` | `id` (UUID), `name` (unique), `passcode` (bcrypt), `currentSessionId` | FK parent for all user data |
 | `profiles` | `userId` (FK → users), `name`, `isFirstRun`, `currency`, etc. | — |
 | `transactions` | `id`, `userId`, `amount`, `categoryId`, `date`, `type`, `receiptUrl`, ... | CASCADE on user delete |
-| `budgets` | `id`, `userId`, `categoryId`, `month`, `amount` | Unique by userId+categoryId+month enforced in service |
+| `budgets` | `id`, `userId`, `name`, `categoryId`, `month`, `amount` | Unique by userId+name+month. `categoryId` is nullable (optional metadata). **Changed from categoryId+month to name+month (2026-05-09).** |
 | `categories` | `id`, `name`, `type`, `isGlobal`, `userId` | Global categories shared, user categories private |
 | `agendas`, `subscriptions`, `savings_goals` | `id`, `userId` + entity-specific fields | CASCADE on user delete |
 | `payment_methods` | Static list (seeded globally) | — |
@@ -305,11 +308,11 @@ Globals seeded on app init (if `last_seed_version < CURRENT_SEED_VERSION`):
 
 ```
 CREATE:
-  User taps "Save Budget"
+  User fills name + optional category + amount
     → generateUUID()
     → saveBudget(budget) to AsyncStorage
-    → authFetch POST /api/budgets { id, amount, month, categoryId }
-      → backend validates (Zod), strips unknowns (fixed: allows id)
+    → authFetch POST /api/budgets { id, name, amount, month, categoryId? }
+      → backend validates (Zod), accepts name + nullable categoryId
       → backend creates in Supabase with same ID
     → response ignored (fire-and-forget)
 
@@ -323,12 +326,34 @@ DELETE:
     → response checked (fixed: logs only if non-404 error)
 
 FETCH (on page focus):
-  → getBudgets() from AsyncStorage → set UI immediately
+  → getBudgets() from AsyncStorage
+      → migration: budgets without name get name from category lookup
+      → set UI immediately
   → if autoBackup on:
       authFetch GET /api/budgets
-      → merge with local (remote authoritative)
+      → merge with local (remote authoritative, logical dedup by name+month)
       → saveBudgetsBulk(merged) to AsyncStorage
       → setBudgets(merged)
+```
+
+### Balance Correlation
+
+```
+totalBalance   = initialBalance + sum(income) - sum(expense)
+reserved       = reservedBudgets + reservedSavings
+availableBalance = totalBalance - reserved
+
+reservedBudgets = Σ(max(0, budget.amount - spent)) for current-month budgets
+  spent = sum of transactions matching:
+    - explicit t.budgetId === budget.id, OR
+    - (!t.budgetId && t.category === budget.categoryId && same month) — only if budget has a categoryId
+
+reservedSavings = Σ(goal.currentAmount) for all goals
+
+Savings deposit (handleDeposit):
+  → creates expense transaction (lowers totalBalance)
+  → increases goal.currentAmount (raises reservedSavings)
+  → net: availableBalance drops by 2× deposit amount (intentional)
 ```
 
 ### Clear Data Lifecycle
@@ -348,11 +373,15 @@ User enters PIN → confirm
 ## 12. Known Fixes Applied (this session)
 
 | # | Issue | File | Fix |
-|---|-------|------|-----|
+|----|-------|------|-----|
 | 1 | Navigation guard never fires when `activeUserId` is null | `context/UserProfileContext.tsx:44` | Added `setIsLoading(false)` in the early-return path for null `activeUserId` |
 | 2 | "Budget not found" on DELETE because Zod strips `id` | `wallet-api/src/schemas/budgetSchema.js:7` | Added `id: z.string().optional()` to create schema |
 | 3 | `deleteBudget` and `addBudget` silently swallow HTTP errors | `hooks/useBudgets.ts:148,197` | Added `.then()` handlers to check `response.ok` |
 | 4 | Budgets not cleared in UI after "Clear Data" | `app/(tabs)/settings.tsx:31,194` | Added `useBudgets` import and `refetchBudgets()` to refresh call |
+| 5 | Dashboard BudgetCard double-counts transactions | `components/BudgetCard.tsx:17-19` | Aligned with `budgetId`-aware matching from budgets page (explicit link + category fallback) |
+| 6 | `budget.categoryId.toString()` crashes when categoryId is undefined | `app/budgets.tsx:75`, `hooks/useInsights.ts:41`, `app/add-transaction.tsx:263`, `app/savings.tsx:87` | Changed to `categoryId?.toString()` with null guard |
+| 7 | Budget logical dedup collides when `categoryId` is undefined | `utils/db.ts:237-244` | Changed dedup key from `categoryId+month` to `name+month` |
+| 8 | `b.name.toLowerCase()` crashes on remote budgets without `name` (pre-schema data) | `hooks/useBudgets.ts:42,132`, `utils/db.ts:250` | Added `(b.name || '').toLowerCase()` guards; remote data migrated with `name: b.name \|\| 'Others'` before merge |
 
 ---
 
@@ -365,15 +394,21 @@ User enters PIN → confirm
 | `app/_layout.tsx` | Root provider hierarchy, navigation guard, auth loader |
 | `app/auth.tsx` | Login/Register with offline fallback |
 | `app/onboarding.tsx` | First-run setup (name + initial balance) |
-| `app/(tabs)/settings.tsx` | Clear data, delete account, backup/restore, export/import |
-| `app/budgets.tsx` | Budget UI with progress bars, CRUD modals |
+| `app/(tabs)/settings.tsx` | Clear data, delete account, backup/restore, export/import, Help link |
+| `app/budgets.tsx` | Budget UI with progress bars, CRUD modals (free-text name + optional category) |
+| `app/help.tsx` | FAQ/help screen explaining balance, budgets, savings, agendas |
 | `context/AuthContext.tsx` | activeUserId + token management |
 | `context/UserProfileContext.tsx` | Profile CRUD with cloud merge |
 | `context/TransactionsContext.tsx` | Batch sync pattern (model for all entities) |
-| `hooks/useBudgets.ts` | Local-first CRUD with API sync |
-| `utils/db.ts` | AsyncStorage layer — all CRUD functions, key patterns, seed data |
+| `hooks/useBudgets.ts` | Local-first CRUD with API sync (dedup by name+month) |
+| `hooks/useInsights.ts` | Budget/savings/agenda insights with null-safe category matching |
+| `hooks/useSavings.ts` | Local-first CRUD with API sync (sends categoryId) |
+| `utils/db.ts` | AsyncStorage layer — all CRUD functions, key patterns, seed data, budget name migration |
 | `utils/apiClient.ts` | `authFetch` — JWT injection, response unwrapping |
-| `types/index.ts` | All TypeScript interfaces |
+| `types/index.ts` | All TypeScript interfaces (`Budget.name`, optional `Budget.categoryId`, optional `SavingsGoal.categoryId`) |
+| `components/BalanceBreakdown.tsx` | Modal showing detailed balance math (total, reserved, available with line items) |
+| `components/SummaryCard.tsx` | Dashboard balance card with tap-to-open BalanceBreakdown |
+| `components/BudgetCard.tsx` | Budget card with `budgetId`-aware spending, shows `budget.name` |
 
 ### Backend (`wallet-api/`)
 
@@ -394,3 +429,108 @@ User enters PIN → confirm
 | `vercel.json` | Vercel serverless deployment config |
 | `index.js` | Local development entry point |
 | `api/index.js` | Vercel serverless entry point |
+
+---
+
+## 14. Budget/Savings Decoupling from Categories (2026-05-09)
+
+### Design Decision
+
+Categories belong to **transactions** (they describe the "reason" for an income/expense). Budgets and savings goals are **independent plans** with their own free-text names. Category on a budget/savings goal is purely optional metadata — it defaults to `"Others"` for display when absent.
+
+### Data Model
+
+```typescript
+// Before (categoryId required — budgets were tied to categories)
+interface Budget {
+  id: string;
+  categoryId: string | number;  // required
+  amount: number;
+  month: string;
+}
+
+// After (budget is a standalone plan, category is optional)
+interface Budget {
+  id: string;
+  name: string;                 // free-text label (REQUIRED)
+  categoryId?: string | number;  // optional metadata
+  amount: number;
+  month: string;
+}
+
+// SavingsGoal got the same treatment
+interface SavingsGoal {
+  id: string;
+  title: string;
+  targetAmount: number;
+  currentAmount: number;
+  categoryId?: string | number;  // NEW — optional metadata
+  icon?: string;
+  color?: string;
+}
+```
+
+### Spending Tracking Rule
+
+When `budget.categoryId` is **set**:
+1. `t.budgetId === budget.id` → explicit link matches
+2. `!t.budgetId && t.category === budget.categoryId && t.month === budget.month` → category fallback matches
+3. `t.budgetId && t.budgetId !== budget.id` → excluded (belongs to another budget)
+
+When `budget.categoryId` is **undefined**:
+- Only explicit `t.budgetId === budget.id` links count
+- No category fallback (since there's no category to match against)
+
+This rule is consistently applied across all 5 spending calculation sites:
+- `app/budgets.tsx:64-82` (getBudgetSpending)
+- `components/BudgetCard.tsx:17-24`
+- `components/SummaryCard.tsx:35-37`
+- `hooks/useInsights.ts:35-42`
+- `app/savings.tsx:86-88` (transfer from budget)
+
+### Migration
+
+Existing budgets (stored in AsyncStorage without a `name` field) are migrated automatically in `getBudgets()`:
+1. Look up `categoryId` in the local categories list
+2. If a matching category is found, use its name as the budget name
+3. If no category is found (or `categoryId` is null), fall back to `"Others"`
+4. The migration runs every time `getBudgets()` is called — it's idempotent (checking `if (!b.name)`)
+
+### Balance Reservation Math
+
+```
+totalBalance   = initialBalance + income - expense
+reserved       = reservedBudgets + reservedSavings
+availableBalance = totalBalance - reserved
+
+reservedBudgets = Σ(max(0, budget.amount - spent))
+reservedSavings = Σ(goal.currentAmount)
+```
+
+Key behaviors:
+- **Creating a budget** → reserves full `budget.amount` from available balance immediately
+- **Spending against a budget** → total balance drops, reserved releases dollar-for-dollar → available balance unchanged
+- **Depositing to savings** → creates expense (lowers total), increases `currentAmount` (raises reserved) → available drops by 2× (intentional: cash left AND is set aside)
+- **Transfer budget → savings** → reallocates without cash movement (total unchanged, reserved budgets ↓, reserved savings ↑) → net zero on available
+
+### UI Changes
+
+| Screen | Change |
+|--------|--------|
+| `app/budgets.tsx` (create modal) | Name text input + optional category chips + amount |
+| `app/budgets.tsx` (list) | Shows `budget.name` with optional category subtitle |
+| `app/add-transaction.tsx` | Budget chips show `b.name`; overbudget warning uses `b.name` |
+| `app/agenda.tsx` | Budget chips show `b.name`; helper text: *"Linking doesn't deduct from your balance..."* |
+| `app/savings.tsx` | Goal creation has optional category chips; deposit uses goal's categoryId for transaction category |
+| `components/BudgetCard.tsx` | Shows `budget.name`; spending calc uses `budgetId`-aware matching |
+| `components/SummaryCard.tsx` | "Total" / "Reserved" badges tappable → opens BalanceBreakdown modal |
+| `components/BalanceBreakdown.tsx` | **New** — modal showing full balance math with line-item details |
+| `app/help.tsx` | **New** — FAQ/help screen covering all balance concepts |
+| `app/(tabs)/settings.tsx` | Added "Help & FAQ" link at bottom |
+
+### Backend Schema Changes
+
+| Schema | Field Added | Type | Notes |
+|--------|-------------|------|-------|
+| `budgetSchema.js` | `name` | `z.string().optional()` | Already accepted `categoryId: z.string().nullable().optional()` |
+| `savingsGoalSchema.js` | `categoryId` | `z.string().nullable().optional()` | New field |

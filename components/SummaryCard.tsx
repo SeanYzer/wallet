@@ -1,14 +1,17 @@
-import { View, Platform } from "react-native";
-import { Card, Text, useTheme } from "react-native-paper";
+import { View, Platform, TouchableOpacity } from "react-native";
+import { Text, useTheme } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUserProfile } from "../context/UserProfileContext";
+import { useState } from "react";
+import { BalanceBreakdown } from "./BalanceBreakdown";
 
 export function SummaryCard({ transactions = [], budgets = [], goals = [] }: any) {
   const theme = useTheme();
   const { formatAmount } = useCurrency();
   const { profile } = useUserProfile();
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const initialBalance = Number(profile?.initialBalance || 0);
 
@@ -30,7 +33,7 @@ export function SummaryCard({ transactions = [], budgets = [], goals = [] }: any
     .filter((b: any) => b.month === currentMonth)
     .reduce((sum: number, b: any) => {
       const spent = transactions
-        .filter((t: any) => t.type === "expense" && (t.budgetId === b.id || (t.category?.id?.toString() === b.categoryId?.toString() && t.date?.slice(0, 7) === b.month)))
+        .filter((t: any) => t.type === "expense" && (t.budgetId === b.id || (!t.budgetId && t.category?.id?.toString() === b.categoryId?.toString() && t.date?.slice(0, 7) === b.month)))
         .reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
       return sum + Math.max(0, Number(b.amount || 0) - spent);
     }, 0);
@@ -67,12 +70,12 @@ export function SummaryCard({ transactions = [], budgets = [], goals = [] }: any
         </Text>
 
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 12 }}>
-          <View style={{ backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+          <TouchableOpacity onPress={() => setShowBreakdown(true)} style={{ backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
             <Text variant="labelSmall" style={{ color: "#fff", opacity: 0.8 }}>Total: {formatAmount(balance)}</Text>
-          </View>
-          <View style={{ backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowBreakdown(true)} style={{ backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
             <Text variant="labelSmall" style={{ color: "#fff", opacity: 0.8 }}>Reserved: {formatAmount(totalReserved)}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.1)", marginVertical: 16 }} />
@@ -99,6 +102,17 @@ export function SummaryCard({ transactions = [], budgets = [], goals = [] }: any
           </View>
         </View>
       </LinearGradient>
+
+      <BalanceBreakdown
+        visible={showBreakdown}
+        onDismiss={() => setShowBreakdown(false)}
+        initialBalance={initialBalance}
+        income={income}
+        expense={expense}
+        budgets={budgets}
+        goals={goals}
+        transactions={transactions}
+      />
     </View>
   );
 }

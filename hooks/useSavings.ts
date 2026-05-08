@@ -97,6 +97,7 @@ export function useSavings() {
                             title: newGoal.title,
                             targetAmount: newGoal.targetAmount,
                             currentAmount: newGoal.currentAmount ?? 0,
+                            categoryId: newGoal.categoryId ?? null,
                             color: newGoal.color ?? null,
                             icon: newGoal.icon ?? null,
                             userId: activeUserId,

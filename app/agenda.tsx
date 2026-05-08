@@ -270,11 +270,13 @@ export default function AgendaScreen() {
           )}
 
           <Text variant="labelMedium" style={{ marginTop: 12, marginBottom: 8 }}>Link to Budget Plan (Optional)</Text>
+          <Text variant="bodySmall" style={{ color: "gray", marginBottom: 8 }}>
+            Linking doesn't deduct from your balance. It associates this reminder so recording it tracks against this budget.
+          </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: "row", gap: 8 }}>
               {/* Budgets for current month */}
               {budgets.filter(b => b.month === new Date().toISOString().slice(0, 7)).map(b => {
-                const catName = categories.find(c => String(c.id) === String(b.categoryId))?.name || "Budget";
                 return (
                   <Chip
                     key={b.id}
@@ -287,7 +289,7 @@ export default function AgendaScreen() {
                     selectedColor={theme.colors.primary}
                     style={{ borderRadius: 16, backgroundColor: selectedBudgetId === b.id ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
                   >
-                    Budget: {catName}
+                    Budget: {b.name}
                   </Chip>
                 );
               })}

@@ -18,6 +18,7 @@ export default function BudgetsScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [budgetName, setBudgetName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [budgetAmount, setBudgetAmount] = useState("");
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
@@ -31,15 +32,17 @@ export default function BudgetsScreen() {
   );
 
   const handleAddBudget = async () => {
-    if (!selectedCategory || !budgetAmount) return;
+    if (!budgetName || !budgetAmount) return;
 
     const currentMonth = new Date().toISOString().slice(0, 7);
     await addBudget({
-      categoryId: selectedCategory.id,
+      name: budgetName,
+      categoryId: selectedCategory?.id,
       amount: parseFloat(budgetAmount),
       month: currentMonth,
     });
 
+    setBudgetName("");
     setSelectedCategory(null);
     setBudgetAmount("");
     setModalVisible(false);
@@ -72,7 +75,7 @@ export default function BudgetsScreen() {
         // Match by category and month (only if NOT explicitly linked elsewhere)
         const txMonth = t.date.slice(0, 7);
         return (
-          t.category.id.toString() === budget.categoryId.toString() && 
+          t.category.id.toString() === budget.categoryId?.toString() && 
           txMonth === budget.month
         );
       })
@@ -116,8 +119,13 @@ export default function BudgetsScreen() {
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                     <View>
                       <Text variant="titleMedium">
-                        {getCategoryName(budget.categoryId.toString())} ({budget.month})
+                        {budget.name} ({budget.month})
                       </Text>
+                      {budget.categoryId && (
+                        <Text variant="labelSmall" style={{ color: "gray" }}>
+                          {getCategoryName(budget.categoryId.toString())}
+                        </Text>
+                      )}
                       <Text variant="bodyMedium" style={{ color: isOverBudget ? theme.colors.error : "gray" }}>
                         {formatAmount(spent)} / {formatAmount(budget.amount)}
                       </Text>
@@ -166,14 +174,23 @@ export default function BudgetsScreen() {
         <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
           <Text variant="titleLarge" style={{ marginBottom: 16 }}>Set New Budget</Text>
 
-          <Text variant="labelLarge" style={{ marginBottom: 8 }}>Select Category</Text>
+          <TextInput
+            label="Budget Name"
+            value={budgetName}
+            onChangeText={setBudgetName}
+            mode="outlined"
+            style={{ marginBottom: 12 }}
+            placeholder="e.g. Groceries, Rent, Fun Money"
+          />
+
+          <Text variant="labelLarge" style={{ marginBottom: 8 }}>Category (Optional)</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: "row", gap: 8 }}>
               {categories.filter(c => c.type === "expense").map(cat => (
                 <Button
                   key={cat.id}
                   mode={selectedCategory?.id === cat.id ? "contained" : "outlined"}
-                  onPress={() => setSelectedCategory(cat)}
+                  onPress={() => setSelectedCategory(selectedCategory?.id === cat.id ? null : cat)}
                   style={{ borderRadius: 20 }}
                 >
                   {cat.name}
@@ -192,7 +209,7 @@ export default function BudgetsScreen() {
             style={{ marginBottom: 16 }}
           />
 
-          <Button mode="contained" onPress={handleAddBudget} disabled={!selectedCategory || !budgetAmount}>
+          <Button mode="contained" onPress={handleAddBudget} disabled={!budgetName || !budgetAmount}>
             Save Budget
           </Button>
         </Modal>
@@ -201,8 +218,13 @@ export default function BudgetsScreen() {
         <Modal visible={editModalVisible} onDismiss={() => setEditModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
           <Text variant="titleLarge" style={{ marginBottom: 16 }}>Edit Budget</Text>
           <Text variant="labelLarge" style={{ marginBottom: 8 }}>
-            Category: {editingBudget ? getCategoryName(editingBudget.categoryId.toString()) : ""}
+            {editingBudget?.name}
           </Text>
+          {editingBudget?.categoryId && (
+            <Text variant="labelSmall" style={{ color: "gray", marginBottom: 8 }}>
+              {getCategoryName(editingBudget.categoryId.toString())}
+            </Text>
+          )}
           
           <TextInput
             label="Budget Amount"

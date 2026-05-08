@@ -30,7 +30,8 @@ export interface Transaction {
 
 export interface Budget {
   id: string;
-  categoryId: string | number;
+  name: string;
+  categoryId?: string | number;
   amount: number;
   month: string; // YYYY-MM
 }
@@ -60,6 +61,7 @@ export interface SavingsGoal {
   title: string;
   targetAmount: number;
   currentAmount: number;
+  categoryId?: string | number;
   icon?: string;
   color?: string;
 }

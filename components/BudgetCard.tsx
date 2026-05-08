@@ -13,9 +13,14 @@ export function BudgetCard({ budget, transactions, categoryName }: BudgetCardPro
   const theme = useTheme();
   const { formatAmount } = useCurrency();
 
-  // Calculate spent amount for this budget category
+  // Calculate spent amount — match by explicit budgetId link or category+month fallback
   const spent = transactions
-    .filter((t) => t.type === "expense" && t.category.id === budget.categoryId)
+    .filter((t) =>
+      t.type === "expense" && (
+        t.budgetId === budget.id ||
+        (!t.budgetId && t.category.id.toString() === budget.categoryId?.toString())
+      )
+    )
     .reduce((sum, t) => sum + t.amount, 0);
 
   const percentage = Math.min(spent / budget.amount, 1);
@@ -35,9 +40,9 @@ export function BudgetCard({ budget, transactions, categoryName }: BudgetCardPro
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <View>
             <Text variant="titleMedium" style={{ fontWeight: "bold" }}>
-              {categoryName || budget.month}
+              {budget.name}
             </Text>
-            {categoryName && <Text variant="labelSmall" style={{ color: "gray" }}>{budget.month}</Text>}
+            <Text variant="labelSmall" style={{ color: "gray" }}>{budget.month}</Text>
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <Text variant="bodyLarge" style={{ fontWeight: "600", color: isOverBudget ? "#f44336" : theme.colors.onSurface }}>

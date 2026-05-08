@@ -25,6 +25,7 @@ export default function SavingsScreen() {
     const [title, setTitle] = useState("");
     const [targetAmount, setTargetAmount] = useState("");
     const [depositAmount, setDepositAmount] = useState("");
+    const [goalCategoryId, setGoalCategoryId] = useState<string | null>(null);
 
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [transferModalVisible, setTransferModalVisible] = useState(false);
@@ -49,11 +50,13 @@ export default function SavingsScreen() {
                 title,
                 targetAmount: numTarget,
                 currentAmount: 0,
+                categoryId: goalCategoryId || undefined,
                 color: "#ff4081",
             });
             setModalVisible(false);
             setTitle("");
             setTargetAmount("");
+            setGoalCategoryId(null);
         } catch (error) {
             Alert.alert("Error", "Failed to add goal.");
         }
@@ -84,7 +87,7 @@ export default function SavingsScreen() {
         if (goal && budget) {
             // Calculate current spent for this budget to find "real" remaining planning space
             const spent = transactions
-                .filter(t => t.type === "expense" && (t.budgetId === budget.id || (t.category.id.toString() === budget.categoryId.toString() && t.date.slice(0, 7) === budget.month)))
+                .filter(t => t.type === "expense" && (t.budgetId === budget.id || (!t.budgetId && t.category.id.toString() === budget.categoryId?.toString() && t.date.slice(0, 7) === budget.month)))
                 .reduce((sum, t) => sum + t.amount, 0);
             
             const remaining = budget.amount - spent;
@@ -136,9 +139,14 @@ export default function SavingsScreen() {
                 });
 
                 // 2. Create Transaction Link
-                let savingsCat = categories.find(c => c.name === "Savings" && c.type === "expense");
+                let savingsCat: any = null;
+                if (goal.categoryId) {
+                    savingsCat = categories.find(c => String(c.id) === String(goal.categoryId));
+                }
                 if (!savingsCat) {
-                    // Use a fallback or wait for category creation (simplified for now)
+                    savingsCat = categories.find(c => c.name === "Savings" && c.type === "expense");
+                }
+                if (!savingsCat) {
                     savingsCat = categories.find(c => c.id === "8") || categories[0];
                 }
 
@@ -234,6 +242,22 @@ export default function SavingsScreen() {
                 <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
                     <Text variant="titleLarge" style={{ marginBottom: 16 }}>Set New Goal</Text>
                     <TextInput label="Goal Title" value={title} onChangeText={setTitle} mode="outlined" style={{ marginBottom: 12 }} placeholder="e.g. New Phone" />
+                    
+                    <Text variant="labelLarge" style={{ marginBottom: 8 }}>Category (Optional)</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                            {categories.filter(c => c.type === "expense").map(cat => (
+                                <Chip
+                                    key={cat.id}
+                                    selected={goalCategoryId === cat.id}
+                                    onPress={() => setGoalCategoryId(goalCategoryId === cat.id ? null : cat.id)}
+                                >
+                                    {cat.name}
+                                </Chip>
+                            ))}
+                        </View>
+                    </ScrollView>
+
                     <TextInput label="Target Amount" value={targetAmount} onChangeText={setTargetAmount} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
                     <Button mode="contained" onPress={handleAddGoal}>Create Goal</Button>
                 </Modal>

@@ -252,15 +252,18 @@ export default function AddTransaction() {
               if (isNaN(numAmount)) return null;
 
               const currentMonth = date.toISOString().slice(0, 7);
-              const budget = budgets.find(b => 
-                String(b.categoryId) === String(selectedCategory.id) && 
-                b.month === currentMonth
-              );
+              const selectedBudgetIdLocal = selectedBudgetId;
+              const budget = selectedBudgetIdLocal
+                ? budgets.find(b => b.id === selectedBudgetIdLocal)
+                : budgets.find(b => 
+                    b.categoryId && String(b.categoryId) === String(selectedCategory.id) && 
+                    b.month === currentMonth
+                  );
               
               if (budget) {
                 // Calculate current spent for this budget
                 const spent = transactions
-                  .filter(t => t.type === "expense" && (t.budgetId === budget.id || (t.category.id.toString() === budget.categoryId.toString() && t.date.slice(0, 7) === budget.month)))
+                  .filter(t => t.type === "expense" && (t.budgetId === budget.id || (!t.budgetId && t.category.id.toString() === budget.categoryId?.toString() && t.date.slice(0, 7) === budget.month)))
                   .reduce((sum, t) => sum + t.amount, 0);
                 
                 const projectedSpent = spent + numAmount;
@@ -276,7 +279,7 @@ export default function AddTransaction() {
                             Overbudget Warning
                           </Text>
                           <Text variant="bodySmall" style={{ color: "#991B1B" }}>
-                            Adding this will put you {formatAmount(overBy)} over your {selectedCategory.name} budget.
+                            Adding this will put you {formatAmount(overBy)} over your {budget.name} budget.
                           </Text>
                         </View>
                       </Card.Content>
@@ -297,7 +300,6 @@ export default function AddTransaction() {
             <View style={{ flexDirection: "row", gap: 8 }}>
               {/* Budgets for current month - ONLY for Expenses */}
               {type === "expense" && budgets.filter(b => b.month === date.toISOString().slice(0, 7)).map(b => {
-                 const catName = availableCategories.find(c => String(c.id) === String(b.categoryId))?.name || "Budget";
                  return (
                   <Chip
                     key={b.id}
@@ -309,7 +311,7 @@ export default function AddTransaction() {
                       setSelectedBudgetId(nextBudgetId);
                       setSelectedSavingsGoalId(null);
                       
-                      if (nextBudgetId) {
+                      if (nextBudgetId && b.categoryId) {
                          const cat = availableCategories.find(c => String(c.id) === String(b.categoryId));
                          if (cat) setSelectedCategory(cat);
                       }
@@ -319,7 +321,7 @@ export default function AddTransaction() {
                     selectedColor={theme.colors.primary}
                     style={{ backgroundColor: selectedBudgetId === b.id ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
                   >
-                    Budget: {catName}
+                    Budget: {b.name}
                   </Chip>
                  );
               })}

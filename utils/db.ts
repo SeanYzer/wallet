@@ -233,11 +233,21 @@ export const getBudgets = async (): Promise<Budget[]> => {
   const fullKey = await getPrefixedKey('budgets');
   const items = await getItem<Budget[]>(fullKey, []);
   const uniqueById = deduplicate(items);
+
+  // Migration: assign name for budgets that don't have one
+  const categories = await getCategories();
+  const migrated = uniqueById.map(b => {
+    if (!b.name) {
+      const cat = categories.find(c => String(c.id) === String(b.categoryId));
+      b.name = cat?.name || 'Others';
+    }
+    return b;
+  });
   
-  // Logical deduplication (Category + Month)
+  // Logical deduplication by name + month
   const seen = new Set();
-  return uniqueById.filter(b => {
-    const key = `${b.categoryId}_${b.month}`;
+  return migrated.filter(b => {
+    const key = `${(b.name || '').toLowerCase()}_${b.month}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

@@ -34,14 +34,17 @@ export function useBudgets() {
       const response = await authFetch(`budgets`);
       if (!response.ok) return;
 
-      const remoteData: Budget[] = await response.json();
+      let remoteData: Budget[] = await response.json();
       if (!Array.isArray(remoteData)) return;
 
+      // Migrate remote budgets that lack a name (pre-schema-change data)
+      remoteData = remoteData.filter(Boolean).map(b => ({ ...b, name: b.name || 'Others' }));
+
       // 4. Build maps for comparison
-      // We use a "logical key" (categoryId + month) to catch duplicates with different IDs
-      const getLogicalKey = (b: Budget) => `${b.categoryId}_${b.month}`;
+      // We use a "logical key" (name + month) to catch duplicates with different IDs
+      const getLogicalKey = (b: Budget) => `${(b.name || '').toLowerCase()}_${b.month}`;
       
-      const localMap = new Map(localData.map((b) => [b.id, b]));
+      const localMap = new Map(localData.filter(Boolean).map((b) => [b.id, b]));
       const remoteMap = new Map(remoteData.map((b) => [b.id, b]));
       const remoteLogicalMap = new Map(remoteData.map((b) => [getLogicalKey(b), b]));
 
@@ -54,7 +57,7 @@ export function useBudgets() {
       }
 
       // Then, check local budgets
-      for (const localBudget of localData) {
+      for (const localBudget of localData.filter(Boolean)) {
           const logicalKey = getLogicalKey(localBudget);
           
           if (remoteMap.has(localBudget.id)) {
@@ -127,9 +130,9 @@ export function useBudgets() {
 
   const addBudget = async (budget: Omit<Budget, "id">) => {
     try {
-      // Check for existing budget for this category and month
+      // Check for existing budget with this name and month
       const existing = budgets.find(b => 
-        String(b.categoryId) === String(budget.categoryId) && 
+        (b.name || '').toLowerCase() === (budget as any).name?.toLowerCase() && 
         b.month === budget.month
       );
 
@@ -153,6 +156,7 @@ export function useBudgets() {
             method: "POST",
             body: JSON.stringify({
               id: newBudget.id,
+              name: newBudget.name,
               amount: newBudget.amount,
               month: newBudget.month,
               categoryId: newBudget.categoryId ?? null,
