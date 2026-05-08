@@ -42,7 +42,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!activeUserId) return;
+        if (!activeUserId) {
+            setIsLoading(false);
+            setProfile(null);
+            return;
+        }
         fetchProfile();
     }, [activeUserId]);
 

@@ -74,7 +74,11 @@ export function useBudgets() {
           authFetch(`budgets`, {
             method: "POST",
             body: JSON.stringify(localBudget),
-          }).catch((err) => console.error("Push missing local budget:", err));
+          }).then(response => {
+            if (!response.ok) {
+              console.error("Failed to push missing local budget:", response.status);
+            }
+          }).catch((err) => console.error("Push missing local budget network error:", err));
       }
 
       // 7. Final clean merged list
@@ -154,6 +158,10 @@ export function useBudgets() {
               categoryId: newBudget.categoryId ?? null,
               userId: activeUserId,
             }),
+          }).then(response => {
+            if (!response.ok) {
+              console.error("Failed to sync budget to server:", response.status);
+            }
           }).catch(err => console.error("Sync error:", err));
         }
       }
@@ -194,7 +202,13 @@ export function useBudgets() {
       if (API_URL) {
         const autoBackup = await getSetting('autoBackup');
         if (autoBackup !== 'false') {
-          authFetch(`budgets/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
+          authFetch(`budgets/${id}`, { method: "DELETE" }).then(response => {
+            if (response.status === 404) {
+              console.log("Budget not found on server, likely was never synced or already deleted");
+            } else if (!response.ok) {
+              console.error("Failed to delete budget on server:", response.status);
+            }
+          }).catch(err => console.error("Sync error:", err));
         }
       }
     } catch (error) {

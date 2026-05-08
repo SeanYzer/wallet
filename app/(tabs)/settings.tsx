@@ -14,6 +14,7 @@ import { useLanguage } from "../../context/LanguageContext";
 import { usePasscode } from "../../context/PasscodeContext";
 import { useTransactionsContext } from "../../context/TransactionsContext";
 import { useCategories } from "../../context/CategoriesContext";
+import { useBudgets } from "../../hooks/useBudgets";
 import { authFetch } from "../../utils/apiClient";
 
 export default function SettingsScreen() {
@@ -27,6 +28,7 @@ export default function SettingsScreen() {
   const { activeUserId, logout } = useAuth();
   const { refetch: refetchTx } = useTransactionsContext();
   const { refetch: refetchCats } = useCategories();
+  const { refetch: refetchBudgets } = useBudgets();
 
   const handleLogout = async () => {
     await logout();
@@ -189,6 +191,7 @@ export default function SettingsScreen() {
         await Promise.all([
           refetchTx(),
           refetchCats(),
+          refetchBudgets(),
           refetchProfile()
         ]);
 
