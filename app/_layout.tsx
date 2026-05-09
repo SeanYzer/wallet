@@ -1,8 +1,8 @@
 import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, Platform } from "react-native";
+import { View, Text, Platform, StyleSheet } from "react-native";
 import { initMasterDb, initDb } from "../utils/db";
-import { PaperProvider } from "react-native-paper";
+import { PaperProvider, Banner, IconButton } from "react-native-paper";
 import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
 import { CurrencyProvider } from "../context/CurrencyContext";
 import { TransactionsProvider } from "../context/TransactionsContext";
@@ -11,10 +11,49 @@ import { CategoriesProvider } from "../context/CategoriesContext";
 import { LanguageProvider } from "../context/LanguageContext";
 import { PasscodeProvider, usePasscode } from "../context/PasscodeContext";
 import { AuthProvider, useAuth } from "../context/AuthContext";
+import { NetworkProvider, useNetwork } from "../context/NetworkContext";
 import PasscodeScreen from "./passcode-screen";
 import { DbRecoveryProvider } from "../context/DbRecoveryContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL, hardResetLocalData } from "../utils/db";
+
+function OfflineIndicator() {
+  const { isOnline, checkConnectivity, isChecking } = useNetwork();
+  const [showBanner, setShowBanner] = useState(true);
+
+  useEffect(() => {
+    if (!isOnline) {
+      setShowBanner(true);
+    }
+  }, [isOnline]);
+
+  if (isOnline || !showBanner) {
+    return null;
+  }
+
+  return (
+    <Banner
+      visible={true}
+      icon="cloud-off"
+      style={styles.offlineBanner}
+      actions={[
+        {
+          label: "Retry",
+          onPress: () => {
+            checkConnectivity();
+          },
+        },
+      ]}>
+      You're offline. Changes will sync automatically when you're back online.
+    </Banner>
+  );
+}
+
+const styles = StyleSheet.create({
+  offlineBanner: {
+    marginBottom: 0,
+  },
+});
 
 function SystemResetManager() {
   const router = useRouter();
@@ -98,21 +137,26 @@ function MainLayout() {
 
   return (
     <PaperProvider theme={theme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="auth" options={{ animation: "fade" }} />
-        <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="add-transaction" options={{ presentation: "modal" }} />
-        <Stack.Screen name="edit-transaction" options={{ presentation: "modal" }} />
-        <Stack.Screen name="transaction-details" options={{ title: "Details" }} />
-        <Stack.Screen name="budgets" />
-        <Stack.Screen name="calendar" />
-        <Stack.Screen name="agenda" />
-        <Stack.Screen name="subscriptions" />
-        <Stack.Screen name="savings" />
-        <Stack.Screen name="payment-methods" options={{ animation: "slide_from_right" }} />
-        <Stack.Screen name="learning-detail" options={{ animation: "slide_from_right" }} />
-      </Stack>
+      <NetworkProvider>
+        <View style={{ flex: 1 }}>
+          <OfflineIndicator />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="auth" options={{ animation: "fade" }} />
+            <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="add-transaction" options={{ presentation: "modal" }} />
+            <Stack.Screen name="edit-transaction" options={{ presentation: "modal" }} />
+            <Stack.Screen name="transaction-details" options={{ title: "Details" }} />
+            <Stack.Screen name="budgets" />
+            <Stack.Screen name="calendar" />
+            <Stack.Screen name="agenda" />
+            <Stack.Screen name="subscriptions" />
+            <Stack.Screen name="savings" />
+            <Stack.Screen name="payment-methods" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="learning-detail" options={{ animation: "slide_from_right" }} />
+          </Stack>
+        </View>
+      </NetworkProvider>
     </PaperProvider>
   );
 }

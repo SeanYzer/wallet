@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Alert, Platform } from "react-native";
-import { Appbar, List, RadioButton, Text, Card, Switch, Divider, Button, Avatar, Portal, Dialog, TextInput, useTheme as usePaperTheme } from "react-native-paper";
+import { View, ScrollView, Alert, Platform, StyleSheet } from "react-native";
+import { Appbar, List, RadioButton, Text, Card, Switch, Divider, Button, Avatar, Portal, Dialog, TextInput, useTheme as usePaperTheme, IconButton, Badge } from "react-native-paper";
 import { useRouter } from "expo-router";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -15,6 +15,92 @@ import { usePasscode } from "../../context/PasscodeContext";
 import { useTransactionsContext } from "../../context/TransactionsContext";
 import { useCategories } from "../../context/CategoriesContext";
 import { authFetch } from "../../utils/apiClient";
+import { useSyncStatus } from "../../hooks/useSyncStatus";
+import { useNetwork } from "../../context/NetworkContext";
+
+function SyncStatusCard() {
+  const { isOnline, checkConnectivity, isChecking } = useNetwork();
+  const { pendingCount, lastSyncedAt, hasErrors, retryAll } = useSyncStatus();
+  const paperTheme = usePaperTheme();
+
+  const getStatusColor = () => {
+    if (isChecking) return { icon: "cloud-sync", text: "Checking...", color: paperTheme.colors.primary };
+    if (!isOnline) return { icon: "cloud-off", text: "Offline", color: paperTheme.colors.error };
+    if (pendingCount > 0) return { icon: "upload", text: `${pendingCount} pending`, color: paperTheme.colors.tertiary };
+    return { icon: "cloud-check", text: "All synced", color: paperTheme.colors.secondary };
+  };
+
+  const status = getStatusColor();
+
+  const formatLastSync = () => {
+    if (!lastSyncedAt) return "Never";
+    const date = new Date(lastSyncedAt);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + date.toLocaleDateString();
+  };
+
+  return (
+    <View style={[
+      styles.syncCard,
+      {
+        backgroundColor: !isOnline
+          ? paperTheme.colors.errorContainer
+          : pendingCount > 0
+          ? paperTheme.colors.tertiaryContainer
+          : paperTheme.colors.secondaryContainer
+      }
+    ]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+        <IconButton
+          icon={status.icon}
+          iconColor={status.color}
+          size={24}
+          style={{ margin: 0 }}
+        />
+        <View>
+          <Text variant="titleSmall" style={{ color: status.color, fontWeight: '600' }}>
+            {status.text}
+          </Text>
+          <Text variant="bodySmall" style={{ color: paperTheme.colors.onSurfaceVariant }}>
+            Last sync: {formatLastSync()}
+          </Text>
+        </View>
+      </View>
+      {pendingCount > 0 && isOnline && (
+        <Button
+          mode="text"
+          compact
+          icon="sync"
+          onPress={retryAll}
+          loading={isChecking}
+        >
+          Retry
+        </Button>
+      )}
+      {!isOnline && (
+        <Button
+          mode="text"
+          compact
+          icon="refresh"
+          onPress={() => checkConnectivity()}
+          loading={isChecking}
+        >
+          Check
+        </Button>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  syncCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+  }
+});
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -460,6 +546,8 @@ export default function SettingsScreen() {
         <Card style={{ marginBottom: 16 }}>
           <Card.Content>
             <Text variant="titleMedium" style={{ marginBottom: 16 }}>Data Management</Text>
+
+            <SyncStatusCard />
 
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
