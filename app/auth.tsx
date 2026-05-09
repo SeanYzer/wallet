@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, HelperText, RadioButton, SegmentedButtons } from 'react-native-paper';
+import { Text, TextInput, Button, Card, HelperText } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useUserProfile } from '../context/UserProfileContext';
-import { addUser, saveUserProfile, API_URL, initDb } from '../utils/db';
+import { addUser, saveUserProfile, API_URL, initDb, getSetting, setSetting, getUsers } from '../utils/db';
 import * as Crypto from 'expo-crypto';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -28,7 +28,6 @@ export default function AuthScreen() {
     const [loading, setLoading] = useState(false);
     const [nameError, setNameError] = useState("");
     const [pinError, setPinError] = useState("");
-    const [accountMode, setAccountMode] = useState<'cloud' | 'offline'>('cloud');
 
     const getDeviceId = async () => {
         let deviceId = await AsyncStorage.getItem('localDeviceId');
@@ -57,10 +56,9 @@ export default function AuthScreen() {
         }
     };
 
-    const createLocalAccount = async (username: string, pin: string) => {
+    const createLocalAccount = async (username: string, pin: string): Promise<boolean> => {
         const { generateUUID } = require('../utils/uuid');
         const offlineId = generateUUID();
-        const { setSetting, getUsers } = require('../utils/db');
         
         const users = await getUsers();
         const localDuplicate = users.find((u: any) => u.name.toLowerCase() === username.toLowerCase());
@@ -78,21 +76,62 @@ export default function AuthScreen() {
         return true;
     };
 
-    const handleRegister = async () => {
+    const createCloudAccount = async (email: string, pin: string): Promise<boolean> => {
+        if (!API_URL) {
+            showAlert("Cloud Unavailable", "Cloud registration is not available. Please check your connection or create an offline-only account.");
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: email.trim(), passcode: pin.trim(), initialBalance: 0 }),
+            });
+
+            const responseData = await response.json();
+
+            if (response.ok) {
+                await addUser(responseData.data.user.id, email.trim(), pin.trim());
+                await saveUserProfile(email.trim(), true, 0, responseData.data.user.id);
+                await initDb(responseData.data.user.id);
+                await setSetting('autoBackup', 'true');
+                await login(responseData.data.user.id, responseData.data.token);
+                return true;
+            } else {
+                showAlert("Registration Error", responseData.message || "Email is not available.");
+                return false;
+            }
+        } catch (e: any) {
+            console.log("Cloud registration failed:", e.message);
+            
+            showAlert(
+                "Cloud Unreachable",
+                "We couldn't connect to our servers. Would you like to create a local-only account instead?",
+                [
+                    {
+                        text: "Create Offline Account",
+                        onPress: async () => {
+                            const success = await createLocalAccount(email.trim(), pin.trim());
+                            if (!success) {
+                                setLoading(false);
+                            }
+                        }
+                    },
+                    { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }
+                ]
+            );
+            return false;
+        }
+    };
+
+    const handleRegisterClick = async () => {
         setNameError("");
         setPinError("");
 
         if (!name.trim()) {
-            setNameError(accountMode === 'cloud' ? "Email is required" : "Username is required");
+            setNameError("Username or email is required");
             return;
-        }
-
-        if (accountMode === 'cloud') {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(name.trim())) {
-                setNameError("Please enter a valid email address.");
-                return;
-            }
         }
 
         if (!passcode.trim()) {
@@ -100,91 +139,36 @@ export default function AuthScreen() {
             return;
         }
 
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const isEmail = emailRegex.test(name.trim());
+
         setLoading(true);
 
-        if (accountMode === 'offline') {
-            console.log("Creating offline-only account");
-            try {
-                const success = await createLocalAccount(name.trim(), passcode.trim());
-                if (!success) {
-                    setLoading(false);
-                    return;
-                }
-            } catch (err) {
-                showAlert("Error", "Failed to create local account.");
-            } finally {
+        if (isEmail) {
+            const success = await createCloudAccount(name.trim(), passcode.trim());
+            if (!success) {
                 setLoading(false);
             }
-            return;
-        }
-
-        if (!API_URL) {
-            console.log("No API_URL configured, registering locally");
-            try {
-                const success = await createLocalAccount(name.trim(), passcode.trim());
-                if (!success) {
-                    setLoading(false);
-                    return;
-                }
-            } catch (err) {
-                showAlert("Error", "Failed to create local account.");
-            } finally {
-                setLoading(false);
-            }
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_URL}/auth/register`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: name.trim(), passcode: passcode.trim(), initialBalance: 0 }),
-            });
-
-            const responseData = await response.json();
-
-            if (response.ok) {
-                const { setSetting } = require('../utils/db');
-                await addUser(responseData.data.user.id, name.trim(), passcode.trim());
-                await saveUserProfile(name.trim(), true, 0, responseData.data.user.id);
-                await initDb(responseData.data.user.id);
-                await setSetting('autoBackup', 'true');
-                await login(responseData.data.user.id, responseData.data.token);
-                setLoading(false);
-                return;
-            } else {
-                showAlert("Registration Error", responseData.message || "Email is not available.");
-                setLoading(false);
-                return;
-            }
-        } catch (e: any) {
-            console.log("Could not reach cloud:", e.message);
-
-            const { generateUUID } = require('../utils/uuid');
-            const offlineId = generateUUID();
-
+        } else {
             showAlert(
-                "Cloud Unreachable",
-                "We couldn't connect to our servers to verify your account. Would you like to create a local-only account for now?",
+                "Create Account",
+                `You entered "${name.trim()}" which is not an email format.\n\nChoose account type:`,
                 [
                     {
-                        text: "Proceed Offline",
-                        onPress: async () => {
-                            try {
-                                const { setSetting } = require('../utils/db');
-                                await addUser(offlineId, name.trim(), passcode.trim());
-                                await saveUserProfile(name.trim(), true, 0, offlineId);
-                                await initDb(offlineId);
-                                await setSetting('autoBackup', 'false');
-                                await login(offlineId, "offline_token");
-                            } catch (err) {
-                                showAlert("Error", "Failed to create local account.");
-                            } finally {
-                                setLoading(false);
-                            }
+                        text: "Cloud Account (Use Email)",
+                        onPress: () => {
+                            setNameError("Please enter a valid email for cloud registration");
+                            setLoading(false);
                         }
                     },
-                    { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }
+                    {
+                        text: "Offline-Only Account",
+                        onPress: async () => {
+                            const success = await createLocalAccount(name.trim(), passcode.trim());
+                            setLoading(false);
+                        }
+                    },
+                    { text: "Cancel", style: "cancel", onPress: () => setLoading(false) }
                 ]
             );
         }
@@ -255,7 +239,6 @@ export default function AuthScreen() {
     };
 
     const attemptLocalLogin = async () => {
-        const { getUsers } = require('../utils/db');
         const users = await getUsers();
         const localUser = users.find((u: any) => u.name.toLowerCase() === name.trim().toLowerCase());
 
@@ -285,10 +268,6 @@ export default function AuthScreen() {
         }
     };
 
-    const inputLabel = accountMode === 'cloud' ? 'Email' : 'Username';
-    const inputPlaceholder = accountMode === 'cloud' ? 'email@example.com' : 'Enter a username';
-    const inputKeyboardType = accountMode === 'cloud' ? 'email-address' : 'default';
-
     return (
         <LinearGradient colors={["#1a237e", "#283593", "#3949ab"]} style={styles.gradient}>
             <KeyboardAvoidingView
@@ -307,32 +286,8 @@ export default function AuthScreen() {
 
                         <Card style={styles.card}>
                             <Card.Content>
-                                <View style={styles.modeSelector}>
-                                    <SegmentedButtons
-                                        value={accountMode}
-                                        onValueChange={(value) => {
-                                            setAccountMode(value as 'cloud' | 'offline');
-                                            setNameError("");
-                                            setName("");
-                                        }}
-                                        buttons={[
-                                            {
-                                                value: 'cloud',
-                                                label: 'Cloud Account',
-                                                icon: 'cloud'
-                                            },
-                                            {
-                                                value: 'offline',
-                                                label: 'Offline Only',
-                                                icon: 'cloud-off'
-                                            }
-                                        ]}
-                                        style={styles.segmentedButtons}
-                                    />
-                                </View>
-
                                 <TextInput
-                                    label={inputLabel}
+                                    label="Email or Username"
                                     value={name}
                                     onChangeText={(text) => { setName(text); setNameError(""); }}
                                     style={styles.input}
@@ -342,8 +297,8 @@ export default function AuthScreen() {
                                     activeOutlineColor="#3949ab"
                                     error={!!nameError}
                                     autoCapitalize="none"
-                                    keyboardType={inputKeyboardType}
-                                    placeholder={inputPlaceholder}
+                                    keyboardType="email-address"
+                                    placeholder="Enter email or username"
                                 />
                                 <HelperText type="error" visible={!!nameError}>
                                     {nameError}
@@ -366,23 +321,6 @@ export default function AuthScreen() {
                                     {pinError}
                                 </HelperText>
 
-                                {accountMode === 'offline' && (
-                                    <View style={styles.offlineNotice}>
-                                        <Text variant="bodySmall" style={{ color: '#666', textAlign: 'center' }}>
-                                            Offline-only accounts:
-                                        </Text>
-                                        <Text variant="bodySmall" style={{ color: '#888', textAlign: 'center', marginTop: 4 }}>
-                                            • No cloud sync
-                                        </Text>
-                                        <Text variant="bodySmall" style={{ color: '#888', textAlign: 'center' }}>
-                                            • Device-bound only
-                                        </Text>
-                                        <Text variant="bodySmall" style={{ color: '#888', textAlign: 'center' }}>
-                                            • Can link to cloud later
-                                        </Text>
-                                    </View>
-                                )}
-
                                 <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
                                     <Button
                                         mode="contained"
@@ -395,7 +333,7 @@ export default function AuthScreen() {
                                     </Button>
                                     <Button
                                         mode="outlined"
-                                        onPress={() => handleRegister()}
+                                        onPress={() => handleRegisterClick()}
                                         loading={loading}
                                         disabled={loading}
                                         style={[styles.createBtn, { flex: 1, marginTop: 0, backgroundColor: 'transparent', borderColor: '#3949ab' }]}
@@ -403,6 +341,21 @@ export default function AuthScreen() {
                                     >
                                         Register
                                     </Button>
+                                </View>
+
+                                <View style={styles.infoBox}>
+                                    <Text variant="bodySmall" style={{ color: '#666', textAlign: 'center' }}>
+                                        💡 Tips:
+                                    </Text>
+                                    <Text variant="bodySmall" style={{ color: '#888', textAlign: 'center', marginTop: 4 }}>
+                                        • Use email for cloud sync
+                                    </Text>
+                                    <Text variant="bodySmall" style={{ color: '#888', textAlign: 'center' }}>
+                                        • Use any username for offline-only
+                                    </Text>
+                                    <Text variant="bodySmall" style={{ color: '#888', textAlign: 'center' }}>
+                                        • Login auto-detects account type
+                                    </Text>
                                 </View>
                             </Card.Content>
                         </Card>
@@ -448,15 +401,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 8
     },
-    modeSelector: {
-        marginBottom: 16,
-    },
-    segmentedButtons: {
+    infoBox: {
+        marginTop: 12,
         marginBottom: 4,
-    },
-    offlineNotice: {
-        marginTop: 8,
-        marginBottom: 8,
         paddingVertical: 8,
         paddingHorizontal: 12,
         backgroundColor: '#f5f5f5',
