@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, Platform } from "react-native";
 import { API_URL } from "../utils/db";
+import { setAuthFailureCallback } from "../utils/apiClient";
 
 interface AuthContextType {
   activeUserId: string | null;
@@ -28,6 +29,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
   }, []);
+
+  const handleAuthFailure = useCallback(() => {
+    setActiveUserId(null);
+    setToken(null);
+  }, []);
+
+  useEffect(() => {
+    setAuthFailureCallback(handleAuthFailure);
+    return () => setAuthFailureCallback(() => {});
+  }, [handleAuthFailure]);
 
   const login = async (userId: string, token: string) => {
     await AsyncStorage.setItem('authToken', token);

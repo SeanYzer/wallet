@@ -122,7 +122,7 @@ export default function SavingsScreen() {
         if (!item) return;
 
         Alert.alert(
-            "Delete Savings Item",
+             "Delete Allocation",
             `The remaining balance of ${formatAmount(item.balance)} will be transferred back to your main funds.`,
             [
                 { text: "Cancel", style: "cancel" },
@@ -155,14 +155,14 @@ export default function SavingsScreen() {
         <View style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
             <Appbar.Header>
                 <Appbar.BackAction onPress={() => router.back()} />
-                <Appbar.Content title="Savings" />
+                 <Appbar.Content title="Allocations" />
             </Appbar.Header>
 
             <ScrollView contentContainerStyle={{ padding: 16 }}>
                 {items.length > 0 && (
                     <Card style={{ marginBottom: 16, padding: 16, borderRadius: 16, backgroundColor: theme.colors.primaryContainer }}>
                         <Text variant="labelMedium" style={{ color: theme.colors.onPrimaryContainer, textAlign: "center" }}>
-                            TOTAL SAVED
+                             TOTAL ALLOCATED
                         </Text>
                         <Text variant="headlineMedium" style={{ fontWeight: "800", textAlign: "center", color: theme.colors.onPrimaryContainer }}>
                             {formatAmount(totalSaved)}
@@ -214,7 +214,7 @@ export default function SavingsScreen() {
 
             <Portal>
                 <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
-                    <Text variant="titleLarge" style={{ marginBottom: 16 }}>New Savings Item</Text>
+                     <Text variant="titleLarge" style={{ marginBottom: 16 }}>New Allocation</Text>
                     <TextInput label="Name" value={title} onChangeText={setTitle} mode="outlined" style={{ marginBottom: 12 }} placeholder="e.g. Education Fund" />
                     <TextInput label="Initial Balance" value={balance} onChangeText={(t) => setBalance(t.replace(/[^0-9.]/g, ""))} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
                     <Button mode="contained" onPress={handleAddItem}>Create</Button>
@@ -237,7 +237,7 @@ export default function SavingsScreen() {
 
             <FAB
                 icon="plus"
-                label="New Savings"
+                 label="New Allocation"
                 style={{ position: "absolute", margin: 16, right: 0, bottom: 0 }}
                 onPress={() => {
                     setTitle("");

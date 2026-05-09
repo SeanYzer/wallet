@@ -2,9 +2,8 @@ import { useState, useCallback, useMemo } from "react";
 import { View, ScrollView, Alert } from "react-native";
 import { Appbar, Text, Card, FAB, Portal, Modal, TextInput, Button, List, Checkbox, useTheme, Divider, Chip, IconButton, SegmentedButtons } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { Calendar } from "react-native-calendars";
 import { useCurrency } from "../context/CurrencyContext";
-import { Platform } from "react-native";
 import { useDues } from "../hooks/useDues";
 import { useTransactions } from "../hooks/useTransactions";
 import { useCategories } from "../context/CategoriesContext";
@@ -96,12 +95,7 @@ export default function DuesScreen() {
       }, 0);
   }, [dues]);
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDate(selectedDate);
-    }
-  };
+
 
   const handleAdd = async () => {
     if (!title) return;
@@ -172,12 +166,13 @@ export default function DuesScreen() {
     const newStatus = !completed;
 
     if (newStatus && item?.amount) {
+      const isIncome = item.type === "income";
       Alert.alert(
-        "Record Transaction?",
-        `Record "${item.title}" (${formatAmount(item.amount)}) as a transaction?`,
+        isIncome ? "Record Income?" : "Record Payment?",
+        `${isIncome ? "Record" : "Pay"} "${item.title}" (${formatAmount(item.amount)})?`,
         [
           { text: "Skip", onPress: () => updateDue(id, { completed: true }) },
-          { text: "Record", onPress: () => recordTransaction(item) },
+          { text: isIncome ? "Record" : "Pay", onPress: () => recordTransaction(item) },
         ]
       );
     } else {
@@ -203,7 +198,7 @@ export default function DuesScreen() {
     <View style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="Dues" />
+        <Appbar.Content title="Scheduled" />
       </Appbar.Header>
 
       <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
@@ -266,9 +261,11 @@ export default function DuesScreen() {
                             )}
                             right={() => (
                               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                {isToday && <Text variant="labelSmall" style={{ color: theme.colors.primary, marginRight: 8, fontWeight: "bold" }}>DUE</Text>}
-                                {item.autoProcess && <MaterialCommunityIcons name="lightning-bolt" size={16} color="#D97706" style={{ marginRight: 4 }} />}
-                                <Button mode="outlined" compact onPress={() => recordTransaction(item)} style={{ marginRight: 8 }}>Pay</Button>
+                                 {isToday && <Text variant="labelSmall" style={{ color: theme.colors.primary, marginRight: 8, fontWeight: "bold" }}>{item.type === "income" ? "RECEIVABLE" : "DUE"}</Text>}
+                                 {item.autoProcess && <MaterialCommunityIcons name="lightning-bolt" size={16} color="#D97706" style={{ marginRight: 4 }} />}
+                                 <Button mode="outlined" compact onPress={() => recordTransaction(item)} style={{ marginRight: 8 }}>
+                                   {item.type === "income" ? "Receive" : "Pay"}
+                                 </Button>
                                 <IconButton icon="delete" onPress={() => handleDelete(item.id)} iconColor={theme.colors.error} />
                               </View>
                             )}
@@ -313,12 +310,25 @@ export default function DuesScreen() {
 
       <Portal>
         <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
-          <Text variant="titleLarge" style={{ marginBottom: 16 }}>New Due</Text>
+           <Text variant="titleLarge" style={{ marginBottom: 16 }}>New Scheduled Item</Text>
 
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
-            <Chip selected={type === "expense"} onPress={() => setType("expense")} icon="arrow-down-circle" selectedColor="#D32F2F">Expense</Chip>
-            <Chip selected={type === "income"} onPress={() => setType("income")} icon="arrow-up-circle" selectedColor="#2E7D32">Income</Chip>
-          </View>
+           <SegmentedButtons
+             value={type}
+             onValueChange={(val) => setType(val as "expense" | "income")}
+             buttons={[
+               {
+                 value: "expense",
+                 label: "Expense",
+                 icon: "arrow-down",
+               },
+               {
+                 value: "income",
+                 label: "Income",
+                 icon: "arrow-up",
+               },
+             ]}
+             style={{ marginBottom: 16 }}
+           />
 
           <Text style={{ marginBottom: 8, fontWeight: "600" }}>Frequency</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
@@ -337,18 +347,14 @@ export default function DuesScreen() {
           <TextInput label="Title" value={title} onChangeText={setTitle} mode="outlined" style={{ marginBottom: 12 }} />
           <TextInput label="Amount" value={amount} onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, ""))} keyboardType="numeric" mode="outlined" style={{ marginBottom: 12 }} left={<TextInput.Affix text="₱" />} />
 
-          <TextInput
-            label="Date"
-            value={date.toLocaleDateString()}
-            mode="outlined"
-            editable={false}
-            right={<TextInput.Icon icon="calendar" onPress={() => setShowDatePicker(true)} />}
-            style={{ marginBottom: 16 }}
-          />
-
-          {showDatePicker && (
-            <DateTimePicker value={date} mode="date" display="default" onChange={onDateChange} />
-          )}
+           <TextInput
+             label="Date"
+             value={date.toLocaleDateString()}
+             mode="outlined"
+             editable={false}
+             right={<TextInput.Icon icon="calendar" onPress={() => setShowDatePicker(true)} />}
+             style={{ marginBottom: 16 }}
+           />
 
           <Text style={{ marginBottom: 8, fontWeight: "600" }}>Category (Optional)</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
@@ -368,10 +374,67 @@ export default function DuesScreen() {
           </ScrollView>
 
           <Button mode="contained" onPress={handleAdd} disabled={!title || !amount}>Add Due</Button>
-        </Modal>
-      </Portal>
+         </Modal>
+       </Portal>
 
-      <FAB icon="plus" style={{ position: "absolute", margin: 16, right: 0, bottom: 0 }} onPress={() => setModalVisible(true)} />
+       <Portal>
+         <Modal
+           visible={showDatePicker}
+           onDismiss={() => setShowDatePicker(false)}
+           contentContainerStyle={{
+             backgroundColor: "transparent",
+             justifyContent: "center",
+             alignItems: "center",
+           }}
+         >
+           <Card style={{ width: "90%", borderRadius: 24, padding: 16, elevation: 10 }}>
+             <Text variant="titleMedium" style={{ marginBottom: 16, fontWeight: "700", textAlign: "center" }}>
+               Select Due Date
+             </Text>
+             <Calendar
+               current={date.toISOString().split('T')[0]}
+               onDayPress={(day) => {
+                 setDate(new Date(day.timestamp));
+                 setShowDatePicker(false);
+               }}
+               markedDates={{
+                 [date.toISOString().split('T')[0]]: { selected: true, selectedColor: theme.colors.primary }
+               }}
+               theme={{
+                 backgroundColor: theme.colors.surface,
+                 calendarBackground: theme.colors.surface,
+                 textSectionTitleColor: theme.colors.primary,
+                 selectedDayBackgroundColor: theme.colors.primary,
+                 selectedDayTextColor: '#ffffff',
+                 todayTextColor: theme.colors.primary,
+                 dayTextColor: theme.colors.onSurface,
+                 textDisabledColor: theme.colors.surfaceVariant,
+                 dotColor: theme.colors.primary,
+                 selectedDotColor: '#ffffff',
+                 arrowColor: theme.colors.primary,
+                 disabledArrowColor: theme.colors.surfaceVariant,
+                 monthTextColor: theme.colors.onSurface,
+                 indicatorColor: theme.colors.primary,
+                 textDayFontWeight: '300',
+                 textMonthFontWeight: '700',
+                 textDayHeaderFontWeight: '300',
+                 textDayFontSize: 16,
+                 textMonthFontSize: 18,
+                 textDayHeaderFontSize: 14
+               }}
+             />
+             <Button
+               mode="text"
+               onPress={() => setShowDatePicker(false)}
+               style={{ marginTop: 16 }}
+             >
+               Close
+             </Button>
+           </Card>
+         </Modal>
+       </Portal>
+
+       <FAB icon="plus" style={{ position: "absolute", margin: 16, right: 0, bottom: 0 }} onPress={() => setModalVisible(true)} />
     </View>
   );
 }

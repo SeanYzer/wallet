@@ -190,12 +190,9 @@ export default function AddTransaction() {
                 {cat.name}
               </Chip>
             ))}
-        </View>
+         </View>
 
-        <View style={{ marginBottom: 16 }}>
-          <Text variant="labelLarge" style={{ marginBottom: 8 }}>Payment Source</Text>
-
-        <TextInput
+         <TextInput
           label="Establishment / Location"
           value={establishment}
           onChangeText={setEstablishment}

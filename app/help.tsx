@@ -20,15 +20,15 @@ export default function HelpScreen() {
           {'\n\n'}
           <Bold>Total Balance</Bold> = Initial Balance + Income − Expenses
           {'\n\n'}
-          <Bold>Reserved</Bold> = Savings Accumulated
-          {'\n\n'}
-          <Bold>Available</Bold> = Total Balance − Reserved
-          {'\n\n'}
-          Only savings lock your money. Dues (scheduled reminders) forecast upcoming needs but do not reserve your balance.
+           <Bold>Reserved</Bold> = Allocations Total
+           {'\n\n'}
+           <Bold>Available</Bold> = Total Balance − Reserved
+           {'\n\n'}
+           Only allocations set aside your money. Scheduled items forecast upcoming needs but do not reserve your balance.
         </Section>
 
-        <Section icon="calendar-check-outline" title="Dues">
-          Dues are scheduled financial events — bills, payroll, subscriptions. They can be one-time or recurring (weekly, monthly, yearly).
+         <Section icon="calendar-check-outline" title="Scheduled">
+           Scheduled items are financial events — bills, payroll, subscriptions. They can be one-time or recurring (weekly, monthly, yearly).
           {'\n\n'}
           <Bold>Expense dues</Bold> represent money going out (bills, subscriptions).
           {'\n\n'}
@@ -37,26 +37,26 @@ export default function HelpScreen() {
           When a due date arrives, you can record it as a transaction with one tap. Enable <Bold>Auto-Process</Bold> to be prompted to auto-create the transaction.
         </Section>
 
-        <Section icon="piggy-bank-outline" title="Savings">
-          Savings are locked pots of money. Transfer money in from your main balance to save, or transfer out to unlock it.
-          {'\n\n'}
-          <Bold>Transfer In</Bold> creates an expense transaction — money leaves your available balance and enters savings.
-          {'\n\n'}
-          <Bold>Transfer Out</Bold> creates an income transaction — money returns to your available balance.
-          {'\n\n'}
-          Deleting a savings item automatically transfers its full balance back to your main funds.
-        </Section>
+         <Section icon="piggy-bank-outline" title="Allocations">
+           Allocations are reserved pots of money. Set money aside for specific purposes so it doesn't get mixed with your available balance.
+           {'\n\n'}
+           <Bold>Transfer In</Bold> creates an expense transaction — money leaves your available balance and is set aside.
+           {'\n\n'}
+           <Bold>Transfer Out</Bold> creates an income transaction — money returns to your available balance.
+           {'\n\n'}
+           Deleting an allocation automatically transfers its full balance back to your main funds.
+         </Section>
 
         <Section icon="help-circle-outline" title="Common Questions">
-          <Bold>Q: Why did my available balance drop when I added to savings?</Bold>
-          {'\n'}
-          Transferring to savings creates an expense (money leaves your wallet) and locks it in savings. Both effects reduce available balance. This is correct: the cash is set aside.
-          {'\n\n'}
-          <Bold>Q: Do dues affect my available balance?</Bold>
-          {'\n'}
-          No. Dues are scheduled reminders only. They forecast upcoming financial events but do not reserve your balance. Only when you record a due as a transaction does your balance change.
-          {'\n\n'}
-          <Bold>Q: What happens to my savings when I delete a savings item?</Bold>
+           <Bold>Q: Why did my available balance drop when I added to an allocation?</Bold>
+           {'\n'}
+           Transferring into an allocation creates an expense (money leaves your available balance) and is set aside. This is correct: the cash is reserved for that specific purpose.
+           {'\n\n'}
+           <Bold>Q: Do scheduled items affect my available balance?</Bold>
+           {'\n'}
+           No. Scheduled items are reminders only. They forecast upcoming financial events but do not reserve your balance. Only when you record it as a transaction does your balance change.
+           {'\n\n'}
+           <Bold>Q: What happens when I delete an allocation?</Bold>
           {'\n'}
           The full balance is automatically transferred back to your main funds as an income transaction.
           {'\n\n'}

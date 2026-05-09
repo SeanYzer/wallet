@@ -20,16 +20,16 @@ export function useInsights() {
   const insights: Insight[] = [];
   const now = new Date();
 
-  // 1. Savings total insight
-  const totalSaved = savingsItems.reduce((sum, g) => sum + g.balance, 0);
-  if (totalSaved > 0) {
-    insights.push({
-      id: "savings-total",
-      type: "info",
-      title: "Savings Locked",
-      message: `You have ${formatAmount(totalSaved)} locked in savings. Transfer out anytime to release to your main balance.`,
-    });
-  }
+   // 1. Allocations total insight
+   const totalAllocated = savingsItems.reduce((sum, g) => sum + g.balance, 0);
+   if (totalAllocated > 0) {
+     insights.push({
+       id: "allocations-total",
+       type: "info",
+       title: "Funds Allocated",
+       message: `You have ${formatAmount(totalAllocated)} set aside. Transfer out anytime to release to your main balance.`,
+     });
+   }
 
   // 2. Due Insights (forecast)
   const upcomingDues = dues.filter(d => {

@@ -73,8 +73,8 @@ export default function Dashboard() {
 
         <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", paddingHorizontal: 16, marginTop: 20 }}>
           {[
-            { label: "Dues", icon: "calendar-check-outline", path: "/dues" },
-            { label: "Savings", icon: "piggy-bank-outline", path: "/savings" },
+             { label: "Scheduled", icon: "calendar-check-outline", path: "/dues" },
+             { label: "Allocations", icon: "piggy-bank-outline", path: "/savings" },
           ].map((item) => (
             <TouchableOpacity
               key={item.path}
