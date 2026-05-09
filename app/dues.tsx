@@ -155,32 +155,13 @@ export default function DuesScreen() {
         });
       }
 
-      Alert.alert("Recorded", "Transaction recorded successfully.");
-    } catch (error) {
-      console.error("Failed to record transaction:", error);
-    }
-  };
+       Alert.alert("Recorded", "Transaction recorded successfully.");
+     } catch (error) {
+       console.error("Failed to record transaction:", error);
+     }
+   };
 
-  const toggleComplete = async (id: string, completed: boolean) => {
-    const item = dues.find((d) => d.id === id);
-    const newStatus = !completed;
-
-    if (newStatus && item?.amount) {
-      const isIncome = item.type === "income";
-      Alert.alert(
-        isIncome ? "Record Income?" : "Record Payment?",
-        `${isIncome ? "Record" : "Pay"} "${item.title}" (${formatAmount(item.amount)})?`,
-        [
-          { text: "Skip", onPress: () => updateDue(id, { completed: true }) },
-          { text: isIncome ? "Record" : "Pay", onPress: () => recordTransaction(item) },
-        ]
-      );
-    } else {
-      await updateDue(id, { completed: newStatus });
-    }
-  };
-
-  const handleDelete = async (id: string) => {
+   const handleDelete = async (id: string) => {
     await deleteDue(id);
   };
 
@@ -246,19 +227,13 @@ export default function DuesScreen() {
                             title={item.title}
                             titleStyle={{ fontWeight: isToday ? "bold" : "normal" }}
                             description={`${new Date(item.date).toLocaleDateString()}  ${formatAmount(item.amount)}  ${getFrequencyLabel(item.frequency)}`}
-                            left={() => (
-                              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                <Checkbox
-                                  status={item.completed ? "checked" : "unchecked"}
-                                  onPress={() => toggleComplete(item.id, item.completed || false)}
-                                />
-                                <IconButton
-                                  icon={item.type === "income" ? "arrow-up-circle" : "arrow-down-circle"}
-                                  iconColor={item.type === "income" ? "#2E7D32" : "#D32F2F"}
-                                  size={20}
-                                />
-                              </View>
-                            )}
+                             left={() => (
+                               <IconButton
+                                 icon={item.type === "income" ? "arrow-up-circle" : "arrow-down-circle"}
+                                 iconColor={item.type === "income" ? "#2E7D32" : "#D32F2F"}
+                                 size={24}
+                               />
+                             )}
                             right={() => (
                               <View style={{ flexDirection: "row", alignItems: "center" }}>
                                  {isToday && <Text variant="labelSmall" style={{ color: theme.colors.primary, marginRight: 8, fontWeight: "bold" }}>{item.type === "income" ? "RECEIVABLE" : "DUE"}</Text>}
@@ -279,31 +254,32 @@ export default function DuesScreen() {
               </>
             )}
 
-            {filteredDues.completed.length > 0 && (
-              <>
-                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Completed</Text>
-                <Card style={{ marginBottom: 16 }}>
-                  <Card.Content>
-                    {filteredDues.completed.map((item, index) => (
-                      <View key={item.id}>
-                        <List.Item
-                          title={item.title}
-                          titleStyle={{ textDecorationLine: "line-through", color: "gray" }}
-                          description={new Date(item.date).toLocaleDateString()}
-                          left={() => (
-                            <Checkbox
-                              status="checked"
-                              onPress={() => toggleComplete(item.id, item.completed || false)}
-                            />
-                          )}
-                        />
-                        {index < filteredDues.completed.length - 1 && <Divider />}
-                      </View>
-                    ))}
-                  </Card.Content>
-                </Card>
-              </>
-            )}
+             {filteredDues.completed.length > 0 && (
+               <>
+                 <Text variant="titleMedium" style={{ marginBottom: 8 }}>Completed</Text>
+                 <Card style={{ marginBottom: 16 }}>
+                   <Card.Content>
+                     {filteredDues.completed.map((item, index) => (
+                       <View key={item.id}>
+                         <List.Item
+                           title={item.title}
+                           titleStyle={{ textDecorationLine: "line-through", color: "gray" }}
+                           description={`${new Date(item.date).toLocaleDateString()}  ${formatAmount(item.amount)}`}
+                           left={() => (
+                             <IconButton
+                               icon={item.type === "income" ? "arrow-up-circle" : "arrow-down-circle"}
+                               iconColor="gray"
+                               size={20}
+                             />
+                           )}
+                         />
+                         {index < filteredDues.completed.length - 1 && <Divider />}
+                       </View>
+                     ))}
+                   </Card.Content>
+                 </Card>
+               </>
+             )}
           </>
         )}
       </ScrollView>
