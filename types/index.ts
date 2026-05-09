@@ -1,4 +1,5 @@
 export type TransactionType = "income" | "expense";
+export type DueFrequency = "once" | "weekly" | "biweekly" | "monthly" | "yearly";
 export type PaymentMethod = string;
 
 export interface Category {
@@ -12,56 +13,37 @@ export interface Transaction {
   title?: string;
   amount: number;
   category: Category;
-  date: string; // ISO string
+  date: string;
   note?: string;
   receiptUrl?: string;
   type: TransactionType;
   paymentMethod?: PaymentMethod;
-  establishment?: string; // Where the transaction took place
+  establishment?: string;
   splitInfo?: {
     people: number;
     amountPerPerson: number;
     notes?: string;
     participants?: { name: string; amount: number; paid: boolean }[];
   };
-  budgetId?: string;
-  savingsGoalId?: string;
+  dueId?: string;
 }
 
-export interface Budget {
-  id: string;
-  name: string;
-  categoryId?: string | number;
-  amount: number;
-  month: string; // YYYY-MM
-}
-
-export interface Agenda {
+export interface Due {
   id: string;
   title: string;
-  date: string; // ISO string
-  amount?: number;
-  isRecurring?: boolean;
+  amount: number;
+  date: string;
+  frequency?: DueFrequency;
+  type: TransactionType;
+  categoryId?: string;
+  autoProcess?: boolean;
   completed?: boolean;
-  budgetId?: string;
-  savingsGoalId?: string;
-  type?: TransactionType;
 }
 
-export interface Subscription {
-  id: string;
-  name: string;
-  amount: number;
-  dueDate: number; // Day of month (1-31)
-  category: string;
-}
-
-export interface SavingsGoal {
+export interface SavingsItem {
   id: string;
   title: string;
-  targetAmount: number;
-  currentAmount: number;
-  categoryId?: string | number;
+  balance: number;
   icon?: string;
   color?: string;
 }

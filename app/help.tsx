@@ -20,55 +20,45 @@ export default function HelpScreen() {
           {'\n\n'}
           <Bold>Total Balance</Bold> = Initial Balance + Income − Expenses
           {'\n\n'}
-          <Bold>Reserved</Bold> = Budget Reserves + Savings Accumulated
+          <Bold>Reserved</Bold> = Savings Accumulated
           {'\n\n'}
           <Bold>Available</Bold> = Total Balance − Reserved
           {'\n\n'}
-          This means budgets immediately reserve their full amount until you spend against them. Savings goals reserve whatever you've accumulated so far.
+          Only savings lock your money. Dues (scheduled reminders) forecast upcoming needs but do not reserve your balance.
         </Section>
 
-        <Section icon="chart-donut" title="Budgets">
-          Budgets are spending plans with a name and amount. They are not tied to a specific category — you can name them anything (e.g., "Groceries", "Rent", "Fun Money").
+        <Section icon="calendar-check-outline" title="Dues">
+          Dues are scheduled financial events — bills, payroll, subscriptions. They can be one-time or recurring (weekly, monthly, yearly).
           {'\n\n'}
-          You may optionally assign a category to a budget. This enables automatic matching: any expense transaction in that category that isn't explicitly linked to another budget will count toward this budget.
+          <Bold>Expense dues</Bold> represent money going out (bills, subscriptions).
           {'\n\n'}
-          To track spending against a budget, link a transaction to it when creating or editing the transaction.
+          <Bold>Income dues</Bold> represent money coming in (payroll, freelance).
+          {'\n\n'}
+          When a due date arrives, you can record it as a transaction with one tap. Enable <Bold>Auto-Process</Bold> to be prompted to auto-create the transaction.
         </Section>
 
-        <Section icon="piggy-bank-outline" title="Savings Goals">
-          Savings goals track progress toward a target amount. You can optionally assign a category — when you deposit, the transaction will use that category (or "Savings" / "Others" as fallback).
+        <Section icon="piggy-bank-outline" title="Savings">
+          Savings are locked pots of money. Transfer money in from your main balance to save, or transfer out to unlock it.
           {'\n\n'}
-          Depositing to a savings goal creates an expense transaction. This reduces your total balance while increasing your savings reserve, so the effect on available balance is doubled. This is intentional: the money has left your spending pool and is set aside.
+          <Bold>Transfer In</Bold> creates an expense transaction — money leaves your available balance and enters savings.
           {'\n\n'}
-          You can also transfer unused budget allocation to a savings goal. This reallocates without moving actual money.
-        </Section>
-
-        <Section icon="calendar-check-outline" title="Agendas & Reminders">
-          Agendas are reminders for upcoming financial events. Linking a budget to an agenda does NOT deduct from your balance — it only associates the reminder so that when you record it as a transaction, the expense automatically tracks against that budget.
+          <Bold>Transfer Out</Bold> creates an income transaction — money returns to your available balance.
           {'\n\n'}
-          If an agenda has no amount, you cannot record it as a transaction. You must set an amount first.
-        </Section>
-
-        <Section icon="transfer" title="Transfer Budget to Savings">
-          This reduces your budget limit and increases your savings progress in one step. No transaction is created, so your total balance stays the same. The available balance also stays the same — the budget reserve decreases by the same amount the savings reserve increases.
+          Deleting a savings item automatically transfers its full balance back to your main funds.
         </Section>
 
         <Section icon="help-circle-outline" title="Common Questions">
-          <Bold>Q: Why did my available balance drop when I created a budget?</Bold>
+          <Bold>Q: Why did my available balance drop when I added to savings?</Bold>
           {'\n'}
-          Budgets pre-reserve their full amount. As you spend against the budget, the reserve releases dollar-for-dollar, so your available balance stays steady through the month.
+          Transferring to savings creates an expense (money leaves your wallet) and locks it in savings. Both effects reduce available balance. This is correct: the cash is set aside.
           {'\n\n'}
-          <Bold>Q: Why does depositing to savings reduce my available balance by double?</Bold>
+          <Bold>Q: Do dues affect my available balance?</Bold>
           {'\n'}
-          The deposit creates an expense (money leaves your wallet) AND increases your savings reserve (the accumulated savings is set aside). Both effects together mean available balance drops by 2×. This is correct: the cash is gone from your pocket and committed to your goal.
+          No. Dues are scheduled reminders only. They forecast upcoming financial events but do not reserve your balance. Only when you record a due as a transaction does your balance change.
           {'\n\n'}
-          <Bold>Q: Does linking a budget to an agenda affect my balance?</Bold>
+          <Bold>Q: What happens to my savings when I delete a savings item?</Bold>
           {'\n'}
-          No. The link is just a reference. Only when you record the agenda as a transaction does the expense count against the budget.
-          {'\n\n'}
-          <Bold>Q: What if I don't assign a category to my budget?</Bold>
-          {'\n'}
-          The budget will only track transactions that are explicitly linked to it via the "Link to Budget" option. It won't automatically pick up transactions by category.
+          The full balance is automatically transferred back to your main funds as an income transaction.
           {'\n\n'}
           <Bold>Q: How do I see where my available balance comes from?</Bold>
           {'\n'}

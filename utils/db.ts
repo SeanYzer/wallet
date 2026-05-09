@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system';
-import { Category, Transaction, Agenda, Subscription, SavingsGoal, Budget } from '../types';
+import { Category, Transaction, Agenda, Subscription, SavingsItem, Due } from '../types';
 
 /**
  * --- Configuration ---
@@ -234,64 +234,6 @@ export const getBudgets = async (): Promise<Budget[]> => {
   const items = await getItem<Budget[]>(fullKey, []);
   const uniqueById = deduplicate(items);
 
-  // Migration: assign name for budgets that don't have one
-  const categories = await getCategories();
-  const migrated = uniqueById.map(b => {
-    if (!b.name) {
-      const cat = categories.find(c => String(c.id) === String(b.categoryId));
-      b.name = cat?.name || 'Others';
-    }
-    return b;
-  });
-  
-  // Logical deduplication by name + month
-  const seen = new Set();
-  return migrated.filter(b => {
-    const key = `${(b.name || '').toLowerCase()}_${b.month}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
-
-export const saveBudget = async (budget: Budget) => {
-  const fullKey = await getPrefixedKey('budgets');
-  const items = await getBudgets();
-  const index = items.findIndex(b => String(b.id) === String(budget.id));
-  if (index >= 0) {
-    items[index] = budget;
-  } else {
-    items.push(budget);
-  }
-  await setItem(fullKey, items);
-};
-
-export const saveBudgetsBulk = async (budgets: Budget[]) => {
-  const fullKey = await getPrefixedKey('budgets');
-  const items = await getBudgets();
-  for (const b of budgets) {
-    const index = items.findIndex(x => String(x.id) === String(b.id));
-    if (index >= 0) items[index] = b;
-    else items.push(b);
-  }
-  await setItem(fullKey, items);
-};
-
-export const deleteBudgetLocal = async (id: string) => {
-  const fullKey = await getPrefixedKey('budgets');
-  const items = await getBudgets();
-  const filtered = items.filter(b => String(b.id) !== String(id));
-  await setItem(fullKey, filtered);
-};
-
-export const updateBudgetLocal = async (id: string, updates: Partial<Budget>) => {
-  const items = await getBudgets();
-  const index = items.findIndex(b => String(b.id) === String(id));
-  if (index >= 0) {
-    items[index] = { ...items[index], ...updates };
-    const fullKey = await getPrefixedKey('budgets');
-    await setItem(fullKey, items);
-  }
 };
 
 // --- Transactions CRUD ---
@@ -452,16 +394,97 @@ export const updateSubscriptionLocal = async (id: string, updates: Partial<Subsc
   }
 };
 
-// --- Savings Goals CRUD ---
+// --- Dues CRUD ---
 
-export const getSavingsGoals = async (): Promise<SavingsGoal[]> => {
-  const fullKey = await getPrefixedKey('savingsGoals');
-  const items = await getItem<SavingsGoal[]>(fullKey, []);
+export const getDues = async (): Promise<Due[]> => {
+  const fullKey = await getPrefixedKey('dues');
+  const items = await getItem<any[]>(fullKey, []);
   const uniqueById = deduplicate(items);
-  
-  // Logical deduplication (Title)
+
+  // Migration: convert old Agenda format to Due
+  const migrated = uniqueById.map((item: any) => {
+    if (item.isRecurring !== undefined && item.frequency === undefined) {
+      return {
+        id: item.id,
+        title: item.title,
+        amount: item.amount || 0,
+        date: item.date,
+        frequency: item.isRecurring ? "monthly" : "once",
+        type: item.type || "expense",
+        categoryId: item.categoryId,
+        autoProcess: false,
+        completed: item.completed || false,
+      } as Due;
+    }
+    return item as Due;
+  });
+
+  return migrated;
+};
+
+export const saveDue = async (due: Due) => {
+  const fullKey = await getPrefixedKey('dues');
+  const items = await getDues();
+  const index = items.findIndex(d => String(d.id) === String(due.id));
+  if (index >= 0) {
+    items[index] = due;
+  } else {
+    items.push(due);
+  }
+  await setItem(fullKey, items);
+};
+
+export const saveDuesBulk = async (dues: Due[]) => {
+  const fullKey = await getPrefixedKey('dues');
+  const items = await getDues();
+  for (const d of dues) {
+    const index = items.findIndex(x => String(x.id) === String(d.id));
+    if (index >= 0) items[index] = d;
+    else items.push(d);
+  }
+  await setItem(fullKey, items);
+};
+
+export const deleteDueLocal = async (id: string) => {
+  const fullKey = await getPrefixedKey('dues');
+  const items = await getDues();
+  const filtered = items.filter(d => String(d.id) !== String(id));
+  await setItem(fullKey, filtered);
+};
+
+export const updateDueLocal = async (id: string, updates: Partial<Due>) => {
+  const items = await getDues();
+  const index = items.findIndex(d => String(d.id) === String(id));
+  if (index >= 0) {
+    items[index] = { ...items[index], ...updates };
+    const fullKey = await getPrefixedKey('dues');
+    await setItem(fullKey, items);
+  }
+};
+
+// --- Savings Items CRUD ---
+
+export const getSavingsItems = async (): Promise<SavingsItem[]> => {
+  const fullKey = await getPrefixedKey('savingsItems');
+  const items = await getItem<any[]>(fullKey, []);
+  const uniqueById = deduplicate(items);
+
+  // Migration: convert old SavingsGoal format to SavingsItem
+  const migrated = uniqueById.map((item: any) => {
+    if (item.targetAmount !== undefined && item.balance === undefined) {
+      return {
+        id: item.id,
+        title: item.title,
+        balance: item.currentAmount || 0,
+        icon: item.icon,
+        color: item.color,
+      } as SavingsItem;
+    }
+    return item as SavingsItem;
+  });
+
   const seen = new Set();
-  return uniqueById.filter(g => {
+  return migrated.filter((g: SavingsItem) => {
     const key = g.title.toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
@@ -469,42 +492,42 @@ export const getSavingsGoals = async (): Promise<SavingsGoal[]> => {
   });
 };
 
-export const saveSavingsGoal = async (goal: SavingsGoal) => {
-  const fullKey = await getPrefixedKey('savingsGoals');
-  const items = await getSavingsGoals();
-  const index = items.findIndex(g => String(g.id) === String(goal.id));
+export const saveSavingsItem = async (item: SavingsItem) => {
+  const fullKey = await getPrefixedKey('savingsItems');
+  const items = await getSavingsItems();
+  const index = items.findIndex(g => String(g.id) === String(item.id));
   if (index >= 0) {
-    items[index] = goal;
+    items[index] = item;
   } else {
-    items.push(goal);
+    items.push(item);
   }
   await setItem(fullKey, items);
 };
 
-export const saveSavingsGoalsBulk = async (goals: SavingsGoal[]) => {
-  const fullKey = await getPrefixedKey('savingsGoals');
-  const items = await getSavingsGoals();
-  for (const g of goals) {
-    const index = items.findIndex(x => String(x.id) === String(g.id));
-    if (index >= 0) items[index] = g;
-    else items.push(g);
+export const saveSavingsItemsBulk = async (items: SavingsItem[]) => {
+  const fullKey = await getPrefixedKey('savingsItems');
+  const existing = await getSavingsItems();
+  for (const g of items) {
+    const index = existing.findIndex(x => String(x.id) === String(g.id));
+    if (index >= 0) existing[index] = g;
+    else existing.push(g);
   }
-  await setItem(fullKey, items);
+  await setItem(fullKey, existing);
 };
 
-export const deleteSavingsGoalLocal = async (id: string) => {
-  const fullKey = await getPrefixedKey('savingsGoals');
-  const items = await getSavingsGoals();
+export const deleteSavingsItemLocal = async (id: string) => {
+  const fullKey = await getPrefixedKey('savingsItems');
+  const items = await getSavingsItems();
   const filtered = items.filter(g => String(g.id) !== String(id));
   await setItem(fullKey, filtered);
 };
 
-export const updateSavingsGoalLocal = async (id: string, updates: Partial<SavingsGoal>) => {
-  const items = await getSavingsGoals();
+export const updateSavingsItemLocal = async (id: string, updates: Partial<SavingsItem>) => {
+  const items = await getSavingsItems();
   const index = items.findIndex(g => String(g.id) === String(id));
   if (index >= 0) {
     items[index] = { ...items[index], ...updates };
-    const fullKey = await getPrefixedKey('savingsGoals');
+    const fullKey = await getPrefixedKey('savingsItems');
     await setItem(fullKey, items);
   }
 };

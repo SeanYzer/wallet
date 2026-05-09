@@ -20,8 +20,6 @@ import { Calendar } from "react-native-calendars";
 import { useTransactions } from "../hooks/useTransactions";
 import { Category, TransactionType, PaymentMethod } from "../types";
 import { useCategories } from "../context/CategoriesContext";
-import { useBudgets } from "../hooks/useBudgets";
-import { useSavings } from "../hooks/useSavings";
 import { useCurrency } from "../context/CurrencyContext";
 
 export default function AddTransaction() {
@@ -40,14 +38,7 @@ export default function AddTransaction() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { budgets } = useBudgets();
-  const { goals } = useSavings();
   const { formatAmount } = useCurrency();
-
-  const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
-  const [selectedSavingsGoalId, setSelectedSavingsGoalId] = useState<string | null>(null);
-  const [contributionAmount, setContributionAmount] = useState("");
-  const { updateGoal } = useSavings();
 
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<{ id: string; name: string; type: string; icon: string }[]>([]);
   const [selectedMethodType, setSelectedMethodType] = useState<string>("cash");
@@ -131,20 +122,7 @@ export default function AddTransaction() {
         paymentMethod,
         establishment: establishment || undefined,
         receiptUrl: receiptImage || undefined,
-        budgetId: selectedBudgetId || undefined,
-        savingsGoalId: selectedSavingsGoalId || undefined,
       });
-
-      // Handle Savings Contribution if income
-      if (type === "income" && selectedSavingsGoalId && contributionAmount) {
-        const goal = goals.find(g => g.id === selectedSavingsGoalId);
-        const cAmount = parseFloat(contributionAmount);
-        if (goal && !isNaN(cAmount)) {
-           await updateGoal(selectedSavingsGoalId, {
-             currentAmount: goal.currentAmount + cAmount
-           });
-        }
-      }
 
       router.back();
     } catch (error) {
@@ -214,160 +192,8 @@ export default function AddTransaction() {
             ))}
         </View>
 
-        {/* Budget Status Indicator */}
-        {type === "expense" && selectedCategory && (
-          <View style={{ marginBottom: 16 }}>
-            {(() => {
-              const currentMonth = date.toISOString().slice(0, 7);
-              const budget = budgets.find(b => 
-                String(b.categoryId) === String(selectedCategory.id) && 
-                b.month === currentMonth
-              );
-              
-              if (budget) {
-                // For simplicity, we'd ideally calculate spending here too, 
-                // but showing the limit is a good start. 
-                // Let's just show that a budget exists for now.
-                return (
-                  <Card style={{ backgroundColor: theme.colors.primaryContainer }}>
-                    <Card.Content style={{ paddingVertical: 8, flexDirection: 'row', alignItems: 'center' }}>
-                      <IconButton icon="chart-donut" size={20} />
-                      <Text variant="bodySmall" style={{ color: theme.colors.onPrimaryContainer }}>
-                        Budget active for {selectedCategory.name}: {formatAmount(budget.amount)} limit.
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                );
-              }
-              return null;
-            })()}
-          </View>
-        )}
-
-        {/* Real-time Overspending Warning */}
-        {type === "expense" && selectedCategory && amount && (
-          <View style={{ marginBottom: 16 }}>
-            {(() => {
-              const numAmount = parseFloat(amount);
-              if (isNaN(numAmount)) return null;
-
-              const currentMonth = date.toISOString().slice(0, 7);
-              const selectedBudgetIdLocal = selectedBudgetId;
-              const budget = selectedBudgetIdLocal
-                ? budgets.find(b => b.id === selectedBudgetIdLocal)
-                : budgets.find(b => 
-                    b.categoryId && String(b.categoryId) === String(selectedCategory.id) && 
-                    b.month === currentMonth
-                  );
-              
-              if (budget) {
-                // Calculate current spent for this budget
-                const spent = transactions
-                  .filter(t => t.type === "expense" && (t.budgetId === budget.id || (!t.budgetId && t.category.id.toString() === budget.categoryId?.toString() && t.date.slice(0, 7) === budget.month)))
-                  .reduce((sum, t) => sum + t.amount, 0);
-                
-                const projectedSpent = spent + numAmount;
-                const overBy = projectedSpent - budget.amount;
-
-                if (overBy > 0) {
-                  return (
-                    <Card style={{ backgroundColor: "#FEE2E2", borderLeftWidth: 4, borderLeftColor: "#B91C1C" }}>
-                      <Card.Content style={{ paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}>
-                        <IconButton icon="alert-octagon" size={24} iconColor="#B91C1C" />
-                        <View style={{ flex: 1 }}>
-                          <Text variant="labelLarge" style={{ color: "#991B1B", fontWeight: '700' }}>
-                            Overbudget Warning
-                          </Text>
-                          <Text variant="bodySmall" style={{ color: "#991B1B" }}>
-                            Adding this will put you {formatAmount(overBy)} over your {budget.name} budget.
-                          </Text>
-                        </View>
-                      </Card.Content>
-                    </Card>
-                  );
-                }
-              }
-              return null;
-            })()}
-          </View>
-        )}
-
         <View style={{ marginBottom: 16 }}>
-          <Text variant="labelLarge" style={{ marginBottom: 8 }}>
-            {type === "income" ? "Contribute to Savings Goal (Optional)" : "Link to Budget or Savings Goal (Optional)"}
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {/* Budgets for current month - ONLY for Expenses */}
-              {type === "expense" && budgets.filter(b => b.month === date.toISOString().slice(0, 7)).map(b => {
-                 return (
-                  <Chip
-                    key={b.id}
-                    selected={selectedBudgetId === b.id}
-                    onPress={() => {
-                      const isCurrentlySelected = selectedBudgetId === b.id;
-                      const nextBudgetId = isCurrentlySelected ? null : b.id;
-                      
-                      setSelectedBudgetId(nextBudgetId);
-                      setSelectedSavingsGoalId(null);
-                      
-                      if (nextBudgetId && b.categoryId) {
-                         const cat = availableCategories.find(c => String(c.id) === String(b.categoryId));
-                         if (cat) setSelectedCategory(cat);
-                      }
-                    }}
-                    mode="flat"
-                    icon="chart-donut"
-                    selectedColor={theme.colors.primary}
-                    style={{ backgroundColor: selectedBudgetId === b.id ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
-                  >
-                    Budget: {b.name}
-                  </Chip>
-                 );
-              })}
-              {/* Savings Goals - Always show, but prioritized for Income */}
-              {goals.map(g => (
-                <Chip
-                  key={g.id}
-                  selected={selectedSavingsGoalId === g.id}
-                  onPress={() => {
-                    const isSelected = selectedSavingsGoalId === g.id;
-                    setSelectedSavingsGoalId(isSelected ? null : g.id);
-                    setSelectedBudgetId(null);
-                    if (!isSelected && type === "income") {
-                       setContributionAmount(amount); // Default to full income amount
-                    }
-                  }}
-                  mode="flat"
-                  icon="piggy-bank"
-                  selectedColor="#2E7D32"
-                  style={{ backgroundColor: selectedSavingsGoalId === g.id ? "#C8E6C9" : theme.colors.surfaceVariant }}
-                >
-                  Goal: {g.title}
-                </Chip>
-              ))}
-            </View>
-          </ScrollView>
-
-          {/* Allocation Nudge Input */}
-          {type === "income" && selectedSavingsGoalId && (
-            <Card style={{ marginTop: 12, backgroundColor: "#E8F5E9" }}>
-              <Card.Content style={{ paddingVertical: 8 }}>
-                 <Text variant="labelSmall" style={{ color: "#2E7D32", marginBottom: 4 }}>How much to allocate to this goal?</Text>
-                 <TextInput
-                    value={contributionAmount}
-                    onChangeText={setContributionAmount}
-                    placeholder="Enter amount"
-                    keyboardType="numeric"
-                    dense
-                    mode="flat"
-                    style={{ backgroundColor: "transparent" }}
-                    left={<TextInput.Affix text="₱" />}
-                 />
-              </Card.Content>
-            </Card>
-          )}
-        </View>
+          <Text variant="labelLarge" style={{ marginBottom: 8 }}>Payment Source</Text>
 
         <TextInput
           label="Establishment / Location"

@@ -94,3 +94,13 @@ To ensure the product behaves consistently and independently from the network st
 - [x] Implement Single-Session enforcement (Device Identity check).
 - [ ] Implement "Link to Cloud" upgrade flow for offline registrations.
 
+### [x] Phase 5: Backend Cleanup — Remove Budget/Subscription, Rename Agenda/SavingsGoal
+- [x] Delete all budget files (routes, controller, service, repository, schema).
+- [x] Delete all subscription files (routes, controller, service, repository, schema).
+- [x] Rename agenda → due with updated schema (`amount` required, `frequency`, `autoProcess`, `type`, `categoryId`).
+- [x] Rename savingsGoal → savingsItem with updated schema (`balance` replaces `targetAmount`/`currentAmount`).
+- [x] Update `app.js` to mount `/api/dues` and `/api/savingsItems`.
+- [x] Update `supabase_schema.sql`: drop budgets/subscriptions, create dues/savingsItems tables.
+- [x] Add `dueId` and `savingsItemId` FK columns to transactions and dues tables.
+- [x] Update docs (`savepoint.md`, `integration.md`).
+

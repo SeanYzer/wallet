@@ -14,7 +14,6 @@ import { useLanguage } from "../../context/LanguageContext";
 import { usePasscode } from "../../context/PasscodeContext";
 import { useTransactionsContext } from "../../context/TransactionsContext";
 import { useCategories } from "../../context/CategoriesContext";
-import { useBudgets } from "../../hooks/useBudgets";
 import { authFetch } from "../../utils/apiClient";
 
 export default function SettingsScreen() {
@@ -28,7 +27,6 @@ export default function SettingsScreen() {
   const { activeUserId, logout } = useAuth();
   const { refetch: refetchTx } = useTransactionsContext();
   const { refetch: refetchCats } = useCategories();
-  const { refetch: refetchBudgets } = useBudgets();
 
   const handleLogout = async () => {
     await logout();
@@ -149,21 +147,17 @@ export default function SettingsScreen() {
         if (activeUserId) {
           console.log("Syncing Clear Data to cloud for user:", activeUserId);
           // 1. Fetch user data from cloud (Except Profile/User)
-          const [txRes, catRes, budRes, ageRes, subRes, savRes] = await Promise.all([
+          const [txRes, catRes, dueRes, savRes] = await Promise.all([
             authFetch(`transactions?userId=${activeUserId}`),
             authFetch(`categories?userId=${activeUserId}`),
-            authFetch(`budgets?userId=${activeUserId}`),
-            authFetch(`agendas?userId=${activeUserId}`),
-            authFetch(`subscriptions?userId=${activeUserId}`),
-            authFetch(`savingsGoals?userId=${activeUserId}`)
+            authFetch(`dues?userId=${activeUserId}`),
+            authFetch(`savingsItems?userId=${activeUserId}`)
           ]);
 
-          const [txs, cats, buds, ages, subs, savs] = await Promise.all([
+          const [txs, cats, dues, savs] = await Promise.all([
             txRes.json(),
             catRes.json(),
-            budRes.json(),
-            ageRes.json(),
-            subRes.json(),
+            dueRes.json(),
             savRes.json()
           ]);
 
@@ -171,10 +165,8 @@ export default function SettingsScreen() {
           const deletePromises = [
             ...(Array.isArray(txs) ? txs.map(t => authFetch(`transactions/${t.id}`, { method: "DELETE" })) : []),
             ...(Array.isArray(cats) ? cats.map(c => authFetch(`categories/${c.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(buds) ? buds.map(b => authFetch(`budgets/${b.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(ages) ? ages.map(a => authFetch(`agendas/${a.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(subs) ? subs.map(s => authFetch(`subscriptions/${s.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(savs) ? savs.map(s => authFetch(`savingsGoals/${s.id}`, { method: "DELETE" })) : [])
+            ...(Array.isArray(dues) ? dues.map(d => authFetch(`dues/${d.id}`, { method: "DELETE" })) : []),
+            ...(Array.isArray(savs) ? savs.map(s => authFetch(`savingsItems/${s.id}`, { method: "DELETE" })) : [])
           ];
 
           await Promise.all(deletePromises);
@@ -191,7 +183,6 @@ export default function SettingsScreen() {
         await Promise.all([
           refetchTx(),
           refetchCats(),
-          refetchBudgets(),
           refetchProfile()
         ]);
 

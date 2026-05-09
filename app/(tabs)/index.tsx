@@ -6,17 +6,13 @@ import { useCallback } from "react";
 import { useAppTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { useTransactions } from "../../hooks/useTransactions";
-import { useBudgets } from "../../hooks/useBudgets";
 import { useSavings } from "../../hooks/useSavings";
-import { useSubscriptions } from "../../hooks/useSubscriptions";
+import { useDues } from "../../hooks/useDues";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useUserProfile } from "../../context/UserProfileContext";
-import { Subscription } from "../../types";
 import { SummaryCard } from "../../components/SummaryCard";
-import { ChartCard } from "../../components/ChartCard";
 import { TransactionList } from "../../components/TransactionList";
 import { FinancialTip } from "../../components/FinancialTip";
-import { BudgetCard } from "../../components/BudgetCard";
 import { DashboardSkeleton } from "../../components/SkeletonLoader";
 import { CloudLinkBanner } from "../../components/CloudLinkBanner";
 import { SmartInsights } from "../../components/SmartInsights";
@@ -26,34 +22,29 @@ export default function Dashboard() {
   const router = useRouter();
   const { profile, isLoading: profileLoading } = useUserProfile();
   const { transactions, loading: txLoading, refetch: refetchTx } = useTransactions();
-  const { budgets, loading: budgetsLoading, refetch: refetchBudgets } = useBudgets();
-  const { goals, refetch: refetchGoals } = useSavings();
-  const { subscriptions, refetch: refetchSubs } = useSubscriptions();
+  const { items: savingsItems, refetch: refetchSavings } = useSavings();
+  const { dues, refetch: refetchDues } = useDues();
   const { formatAmount } = useCurrency();
   const { theme } = useAppTheme();
   const { activeUserId } = useAuth();
 
-  const loading = txLoading || budgetsLoading;
+  const loading = txLoading;
 
   useFocusEffect(
     useCallback(() => {
       if (activeUserId) {
         refetchTx();
-        refetchBudgets();
-        refetchGoals();
-        refetchSubs();
+        refetchSavings();
+        refetchDues();
       }
     }, [activeUserId])
   );
 
   if (!activeUserId) return null; // Let AuthLoader handle redirection
 
-  if (profileLoading || (loading && transactions.length === 0 && budgets.length === 0)) {
+  if (profileLoading || (loading && transactions.length === 0)) {
     return <DashboardSkeleton />;
   }
-
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const currentBudgets = budgets.filter(b => b.month === currentMonth);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -73,7 +64,7 @@ export default function Dashboard() {
         <CloudLinkBanner />
 
         <View style={{ marginTop: 8 }}>
-          <SummaryCard transactions={transactions} budgets={budgets} goals={goals} />
+          <SummaryCard transactions={transactions} goals={savingsItems} />
         </View>
 
         <View style={{ paddingHorizontal: 16 }}>
@@ -82,8 +73,7 @@ export default function Dashboard() {
 
         <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", paddingHorizontal: 16, marginTop: 20 }}>
           {[
-            { label: "Budgets", icon: "wallet-outline", path: "/budgets" },
-            { label: "Agenda", icon: "calendar-check-outline", path: "/agenda" },
+            { label: "Dues", icon: "calendar-check-outline", path: "/dues" },
             { label: "Savings", icon: "piggy-bank-outline", path: "/savings" },
           ].map((item) => (
             <TouchableOpacity
@@ -117,64 +107,37 @@ export default function Dashboard() {
           ))}
         </View>
 
-        {currentBudgets.length > 0 && (
-          <View style={{ marginTop: 8 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, marginBottom: 12 }}>
-              <Text variant="titleMedium" style={{ fontWeight: "700" }}>Monthly Budgets</Text>
-              <TouchableOpacity onPress={() => router.push("/budgets")}>
-                <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: "600" }}>View All</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12 }}>
-              {currentBudgets.map(budget => (
-                <View key={budget.id} style={{ width: 280, marginHorizontal: 8 }}>
-                  <BudgetCard budget={budget} transactions={transactions} />
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
         {(() => {
-          const soon = subscriptions.filter(sub => {
-            const today = new Date().getDate();
-            let daysLeft;
-            if (sub.dueDate >= today) {
-              daysLeft = sub.dueDate - today;
-            } else {
-              const daysInCurrentMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-              daysLeft = (daysInCurrentMonth - today) + sub.dueDate;
-            }
-            return daysLeft <= 3 && daysLeft >= 0;
-          });
+          const now = new Date();
+          const weekFromNow = new Date(now);
+          weekFromNow.setDate(now.getDate() + 7);
+          const upcomingDues = dues.filter(d => {
+            if (d.completed) return false;
+            const dDate = new Date(d.date);
+            return dDate >= now && dDate <= weekFromNow;
+          }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-          if (soon.length === 0) return null;
+          if (upcomingDues.length === 0) return null;
 
-          const todayDay = new Date().getDate();
+          const totalExpenses = upcomingDues.filter(d => d.type === "expense").reduce((s, d) => s + d.amount, 0);
+          const totalIncome = upcomingDues.filter(d => d.type === "income").reduce((s, d) => s + d.amount, 0);
 
           return (
-            <View style={{ marginTop: 24, paddingHorizontal: 20 }}>
-              <Text variant="titleMedium" style={{ fontWeight: "700", marginBottom: 12 }}>Upcoming Bills</Text>
-              {soon.map(sub => {
-                const daysUntil = sub.dueDate >= todayDay ? sub.dueDate - todayDay : (new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - todayDay) + sub.dueDate;
-                return (
-                  <Card key={sub.id} style={{ marginBottom: 12, backgroundColor: "#FFF5F5", borderRadius: 16 }} onPress={() => router.push("/subscriptions")}>
-                    <Card.Content style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 16 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: "#FFE0E0", justifyContent: "center", alignItems: "center", marginRight: 12 }}>
-                          <MaterialCommunityIcons name="bell-alert-outline" size={20} color="#E53935" />
-                        </View>
-                        <View>
-                          <Text variant="bodyLarge" style={{ fontWeight: "700" }}>{sub.name}</Text>
-                          <Text variant="labelSmall" style={{ color: "#E53935", fontWeight: "600" }}>Due in {daysUntil} days</Text>
-                        </View>
-                      </View>
-                      <Text variant="titleMedium" style={{ fontWeight: "800" }}>{formatAmount(sub.amount)}</Text>
-                    </Card.Content>
-                  </Card>
-                );
-              })}
-            </View>
+            <TouchableOpacity onPress={() => router.push("/dues")} style={{ marginTop: 16, paddingHorizontal: 20 }}>
+              <Card style={{ backgroundColor: theme.colors.surfaceVariant, borderRadius: 16 }}>
+                <Card.Content>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                    <MaterialCommunityIcons name="calendar-clock" size={20} color={theme.colors.primary} />
+                    <Text variant="titleSmall" style={{ fontWeight: "700", marginLeft: 8 }}>Next 7 Days</Text>
+                  </View>
+                  <Text variant="bodyMedium">
+                    {upcomingDues.length} due{upcomingDues.length > 1 ? "s" : ""}: {formatAmount(totalExpenses)} in expenses
+                    {totalIncome > 0 ? `, ${formatAmount(totalIncome)} in income` : ""}
+                  </Text>
+                  <Text variant="labelSmall" style={{ color: theme.colors.outline, marginTop: 4 }}>Tap to view all dues</Text>
+                </Card.Content>
+              </Card>
+            </TouchableOpacity>
           );
         })()}
 
@@ -189,7 +152,7 @@ export default function Dashboard() {
 
       <FAB
         icon="plus"
-        label="Transaction"
+        label="Record"
         style={{ position: "absolute", margin: 20, right: 0, bottom: 20, borderRadius: 20, backgroundColor: theme.colors.primary }}
         color="#fff"
         onPress={() => router.push("/add-transaction")}

@@ -7,7 +7,7 @@ import { useUserProfile } from "../context/UserProfileContext";
 import { useState } from "react";
 import { BalanceBreakdown } from "./BalanceBreakdown";
 
-export function SummaryCard({ transactions = [], budgets = [], goals = [] }: any) {
+export function SummaryCard({ transactions = [], goals = [] }: any) {
   const theme = useTheme();
   const { formatAmount } = useCurrency();
   const { profile } = useUserProfile();
@@ -25,20 +25,9 @@ export function SummaryCard({ transactions = [], budgets = [], goals = [] }: any
 
   const balance = initialBalance + income - expense;
 
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  
-  const reservedSavings = goals.reduce((sum: number, g: any) => sum + Number(g.currentAmount || 0), 0);
-  
-  const reservedBudgets = budgets
-    .filter((b: any) => b.month === currentMonth)
-    .reduce((sum: number, b: any) => {
-      const spent = transactions
-        .filter((t: any) => t.type === "expense" && (t.budgetId === b.id || (!t.budgetId && t.category?.id?.toString() === b.categoryId?.toString() && t.date?.slice(0, 7) === b.month)))
-        .reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
-      return sum + Math.max(0, Number(b.amount || 0) - spent);
-    }, 0);
+  const reservedSavings = goals.reduce((sum: number, g: any) => sum + Number(g.currentAmount || g.balance || 0), 0);
 
-  const totalReserved = Number(reservedSavings || 0) + Number(reservedBudgets || 0);
+  const totalReserved = Number(reservedSavings || 0);
   const availableBalance = balance - totalReserved;
 
   return (
@@ -109,7 +98,6 @@ export function SummaryCard({ transactions = [], budgets = [], goals = [] }: any
         initialBalance={initialBalance}
         income={income}
         expense={expense}
-        budgets={budgets}
         goals={goals}
         transactions={transactions}
       />

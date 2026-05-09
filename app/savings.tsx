@@ -1,35 +1,27 @@
 import { useState, useCallback } from "react";
 import { View, ScrollView, Alert } from "react-native";
-import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, IconButton, useTheme, ProgressBar, Chip } from "react-native-paper";
+import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, IconButton, useTheme } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSavings } from "../hooks/useSavings";
 import { useCurrency } from "../context/CurrencyContext";
-import { PiggyBank } from "../components/PiggyBank";
 import { useTransactions } from "../hooks/useTransactions";
 import { useCategories } from "../context/CategoriesContext";
-import { useBudgets } from "../hooks/useBudgets";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 export default function SavingsScreen() {
     const router = useRouter();
     const theme = useTheme();
-    const { goals, loading, addGoal, updateGoal, deleteGoal, refetch } = useSavings();
+    const { items, loading, addItem, updateItem, deleteItem, refetch } = useSavings();
     const { formatAmount } = useCurrency();
-    const { transactions, addTransaction } = useTransactions();
+    const { addTransaction } = useTransactions();
     const { categories } = useCategories();
-    const { budgets, addBudget } = useBudgets();
 
     const [modalVisible, setModalVisible] = useState(false);
-    const [addAmountModalVisible, setAddAmountModalVisible] = useState(false);
-    const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
-
+    const [transferInModalVisible, setTransferInModalVisible] = useState(false);
+    const [transferOutModalVisible, setTransferOutModalVisible] = useState(false);
+    const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
     const [title, setTitle] = useState("");
-    const [targetAmount, setTargetAmount] = useState("");
-    const [depositAmount, setDepositAmount] = useState("");
-    const [goalCategoryId, setGoalCategoryId] = useState<string | null>(null);
-
-    const [editModalVisible, setEditModalVisible] = useState(false);
-    const [transferModalVisible, setTransferModalVisible] = useState(false);
-    const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
+    const [balance, setBalance] = useState("");
     const [transferAmount, setTransferAmount] = useState("");
 
     useFocusEffect(
@@ -38,283 +30,221 @@ export default function SavingsScreen() {
         }, [])
     );
 
-    const handleAddGoal = async () => {
-        const numTarget = parseFloat(targetAmount);
-        if (!title || isNaN(numTarget) || numTarget <= 0) {
-            Alert.alert("Invalid Input", "Please provide a title and target amount.");
+    const handleAddItem = async () => {
+        const numBalance = parseFloat(balance);
+        if (!title || isNaN(numBalance) || numBalance <= 0) {
+            Alert.alert("Invalid Input", "Please provide a title and amount.");
             return;
         }
 
         try {
-            await addGoal({
+            await addItem({
                 title,
-                targetAmount: numTarget,
-                currentAmount: 0,
-                categoryId: goalCategoryId || undefined,
-                color: "#ff4081",
+                balance: numBalance,
             });
             setModalVisible(false);
             setTitle("");
-            setTargetAmount("");
-            setGoalCategoryId(null);
+            setBalance("");
         } catch (error) {
-            Alert.alert("Error", "Failed to add goal.");
+            Alert.alert("Error", "Failed to add savings item.");
         }
     };
 
-    const handleUpdateGoal = async () => {
-        if (!selectedGoalId || !title || !targetAmount) return;
+    const handleTransferIn = async () => {
+        const numAmount = parseFloat(transferAmount);
+        if (isNaN(numAmount) || numAmount <= 0 || !selectedItemId) return;
+
+        const item = items.find(g => g.id === selectedItemId);
+        if (!item) return;
+
         try {
-            await updateGoal(selectedGoalId, {
-                title,
-                targetAmount: parseFloat(targetAmount),
+            await updateItem(selectedItemId, {
+                balance: item.balance + numAmount,
             });
-            setEditModalVisible(false);
-            setSelectedGoalId(null);
-            setTitle("");
-            setTargetAmount("");
+
+            let savingsCat = categories.find(c => c.name === "Savings" && c.type === "expense");
+            if (!savingsCat) savingsCat = categories.find(c => c.id === "8") || categories[0];
+
+            await addTransaction({
+                title: `Transfer to ${item.title}`,
+                amount: numAmount,
+                type: "expense",
+                date: new Date().toISOString(),
+                category: savingsCat,
+            });
+
+            setTransferInModalVisible(false);
+            setTransferAmount("");
+            setSelectedItemId(null);
         } catch (error) {
-            Alert.alert("Error", "Failed to update goal.");
+            Alert.alert("Error", "Failed to transfer funds.");
         }
     };
 
-    const handleTransferFromBudget = async () => {
-        if (!selectedGoalId || !selectedBudgetId || !transferAmount) return;
-        const amount = parseFloat(transferAmount);
-        const goal = goals.find(g => g.id === selectedGoalId);
-        const budget = budgets.find(b => b.id === selectedBudgetId);
+    const handleTransferOut = async () => {
+        const numAmount = parseFloat(transferAmount);
+        if (isNaN(numAmount) || numAmount <= 0 || !selectedItemId) return;
 
-        if (goal && budget) {
-            // Calculate current spent for this budget to find "real" remaining planning space
-            const spent = transactions
-                .filter(t => t.type === "expense" && (t.budgetId === budget.id || (!t.budgetId && t.category.id.toString() === budget.categoryId?.toString() && t.date.slice(0, 7) === budget.month)))
-                .reduce((sum, t) => sum + t.amount, 0);
-            
-            const remaining = budget.amount - spent;
+        const item = items.find(g => g.id === selectedItemId);
+        if (!item) return;
 
-            if (amount > remaining) {
-                Alert.alert(
-                    "Insufficient Budget Balance", 
-                    `You only have ${formatAmount(remaining)} remaining in this budget's planning allocation. You cannot transfer more than what is unspent.`
-                );
-                return;
-            }
-
-            try {
-                // 1. Reduce Budget Limit
-                await addBudget({
-                    ...budget,
-                    amount: budget.amount - amount
-                });
-
-                // 2. Increase Savings Progress
-                await updateGoal(selectedGoalId, {
-                    currentAmount: goal.currentAmount + amount
-                });
-
-                setTransferModalVisible(false);
-                setTransferAmount("");
-                setSelectedBudgetId(null);
-                setSelectedGoalId(null);
-                Alert.alert("Success", "Funds reallocated from budget to savings plan.");
-            } catch (error) {
-                Alert.alert("Error", "Failed to reallocate funds.");
-            }
-        }
-    };
-
-    const handleDeposit = async () => {
-        const numDeposit = parseFloat(depositAmount);
-        if (isNaN(numDeposit) || numDeposit <= 0 || !selectedGoalId) {
-            Alert.alert("Invalid Input", "Please enter a valid amount.");
+        if (numAmount > item.balance) {
+            Alert.alert("Insufficient Balance", `You only have ${formatAmount(item.balance)} in this savings item.`);
             return;
         }
 
-        const goal = goals.find(g => g.id === selectedGoalId);
-        if (goal) {
-            try {
-                // 1. Update Goal Amount
-                await updateGoal(selectedGoalId, {
-                    currentAmount: goal.currentAmount + numDeposit,
-                });
+        try {
+            await updateItem(selectedItemId, {
+                balance: item.balance - numAmount,
+            });
 
-                // 2. Create Transaction Link
-                let savingsCat: any = null;
-                if (goal.categoryId) {
-                    savingsCat = categories.find(c => String(c.id) === String(goal.categoryId));
-                }
-                if (!savingsCat) {
-                    savingsCat = categories.find(c => c.name === "Savings" && c.type === "expense");
-                }
-                if (!savingsCat) {
-                    savingsCat = categories.find(c => c.id === "8") || categories[0];
-                }
+            let savingsCat = categories.find(c => c.name === "Savings" && c.type === "income");
+            if (!savingsCat) savingsCat = categories.find(c => c.id === "9") || categories[0];
 
-                await addTransaction({
-                    title: `Savings: ${goal.title}`,
-                    amount: numDeposit,
-                    type: "expense",
-                    date: new Date().toISOString(),
-                    category: savingsCat,
-                    savingsGoalId: goal.id
-                });
+            await addTransaction({
+                title: `Transfer from ${item.title}`,
+                amount: numAmount,
+                type: "income",
+                date: new Date().toISOString(),
+                category: savingsCat,
+            });
 
-                setAddAmountModalVisible(false);
-                setDepositAmount("");
-                setSelectedGoalId(null);
-            } catch (error) {
-                console.error("Failed to update savings or create transaction:", error);
-                Alert.alert("Error", "Failed to update savings.");
-            }
+            setTransferOutModalVisible(false);
+            setTransferAmount("");
+            setSelectedItemId(null);
+        } catch (error) {
+            Alert.alert("Error", "Failed to transfer funds.");
         }
     };
+
+    const handleDelete = async (id: string) => {
+        const item = items.find(g => g.id === id);
+        if (!item) return;
+
+        Alert.alert(
+            "Delete Savings Item",
+            `The remaining balance of ${formatAmount(item.balance)} will be transferred back to your main funds.`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete & Transfer",
+                    style: "destructive",
+                    onPress: async () => {
+                        if (item.balance > 0) {
+                            let savingsCat = categories.find(c => c.name === "Savings" && c.type === "income");
+                            if (!savingsCat) savingsCat = categories.find(c => c.id === "9") || categories[0];
+
+                            await addTransaction({
+                                title: `Return from ${item.title}`,
+                                amount: item.balance,
+                                type: "income",
+                                date: new Date().toISOString(),
+                                category: savingsCat,
+                            });
+                        }
+                        await deleteItem(id);
+                    }
+                }
+            ]
+        );
+    };
+
+    const totalSaved = items.reduce((sum, g) => sum + g.balance, 0);
 
     return (
         <View style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
             <Appbar.Header>
                 <Appbar.BackAction onPress={() => router.back()} />
-                <Appbar.Content title="Savings Goals" />
+                <Appbar.Content title="Savings" />
             </Appbar.Header>
 
             <ScrollView contentContainerStyle={{ padding: 16 }}>
-                {goals.length === 0 ? (
+                {items.length > 0 && (
+                    <Card style={{ marginBottom: 16, padding: 16, borderRadius: 16, backgroundColor: theme.colors.primaryContainer }}>
+                        <Text variant="labelMedium" style={{ color: theme.colors.onPrimaryContainer, textAlign: "center" }}>
+                            TOTAL SAVED
+                        </Text>
+                        <Text variant="headlineMedium" style={{ fontWeight: "800", textAlign: "center", color: theme.colors.onPrimaryContainer }}>
+                            {formatAmount(totalSaved)}
+                        </Text>
+                    </Card>
+                )}
+
+                {items.length === 0 ? (
                     <Card style={{ padding: 20 }}>
                         <Text style={{ textAlign: "center", color: "gray" }}>
-                            No savings goals yet. Start saving for that new phone or vacation!
+                            No savings yet. Tap + to create a savings item!
                         </Text>
                     </Card>
                 ) : (
-                    goals.map((goal) => {
-                        const progress = Math.min(goal.currentAmount / goal.targetAmount, 1);
-                        return (
-                            <Card key={goal.id} style={{ marginBottom: 16, borderRadius: 16, overflow: "hidden" }}>
-                                <Card.Content>
-                                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                                        <View style={{ flex: 1, marginRight: 16 }}>
-                                            <Text variant="headlineSmall" style={{ fontWeight: "bold", marginBottom: 4 }}>{goal.title}</Text>
-                                            <Text variant="titleMedium" style={{ color: theme.colors.primary }}>
-                                                {formatAmount(goal.currentAmount)} / {formatAmount(goal.targetAmount)}
-                                            </Text>
-
-                                            <View style={{ marginTop: 16 }}>
-                                                <ProgressBar progress={progress} color={theme.colors.primary} style={{ height: 10, borderRadius: 5 }} />
-                                                <Text variant="labelSmall" style={{ marginTop: 4, textAlign: "right", color: "gray" }}>
-                                                    {(progress * 100).toFixed(0)}% reached
-                                                </Text>
-                                            </View>
-
-                                             <View style={{ flexDirection: "row", marginTop: 16, gap: 8, flexWrap: 'wrap' }}>
-                                                <Button mode="contained" compact onPress={() => {
-                                                    setSelectedGoalId(goal.id);
-                                                    setAddAmountModalVisible(true);
-                                                }}>
-                                                    Add Savings
-                                                </Button>
-                                                <Button mode="outlined" compact onPress={() => {
-                                                    setSelectedGoalId(goal.id);
-                                                    setTransferModalVisible(true);
-                                                }}>
-                                                    From Budget
-                                                </Button>
-                                                <IconButton icon="pencil" size={20} onPress={() => {
-                                                    setSelectedGoalId(goal.id);
-                                                    setTitle(goal.title);
-                                                    setTargetAmount(goal.targetAmount.toString());
-                                                    setEditModalVisible(true);
-                                                }} />
-                                                <IconButton icon="delete" size={20} onPress={() => deleteGoal(goal.id)} />
-                                             </View>
+                    items.map((item) => (
+                        <Card key={item.id} style={{ marginBottom: 16, borderRadius: 16 }}>
+                            <Card.Content>
+                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                                    <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                                        <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: theme.colors.surfaceVariant, justifyContent: "center", alignItems: "center", marginRight: 12 }}>
+                                            <MaterialCommunityIcons name={item.icon || "piggy-bank-outline" as any} size={24} color={theme.colors.primary} />
                                         </View>
-
-                                        <View style={{ width: 120, height: 120, alignItems: "center", justifyContent: "center" }}>
-                                            <PiggyBank progress={progress} size={100} />
+                                        <View>
+                                            <Text variant="titleMedium" style={{ fontWeight: "700" }}>{item.title}</Text>
+                                            <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: "600" }}>
+                                                {formatAmount(item.balance)}
+                                            </Text>
                                         </View>
                                     </View>
-                                </Card.Content>
-                            </Card>
-                        );
-                    })
+                                    <View style={{ flexDirection: "row" }}>
+                                        <IconButton icon="arrow-collapse-down" size={20} onPress={() => {
+                                            setSelectedItemId(item.id);
+                                            setTransferAmount("");
+                                            setTransferInModalVisible(true);
+                                        }} />
+                                        <IconButton icon="arrow-collapse-up" size={20} onPress={() => {
+                                            setSelectedItemId(item.id);
+                                            setTransferAmount("");
+                                            setTransferOutModalVisible(true);
+                                        }} />
+                                        <IconButton icon="delete-outline" size={20} iconColor={theme.colors.error} onPress={() => handleDelete(item.id)} />
+                                    </View>
+                                </View>
+                            </Card.Content>
+                        </Card>
+                    ))
                 )}
             </ScrollView>
 
             <Portal>
-                {/* Add Goal Modal */}
                 <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
-                    <Text variant="titleLarge" style={{ marginBottom: 16 }}>Set New Goal</Text>
-                    <TextInput label="Goal Title" value={title} onChangeText={setTitle} mode="outlined" style={{ marginBottom: 12 }} placeholder="e.g. New Phone" />
-                    
-                    <Text variant="labelLarge" style={{ marginBottom: 8 }}>Category (Optional)</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                            {categories.filter(c => c.type === "expense").map(cat => (
-                                <Chip
-                                    key={cat.id}
-                                    selected={goalCategoryId === cat.id}
-                                    onPress={() => setGoalCategoryId(goalCategoryId === cat.id ? null : cat.id)}
-                                >
-                                    {cat.name}
-                                </Chip>
-                            ))}
-                        </View>
-                    </ScrollView>
-
-                    <TextInput label="Target Amount" value={targetAmount} onChangeText={setTargetAmount} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
-                    <Button mode="contained" onPress={handleAddGoal}>Create Goal</Button>
+                    <Text variant="titleLarge" style={{ marginBottom: 16 }}>New Savings Item</Text>
+                    <TextInput label="Name" value={title} onChangeText={setTitle} mode="outlined" style={{ marginBottom: 12 }} placeholder="e.g. Education Fund" />
+                    <TextInput label="Initial Balance" value={balance} onChangeText={(t) => setBalance(t.replace(/[^0-9.]/g, ""))} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
+                    <Button mode="contained" onPress={handleAddItem}>Create</Button>
                 </Modal>
 
-                {/* Deposit Modal */}
-                <Modal visible={addAmountModalVisible} onDismiss={() => setAddAmountModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
-                    <Text variant="titleLarge" style={{ marginBottom: 16 }}>Add Savings</Text>
-                    <TextInput label="Amount to Add" value={depositAmount} onChangeText={setDepositAmount} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
-                    <Button mode="contained" onPress={handleDeposit}>Confirm Deposit</Button>
+                <Modal visible={transferInModalVisible} onDismiss={() => setTransferInModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
+                    <Text variant="titleLarge" style={{ marginBottom: 16 }}>Transfer Money In</Text>
+                    <Text variant="bodySmall" style={{ color: "gray", marginBottom: 12 }}>This creates an expense transaction — money leaves your main balance.</Text>
+                    <TextInput label="Amount" value={transferAmount} onChangeText={(t) => setTransferAmount(t.replace(/[^0-9.]/g, ""))} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
+                    <Button mode="contained" onPress={handleTransferIn} disabled={!transferAmount}>Confirm</Button>
+                </Modal>
+
+                <Modal visible={transferOutModalVisible} onDismiss={() => setTransferOutModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
+                    <Text variant="titleLarge" style={{ marginBottom: 16 }}>Transfer Money Out</Text>
+                    <Text variant="bodySmall" style={{ color: "gray", marginBottom: 12 }}>This creates an income transaction — money returns to your main balance.</Text>
+                    <TextInput label="Amount" value={transferAmount} onChangeText={(t) => setTransferAmount(t.replace(/[^0-9.]/g, ""))} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
+                    <Button mode="contained" onPress={handleTransferOut} disabled={!transferAmount}>Confirm</Button>
                 </Modal>
             </Portal>
 
             <FAB
-                icon="piggy-bank"
-                label="New Goal"
+                icon="plus"
+                label="New Savings"
                 style={{ position: "absolute", margin: 16, right: 0, bottom: 0 }}
                 onPress={() => {
-                    setSelectedGoalId(null);
                     setTitle("");
-                    setTargetAmount("");
+                    setBalance("");
                     setModalVisible(true);
                 }}
             />
-
-            <Portal>
-                {/* Edit Goal Modal */}
-                <Modal visible={editModalVisible} onDismiss={() => setEditModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
-                    <Text variant="titleLarge" style={{ marginBottom: 16 }}>Edit Goal</Text>
-                    <TextInput label="Goal Title" value={title} onChangeText={setTitle} mode="outlined" style={{ marginBottom: 12 }} />
-                    <TextInput label="Target Amount" value={targetAmount} onChangeText={setTargetAmount} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
-                    <Button mode="contained" onPress={handleUpdateGoal}>Update Goal</Button>
-                </Modal>
-
-                {/* Transfer Modal */}
-                <Modal visible={transferModalVisible} onDismiss={() => setTransferModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
-                    <Text variant="titleLarge" style={{ marginBottom: 16 }}>Transfer Planning Funds</Text>
-                    <Text variant="bodySmall" style={{ marginBottom: 12, color: 'gray' }}>This reduces your budget limit to increase your savings progress.</Text>
-                    
-                    <Text variant="labelLarge" style={{ marginBottom: 8 }}>From Budget:</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                            {budgets.map(b => (
-                                <Chip 
-                                    key={b.id} 
-                                    selected={selectedBudgetId === b.id} 
-                                    onPress={() => setSelectedBudgetId(b.id)}
-                                >
-                                    {categories.find(c => String(c.id) === String(b.categoryId))?.name || 'Budget'}: {formatAmount(b.amount)}
-                                </Chip>
-                            ))}
-                        </View>
-                    </ScrollView>
-
-                    <TextInput label="Amount to Transfer" value={transferAmount} onChangeText={setTransferAmount} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
-                    <Button mode="contained" onPress={handleTransferFromBudget} disabled={!selectedBudgetId || !transferAmount}>Confirm Transfer</Button>
-                </Modal>
-            </Portal>
         </View>
     );
 }

@@ -8,7 +8,6 @@ interface BalanceBreakdownProps {
   initialBalance: number;
   income: number;
   expense: number;
-  budgets: any[];
   goals: any[];
   transactions: any[];
 }
@@ -19,7 +18,6 @@ export function BalanceBreakdown({
   initialBalance,
   income,
   expense,
-  budgets,
   goals,
   transactions,
 }: BalanceBreakdownProps) {
@@ -27,30 +25,10 @@ export function BalanceBreakdown({
   const { formatAmount } = useCurrency();
 
   const balance = initialBalance + income - expense;
-  const currentMonth = new Date().toISOString().slice(0, 7);
 
-  const reservedSavings = goals.reduce((sum: number, g: any) => sum + Number(g.currentAmount || 0), 0);
+  const reservedSavings = goals.reduce((sum: number, g: any) => sum + Number(g.currentAmount || g.balance || 0), 0);
 
-  const budgetDetails = budgets
-    .filter((b: any) => b.month === currentMonth)
-    .map((b: any) => {
-      const spent = transactions
-        .filter((t: any) =>
-          t.type === "expense" && (
-            t.budgetId === b.id ||
-            (!t.budgetId && t.category?.id?.toString() === b.categoryId?.toString() && t.date?.slice(0, 7) === b.month)
-          )
-        )
-        .reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
-      return { name: b.name, amount: b.amount, spent };
-    });
-
-  const reservedBudgets = budgetDetails.reduce(
-    (sum: number, b: any) => sum + Math.max(0, Number(b.amount || 0) - b.spent),
-    0
-  );
-
-  const totalReserved = reservedSavings + reservedBudgets;
+  const totalReserved = reservedSavings;
   const availableBalance = balance - totalReserved;
 
   return (
@@ -82,34 +60,19 @@ export function BalanceBreakdown({
           <Divider style={{ marginVertical: 12 }} />
 
           <Text variant="labelMedium" style={{ color: theme.colors.outline, marginBottom: 4 }}>
-            RESERVED
+            RESERVED (Savings)
           </Text>
           <Text variant="headlineSmall" style={{ fontWeight: "700", marginBottom: 12 }}>
             {formatAmount(totalReserved)}
           </Text>
 
           <View style={{ paddingLeft: 12, marginBottom: 4 }}>
-            <Text variant="labelLarge" style={{ fontWeight: "600", marginBottom: 4 }}>
-              Budgets ({formatAmount(reservedBudgets)})
-            </Text>
-            {budgetDetails.length === 0 && (
-              <Text variant="bodySmall" style={{ color: "gray", marginBottom: 8 }}>None</Text>
-            )}
-            {budgetDetails.map((b: any, i: number) => (
-              <Text key={i} variant="bodySmall" style={{ color: "gray", marginBottom: 2 }}>
-                {b.name}: {formatAmount(Math.max(0, b.amount - b.spent))} ({formatAmount(b.spent)} spent of {formatAmount(b.amount)})
-              </Text>
-            ))}
-
-            <Text variant="labelLarge" style={{ fontWeight: "600", marginTop: 8, marginBottom: 4 }}>
-              Savings ({formatAmount(reservedSavings)})
-            </Text>
             {goals.length === 0 && (
               <Text variant="bodySmall" style={{ color: "gray", marginBottom: 8 }}>None</Text>
             )}
             {goals.map((g: any) => (
               <Text key={g.id} variant="bodySmall" style={{ color: "gray", marginBottom: 2 }}>
-                {g.title}: {formatAmount(g.currentAmount)} of {formatAmount(g.targetAmount)}
+                {g.title}: {formatAmount(g.currentAmount || g.balance || 0)}
               </Text>
             ))}
           </View>
@@ -124,8 +87,8 @@ export function BalanceBreakdown({
           </Text>
 
           <Text variant="bodySmall" style={{ color: "gray", marginBottom: 16, lineHeight: 18 }}>
-            Budgets reserve their unspent amounts. Savings goals reserve their accumulated amount.
-            Linking a budget to an agenda does not deduct until the agenda is recorded as a transaction.
+            Savings are locked funds. Transfer money in or out from your main balance.
+            Dues show upcoming financial events and do not reserve your balance.
           </Text>
 
           <Button mode="contained" onPress={onDismiss}>
