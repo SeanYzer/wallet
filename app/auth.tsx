@@ -226,13 +226,49 @@ export default function AuthScreen() {
                  await addUser(data.user.id, name.trim(), passcode.trim());
                  await saveUserProfile(name.trim(), false, 0, data.user.id);
                  await login(data.user.id, data.token);
-             } else if (response.status === 401) {
-                 console.log("Cloud login returned 401 - invalid credentials, NOT falling back to local");
-                 showAlert(
-                     "Login Failed",
-                     responseData.message || "Invalid credentials. Please check your email/username and PIN."
-                 );
-             } else {
+              } else if (response.status === 401) {
+                  console.log("Cloud login returned 401 - checking local users...");
+                  
+                  const users = await getUsers();
+                  const localUser = users.find((u: any) => u.name.toLowerCase() === name.trim().toLowerCase());
+                  
+                  if (localUser) {
+                      console.log("Found local user, trying local login...");
+                      try {
+                          const hashedInput = await Crypto.digestStringAsync(
+                              Crypto.CryptoDigestAlgorithm.SHA256,
+                              passcode.trim()
+                          );
+                          if (localUser.passcode === hashedInput || localUser.passcode === passcode.trim()) {
+                              await login(localUser.id, "local_token");
+                          } else {
+                              showAlert(
+                                  "Login Failed",
+                                  "Invalid credentials. Please check your email/username and PIN."
+                              );
+                          }
+                      } catch (err) {
+                          showAlert("Login Failed", "Invalid credentials.");
+                      }
+                  } else {
+                      console.log("No local user found, offering to register offline...");
+                      showAlert(
+                          "Account Not Found",
+                          `No account found for "${name.trim()}". Would you like to create an offline-only account with these credentials?`,
+                          [
+                              {
+                                  text: "Create Offline Account",
+                                  onPress: async () => {
+                                      const success = await createLocalAccount(name.trim(), passcode.trim());
+                                      setLoading(false);
+                                  }
+                              },
+                              { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }
+                          ]
+                      );
+                      return;
+                  }
+              } else {
                  console.log("Cloud login failed, trying local fallback...");
                  await attemptLocalLogin();
              }
@@ -263,18 +299,26 @@ export default function AuthScreen() {
             } catch (err) {
                 showAlert("Error", "Authentication failed. Error: " + (err as Error).message);
             }
-        } else {
-            showAlert(
-                "Login Failed",
-                "No local data found for this email/username. Please go online to sync your cloud account for the first time, or register a new account.",
-                [
-                    { text: "OK", style: "cancel" }
-                ]
-            );
-        }
-    };
+         } else {
+             console.log("No local user found in attemptLocalLogin, offering to register offline...");
+             showAlert(
+                 "Account Not Found",
+                 `No account found for "${name.trim()}". Would you like to create an offline-only account with these credentials?`,
+                 [
+                     {
+                         text: "Create Offline Account",
+                         onPress: async () => {
+                             const success = await createLocalAccount(name.trim(), passcode.trim());
+                             setLoading(false);
+                         }
+                     },
+                     { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }
+                 ]
+             );
+         }
+     };
 
-    return (
+     return (
         <LinearGradient colors={["#1a237e", "#283593", "#3949ab"]} style={styles.gradient}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
