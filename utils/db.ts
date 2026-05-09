@@ -19,6 +19,39 @@ function ensureAllTimestamps<T extends TimestampedEntity>(entities: (T | any)[])
   return entities.map(e => ensureTimestamp(e));
 }
 
+function getUpdatedAt(item: any): number {
+  if (typeof item.updatedAt === 'number' && item.updatedAt > 0) {
+    return item.updatedAt;
+  }
+  return 0;
+}
+
+export function mergeLWW<T extends { id: any }>(localItems: T[], remoteItems: T[]): T[] {
+  const mergedMap = new Map<string, T>();
+
+  for (const item of localItems) {
+    mergedMap.set(String(item.id), item);
+  }
+
+  for (const remoteItem of remoteItems) {
+    const key = String(remoteItem.id);
+    const localItem = mergedMap.get(key);
+
+    if (!localItem) {
+      mergedMap.set(key, remoteItem);
+    } else {
+      const localTs = getUpdatedAt(localItem);
+      const remoteTs = getUpdatedAt(remoteItem);
+
+      if (remoteTs > localTs) {
+        mergedMap.set(key, remoteItem);
+      }
+    }
+  }
+
+  return Array.from(mergedMap.values());
+}
+
 /**
  * --- Configuration ---
  */

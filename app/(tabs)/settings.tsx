@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
-import { getSetting, setSetting, clearAllLocalData, getTransactions, getCategories, getUserProfile, exportData, importData, deleteUser } from "../../utils/db";
+import { getSetting, setSetting, clearAllLocalData, getTransactions, getCategories, getUserProfile, getDues, getSavingsItems, exportData, importData, deleteUser, mergeLWW, saveTransactionsBulk, saveCategoriesBulk, saveDuesBulk, saveSavingsItemsBulk, saveUserProfile } from "../../utils/db";
 import { useAuth } from "../../context/AuthContext";
 import { useCurrency, CURRENCIES, CurrencyCode } from "../../context/CurrencyContext";
 import { useAppTheme } from "../../context/ThemeContext";
@@ -152,37 +152,218 @@ export default function SettingsScreen() {
      }
    };
 
-  const proceedWithBackupEnable = async () => {
-    setIsSyncing(true);
-    setShowBackupDialog(false);
-    try {
-      const [txRes, catRes, profRes] = await Promise.all([
-        authFetch(`transactions?userId=${activeUserId}`),
-        authFetch(`categories?userId=${activeUserId}`),
-        authFetch(`userProfiles?userId=${activeUserId}`)
-      ]);
-      const txs = await txRes.json();
-      const cats = await catRes.json();
-      const profs = await profRes.json();
+   const proceedWithBackupEnable = async () => {
+     setIsSyncing(true);
+     setShowBackupDialog(false);
+     try {
+       const [txRes, catRes, profRes] = await Promise.all([
+         authFetch(`transactions?userId=${activeUserId}`),
+         authFetch(`categories?userId=${activeUserId}`),
+         authFetch(`userProfiles?userId=${activeUserId}`)
+       ]);
+       const txs = await txRes.json();
+       const cats = await catRes.json();
+       const profs = await profRes.json();
 
-      const hasCloudData = (Array.isArray(txs) && txs.length > 0) ||
-        (Array.isArray(cats) && cats.length > 0) ||
-        (Array.isArray(profs) && profs.length > 0);
+       const hasCloudData = (Array.isArray(txs) && txs.length > 0) ||
+         (Array.isArray(cats) && cats.length > 0) ||
+         (Array.isArray(profs) && profs.length > 0);
 
-       if (hasCloudData) {
-         setShowConflictDialog(true);
-       } else {
-         setAutoBackup(true);
+        if (hasCloudData) {
+          setShowConflictDialog(true);
+        } else {
+          setAutoBackup(true);
+        }
+     } catch (e) {
+       console.error("Conflict check failed:", e);
+       alert("Failed to check for server conflicts. Please check your connection.");
+     } finally {
+       setIsSyncing(false);
+     }
+   };
+
+   const handleMergeLWW = async () => {
+     setIsSyncing(true);
+     setShowConflictDialog(false);
+
+     try {
+       console.log("[MergeLWW] Starting Last-Write-Wins merge...");
+
+       const localTxs = await getTransactions();
+       const localCats = await getCategories();
+       const localDues = await getDues();
+       const localSavings = await getSavingsItems();
+       const localProfile = await getUserProfile();
+
+       const [txRes, catRes, dueRes, savRes, profRes] = await Promise.all([
+         authFetch(`transactions?userId=${activeUserId}`),
+         authFetch(`categories?userId=${activeUserId}`),
+         authFetch(`dues?userId=${activeUserId}`),
+         authFetch(`savingsItems?userId=${activeUserId}`),
+         authFetch(`userProfiles?userId=${activeUserId}`)
+       ]);
+
+       const remoteTxs = Array.isArray(await txRes.json()) ? await txRes.json() : [];
+       const remoteCats = Array.isArray(await catRes.json()) ? await catRes.json() : [];
+       const remoteDues = Array.isArray(await dueRes.json()) ? await dueRes.json() : [];
+       const remoteSavings = Array.isArray(await savRes.json()) ? await savRes.json() : [];
+       const remoteProfiles = Array.isArray(await profRes.json()) ? await profRes.json() : [];
+       const remoteProfile = remoteProfiles[0] || null;
+
+       const mergedTxs = mergeLWW(localTxs, remoteTxs);
+       const mergedCats = mergeLWW(localCats, remoteCats);
+       const mergedDues = mergeLWW(localDues, remoteDues);
+       const mergedSavings = mergeLWW(localSavings, remoteSavings);
+
+       console.log("[MergeLWW] Merged:", {
+         transactions: mergedTxs.length,
+         categories: mergedCats.length,
+         dues: mergedDues.length,
+         savingsItems: mergedSavings.length
+       });
+
+       await saveTransactionsBulk(mergedTxs);
+       await saveCategoriesBulk(mergedCats);
+       await saveDuesBulk(mergedDues);
+       await saveSavingsItemsBulk(mergedSavings);
+
+       if (localProfile && remoteProfile) {
+         const localTs = (localProfile as any).updatedAt || 0;
+         const remoteTs = (remoteProfile as any).updatedAt || 0;
+         if (remoteTs > localTs) {
+           await saveUserProfile(remoteProfile);
+         }
        }
-    } catch (e) {
-      console.error("Conflict check failed:", e);
-      alert("Failed to check for server conflicts. Please check your connection.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
-  const handleManualBackup = async () => {
+       await setAutoBackup(true);
+
+       console.log("[MergeLWW] Uploading merged data to cloud...");
+
+       if (localProfile || remoteProfile) {
+         const mergedProfile = remoteProfile && ((remoteProfile as any).updatedAt || 0) > ((localProfile as any)?.updatedAt || 0)
+           ? remoteProfile
+           : localProfile;
+
+         if (mergedProfile) {
+           const profCheck = await authFetch(`userProfiles?userId=${activeUserId}`);
+           const profExisting = await profCheck.json();
+
+           if (Array.isArray(profExisting) && profExisting.length > 0) {
+             await authFetch(`userProfiles/${profExisting[0].id}`, {
+               method: "PUT",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ ...mergedProfile, userId: activeUserId })
+             }).catch(() => {});
+           } else {
+             await authFetch(`userProfiles`, {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ ...mergedProfile, userId: activeUserId })
+             }).catch(() => {});
+           }
+         }
+       }
+
+       for (const c of mergedCats) {
+         const check = await authFetch(`categories?id=${c.id}`);
+         const existing = await check.json();
+
+         if (Array.isArray(existing) && existing.length > 0) {
+           await authFetch(`categories/${c.id}`, {
+             method: "PUT",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ ...c, userId: activeUserId })
+           }).catch(() => {});
+         } else {
+           await authFetch(`categories`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ ...c, userId: activeUserId })
+           }).catch(() => {});
+         }
+       }
+
+       for (const d of mergedDues) {
+         const check = await authFetch(`dues?id=${d.id}`);
+         const existing = await check.json();
+
+         if (Array.isArray(existing) && existing.length > 0) {
+           await authFetch(`dues/${d.id}`, {
+             method: "PUT",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ ...d, userId: activeUserId })
+           }).catch(() => {});
+         } else {
+           await authFetch(`dues`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ ...d, userId: activeUserId })
+           }).catch(() => {});
+         }
+       }
+
+       for (const s of mergedSavings) {
+         const check = await authFetch(`savingsItems?id=${s.id}`);
+         const existing = await check.json();
+
+         if (Array.isArray(existing) && existing.length > 0) {
+           await authFetch(`savingsItems/${s.id}`, {
+             method: "PUT",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ ...s, userId: activeUserId })
+           }).catch(() => {});
+         } else {
+           await authFetch(`savingsItems`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ ...s, userId: activeUserId })
+           }).catch(() => {});
+         }
+       }
+
+       for (const t of mergedTxs) {
+         const check = await authFetch(`transactions?id=${t.id}`);
+         const existing = await check.json();
+
+         const txData = {
+           ...t,
+           categoryId: t.category?.id ? String(t.category.id) : (t as any).categoryId,
+           userId: activeUserId
+         };
+
+         if (Array.isArray(existing) && existing.length > 0) {
+           await authFetch(`transactions/${t.id}`, {
+             method: "PUT",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify(txData)
+           }).catch(() => {});
+         } else {
+           await authFetch(`transactions`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify(txData)
+           }).catch(() => {});
+         }
+       }
+
+       await Promise.all([
+         refetchTx(),
+         refetchCats(),
+         refetchProfile()
+       ]);
+
+       alert("Merge completed! Data has been synchronized using Last-Write-Wins.");
+       console.log("[MergeLWW] Merge completed successfully");
+
+     } catch (e) {
+       console.error("[MergeLWW] Merge failed:", e);
+       alert("Merge failed. Please check your connection and try again.");
+     } finally {
+       setIsSyncing(false);
+     }
+   };
+
+   const handleManualBackup = async () => {
     setIsSyncing(true);
     try {
       const txs = await getTransactions();
@@ -652,15 +833,21 @@ export default function SettingsScreen() {
         <Dialog visible={showConflictDialog} onDismiss={() => setShowConflictDialog(false)}>
           <Dialog.Title>Sync Conflict</Dialog.Title>
           <Dialog.Content>
-            <Text>We found data for your account on the server. Which version would you like to keep?</Text>
-            <Text style={{ color: paperTheme.colors.error, marginTop: 8 }}>Warning: This will overwrite the other version entirely.</Text>
+            <Text>We found data for your account on the server. How would you like to resolve this?</Text>
           </Dialog.Content>
            <Dialog.Actions style={{ flexDirection: 'column' }}>
-             <Button mode="contained" onPress={() => { setShowConflictDialog(false); setAutoBackup(true); handleManualBackup(); }} style={{ width: '100%', marginBottom: 8 }}>Keep Local</Button>
-             <Button mode="outlined" onPress={() => { setShowConflictDialog(false); setAutoBackup(true); performRestore(); }} style={{ width: '100%' }}>Keep Cloud</Button>
-             <Button onPress={() => setShowConflictDialog(false)}>Cancel</Button>
-           </Dialog.Actions>
-        </Dialog>
+              <Button mode="contained" onPress={handleMergeLWW} loading={isSyncing} disabled={isSyncing} style={{ width: '100%', marginBottom: 8 }}>
+                Merge (Last Write Wins)
+              </Button>
+              <Button mode="outlined" onPress={() => { setShowConflictDialog(false); setAutoBackup(true); handleManualBackup(); }} style={{ width: '100%', marginBottom: 8 }}>
+                Keep Local Only
+              </Button>
+              <Button mode="outlined" onPress={() => { setShowConflictDialog(false); setAutoBackup(true); performRestore(); }} style={{ width: '100%', marginBottom: 8 }}>
+                Keep Cloud Only
+              </Button>
+              <Button onPress={() => setShowConflictDialog(false)}>Cancel</Button>
+            </Dialog.Actions>
+         </Dialog>
 
         <Dialog visible={showPinPrompt} onDismiss={() => setShowPinPrompt(false)}>
           <Dialog.Title>Enter PIN to Clear Data</Dialog.Title>
