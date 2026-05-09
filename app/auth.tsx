@@ -207,35 +207,41 @@ export default function AuthScreen() {
 
             const responseData = await response.json();
 
-            if (response.ok) {
-                const data = responseData.data;
+             if (response.ok) {
+                 const data = responseData.data;
 
-                if (data.sessionConflict) {
-                    setLoading(false);
-                    showAlert(
-                        "Session Active",
-                        "This account is already logged in on another device. Logging in here will log you out of the other device. Proceed?",
-                        [
-                            { text: "Yes, Log In", onPress: () => handleLogin(true) },
-                            { text: "No", style: "cancel" }
-                        ]
-                    );
-                    return;
-                }
+                 if (data.sessionConflict) {
+                     setLoading(false);
+                     showAlert(
+                         "Session Active",
+                         "This account is already logged in on another device. Logging in here will log you out of the other device. Proceed?",
+                         [
+                             { text: "Yes, Log In", onPress: () => handleLogin(true) },
+                             { text: "No", style: "cancel" }
+                         ]
+                     );
+                     return;
+                 }
 
-                await addUser(data.user.id, name.trim(), passcode.trim());
-                await saveUserProfile(name.trim(), false, 0, data.user.id);
-                await login(data.user.id, data.token);
-            } else {
-                console.log("Cloud login failed, trying local fallback...");
-                await attemptLocalLogin();
-            }
-        } catch (e: any) {
-            console.error("Online login failed, attempting local fallback:", e);
-            await attemptLocalLogin();
-        } finally {
-            setLoading(false);
-        }
+                 await addUser(data.user.id, name.trim(), passcode.trim());
+                 await saveUserProfile(name.trim(), false, 0, data.user.id);
+                 await login(data.user.id, data.token);
+             } else if (response.status === 401) {
+                 console.log("Cloud login returned 401 - invalid credentials, NOT falling back to local");
+                 showAlert(
+                     "Login Failed",
+                     responseData.message || "Invalid credentials. Please check your email/username and PIN."
+                 );
+             } else {
+                 console.log("Cloud login failed, trying local fallback...");
+                 await attemptLocalLogin();
+             }
+         } catch (e: any) {
+             console.error("Online login failed (network error), attempting local fallback:", e);
+             await attemptLocalLogin();
+         } finally {
+             setLoading(false);
+         }
     };
 
     const attemptLocalLogin = async () => {
