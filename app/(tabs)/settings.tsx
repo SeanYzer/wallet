@@ -649,12 +649,12 @@ export default function SettingsScreen() {
                 label={profile?.name?.substring(0, 2).toUpperCase() || "US"}
                 style={{ backgroundColor: paperTheme.colors.primary }}
               />
-              <View style={{ marginLeft: 16 }}>
-                <Text variant="titleMedium">{profile?.name || "Wise User"}</Text>
-                <Text variant="bodySmall" style={{ color: paperTheme.colors.outline }}>
-                  Local Profile (Offline)
-                </Text>
-              </View>
+               <View style={{ marginLeft: 16 }}>
+                 <Text variant="titleMedium">{profile?.name || "Wise User"}</Text>
+                 <Text variant="bodySmall" style={{ color: paperTheme.colors.outline }}>
+                   {autoBackup ? "Cloud Sync Enabled" : "Local Profile (Offline)"}
+                 </Text>
+               </View>
             </View>
           </Card.Content>
         </Card>
