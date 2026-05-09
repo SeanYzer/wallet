@@ -37,7 +37,7 @@ interface UserProfileContextType {
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
-    const { activeUserId, logout } = useAuth();
+    const { activeUserId } = useAuth();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -55,16 +55,10 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         try {
             const local = await getUserProfile();
             
-            if (API_URL && activeUserId) {
-                const response = await authFetch(`userProfiles?userId=${activeUserId}`);
-                
-                if (response.status === 401) {
-                    console.warn("User no longer exists or token expired. Forcing logout.");
-                    await logout();
-                    return;
-                }
-
-                if (response.ok) {
+             if (API_URL && activeUserId) {
+                 const response = await authFetch(`userProfiles?userId=${activeUserId}`);
+                 
+                 if (response.ok) {
                     const cloudProfile = await response.json();
                     if (cloudProfile && cloudProfile.name) {
                         const merged = { ...DEFAULT_PROFILE, ...cloudProfile };

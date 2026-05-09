@@ -28,7 +28,7 @@ interface TransactionsContextType {
 const TransactionsContext = createContext<TransactionsContextType | undefined>(undefined);
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
-    const { activeUserId, logout } = useAuth();
+    const { activeUserId } = useAuth();
     const { profile } = useUserProfile();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
@@ -99,23 +99,17 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 return tx;
             }));
 
-            // 2. Sync transactions with cloud-ready URLs
-            const response = await authFetch(`transactions/sync`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    transactions: dataWithCloudImages,
-                    userId: activeUserId
-                })
-            });
+             // 2. Sync transactions with cloud-ready URLs
+             const response = await authFetch(`transactions/sync`, {
+                 method: "POST",
+                 headers: { "Content-Type": "application/json" },
+                 body: JSON.stringify({
+                     transactions: dataWithCloudImages,
+                     userId: activeUserId
+                 })
+             });
 
-            if (response.status === 401) {
-                console.warn("Session expired during sync. Logging out.");
-                await logout();
-                return;
-            }
-
-            if (!response.ok) return;
+             if (!response.ok) return;
 
             const json = await response.json();
             const remoteData: Transaction[] = json?.data?.transactions;
@@ -169,13 +163,15 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
             await saveTransaction(newTransaction);
             
+            let syncData: Transaction[] = [];
             setTransactions(prev => {
-                const updated = [...prev, newTransaction];
-                if (API_URL && activeUserId) {
-                    syncWithServer(updated);
-                }
-                return updated;
+                syncData = [...prev, newTransaction];
+                return syncData;
             });
+
+            if (API_URL && activeUserId) {
+                syncWithServer(syncData);
+            }
 
         } catch (error) {
             console.error("Error adding transaction:", error);
@@ -190,14 +186,16 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         try {
             await updateTransactionLocal(id, updates);
 
-            const updatedTransactions = transactions.map(t =>
-                t.id === id ? { ...t, ...updates } : t
-            );
-
-            setTransactions(updatedTransactions);
+            let syncData: Transaction[] = [];
+            setTransactions(prev => {
+                syncData = prev.map(t =>
+                    t.id === id ? { ...t, ...updates } : t
+                );
+                return syncData;
+            });
 
             if (API_URL && activeUserId) {
-                syncWithServer(updatedTransactions);
+                syncWithServer(syncData);
             }
 
         } catch (error) {
@@ -213,11 +211,14 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         try {
             await deleteTransactionLocal(id);
 
-            const updatedTransactions = transactions.filter(t => t.id !== id);
-            setTransactions(updatedTransactions);
+            let syncData: Transaction[] = [];
+            setTransactions(prev => {
+                syncData = prev.filter(t => t.id !== id);
+                return syncData;
+            });
 
             if (API_URL && activeUserId) {
-                syncWithServer(updatedTransactions);
+                syncWithServer(syncData);
             }
 
         } catch (error) {

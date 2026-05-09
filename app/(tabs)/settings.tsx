@@ -53,13 +53,18 @@ export default function SettingsScreen() {
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [pinInput, setPinInput] = useState("");
 
-  const handleToggleAutoBackup = async (val: boolean) => {
-    if (val) {
-      setShowBackupDialog(true);
-    } else {
-      updateProfile({ autoBackup: false });
-    }
-  };
+   const setAutoBackup = async (value: boolean) => {
+     await updateProfile({ autoBackup: value });
+     await setSetting('autoBackup', value.toString());
+   };
+
+   const handleToggleAutoBackup = async (val: boolean) => {
+     if (val) {
+       setShowBackupDialog(true);
+     } else {
+       setAutoBackup(false);
+     }
+   };
 
   const proceedWithBackupEnable = async () => {
     setIsSyncing(true);
@@ -78,11 +83,11 @@ export default function SettingsScreen() {
         (Array.isArray(cats) && cats.length > 0) ||
         (Array.isArray(profs) && profs.length > 0);
 
-      if (hasCloudData) {
-        setShowConflictDialog(true);
-      } else {
-        updateProfile({ autoBackup: true });
-      }
+       if (hasCloudData) {
+         setShowConflictDialog(true);
+       } else {
+         setAutoBackup(true);
+       }
     } catch (e) {
       console.error("Conflict check failed:", e);
       alert("Failed to check for server conflicts. Please check your connection.");
@@ -562,11 +567,11 @@ export default function SettingsScreen() {
             <Text>We found data for your account on the server. Which version would you like to keep?</Text>
             <Text style={{ color: paperTheme.colors.error, marginTop: 8 }}>Warning: This will overwrite the other version entirely.</Text>
           </Dialog.Content>
-          <Dialog.Actions style={{ flexDirection: 'column' }}>
-            <Button mode="contained" onPress={() => { setShowConflictDialog(false); updateProfile({ autoBackup: true }); handleManualBackup(); }} style={{ width: '100%', marginBottom: 8 }}>Keep Local</Button>
-            <Button mode="outlined" onPress={() => { setShowConflictDialog(false); updateProfile({ autoBackup: true }); performRestore(); }} style={{ width: '100%' }}>Keep Cloud</Button>
-            <Button onPress={() => setShowConflictDialog(false)}>Cancel</Button>
-          </Dialog.Actions>
+           <Dialog.Actions style={{ flexDirection: 'column' }}>
+             <Button mode="contained" onPress={() => { setShowConflictDialog(false); setAutoBackup(true); handleManualBackup(); }} style={{ width: '100%', marginBottom: 8 }}>Keep Local</Button>
+             <Button mode="outlined" onPress={() => { setShowConflictDialog(false); setAutoBackup(true); performRestore(); }} style={{ width: '100%' }}>Keep Cloud</Button>
+             <Button onPress={() => setShowConflictDialog(false)}>Cancel</Button>
+           </Dialog.Actions>
         </Dialog>
 
         <Dialog visible={showPinPrompt} onDismiss={() => setShowPinPrompt(false)}>
