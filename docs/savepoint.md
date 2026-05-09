@@ -464,6 +464,7 @@ interface SavingsItem {
 | 14 | Income vs Expense terminology confusing in dues | `app/dues.tsx` | Button "Pay" → "Receive" for income; Alert "DUE" → "RECEIVABLE" for income; confirmation dialogs adjusted by type |
 | 15 | Income/Expense toggle not visually obvious | `app/dues.tsx` | Replaced Chips with SegmentedButtons (theme-styled, selected state much clearer) |
 | 16 | "Dues" label confusing (implies only expense) | UI only | Renamed UI labels: "Dues" → "Scheduled", "Savings" → "Allocations"; database layer (`dues`, `savingsItems`) unchanged |
+| 17 | Redundant checkboxes in Scheduled page | `app/dues.tsx` | Removed checkboxes from upcoming/completed items; explicit "Pay"/"Receive" button is now the only way to record transactions; removed unused `toggleComplete` function |
 
 ---
 
