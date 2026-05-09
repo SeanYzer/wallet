@@ -3,6 +3,7 @@ import { Due } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { API_URL, getDues, saveDue, saveDuesBulk, deleteDueLocal, updateDueLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
+import { enqueueAndTrigger, triggerSyncProcessing, processSyncQueue } from "../utils/syncProcessor";
 import { generateUUID } from "../utils/uuid";
 
 export function useDues() {
@@ -21,20 +22,20 @@ export function useDues() {
       const localData = await getDues();
       setDues(localData);
 
-      if (API_URL && activeUserId) {
-        const autoBackup = await getSetting('autoBackup');
-        if (autoBackup !== 'false') {
-          const response = await authFetch(`dues`);
-          if (response.ok) {
-            const remoteData = await response.json();
-            if (Array.isArray(remoteData)) {
-              await saveDuesBulk(remoteData);
-              const merged = await getDues();
-              const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
-              setDues(unique);
-            }
+      const autoBackup = await getSetting('autoBackup');
+      if (API_URL && activeUserId && autoBackup !== 'false') {
+        const response = await authFetch(`dues`);
+        if (response.ok) {
+          const remoteData = await response.json();
+          if (Array.isArray(remoteData)) {
+            await saveDuesBulk(remoteData);
+            const merged = await getDues();
+            const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
+            setDues(unique);
           }
         }
+
+        processSyncQueue();
       }
     } catch (error) {
       console.error("Error fetching dues:", error);
@@ -49,14 +50,10 @@ export function useDues() {
       await saveDue(newDue);
       setDues((prev) => [...prev, newDue]);
 
-      if (API_URL) {
-        const autoBackup = await getSetting('autoBackup');
-        if (autoBackup !== 'false') {
-          authFetch(`dues`, {
-            method: "POST",
-            body: JSON.stringify({ ...newDue, userId: activeUserId }),
-          }).catch(err => console.error("Sync error:", err));
-        }
+      const autoBackup = await getSetting('autoBackup');
+      if (API_URL && autoBackup !== 'false') {
+        const syncData = { ...newDue, userId: activeUserId };
+        await enqueueAndTrigger('dues', 'create', newDue.id, syncData);
       }
     } catch (error) {
       console.error("Error adding due:", error);
@@ -69,14 +66,10 @@ export function useDues() {
       await updateDueLocal(id, updates);
       setDues((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)));
 
-      if (API_URL) {
-        const autoBackup = await getSetting('autoBackup');
-        if (autoBackup !== 'false') {
-          authFetch(`dues/${id}`, {
-            method: "PUT",
-            body: JSON.stringify({ ...updates, userId: activeUserId }),
-          }).catch(err => console.error("Sync error:", err));
-        }
+      const autoBackup = await getSetting('autoBackup');
+      if (API_URL && autoBackup !== 'false') {
+        const syncData = { ...updates, userId: activeUserId };
+        await enqueueAndTrigger('dues', 'update', id, syncData);
       }
     } catch (error) {
       console.error("Error updating due:", error);
@@ -88,11 +81,9 @@ export function useDues() {
       await deleteDueLocal(id);
       setDues((prev) => prev.filter((d) => d.id !== id));
 
-      if (API_URL) {
-        const autoBackup = await getSetting('autoBackup');
-        if (autoBackup !== 'false') {
-          authFetch(`dues/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
-        }
+      const autoBackup = await getSetting('autoBackup');
+      if (API_URL && autoBackup !== 'false') {
+        await enqueueAndTrigger('dues', 'delete', id);
       }
     } catch (error) {
       console.error("Error deleting due:", error);

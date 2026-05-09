@@ -3,6 +3,7 @@ import { SavingsItem } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { API_URL, getSavingsItems, saveSavingsItem, saveSavingsItemsBulk, deleteSavingsItemLocal, updateSavingsItemLocal, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
+import { enqueueAndTrigger, processSyncQueue } from "../utils/syncProcessor";
 import { generateUUID } from "../utils/uuid";
 
 export function useSavings() {
@@ -22,39 +23,36 @@ export function useSavings() {
             const localData = await getSavingsItems();
             setItems(localData);
 
-            if (API_URL && activeUserId) {
-                const autoBackup = await getSetting('autoBackup');
-                if (autoBackup !== 'false') {
-                    const response = await authFetch(`savingsItems?userId=${activeUserId}`);
-                    if (response.ok) {
-                        const remoteData: SavingsItem[] = await response.json();
-                        if (Array.isArray(remoteData)) {
-                            const localMap = new Map(localData.map(g => [g.id, g]));
-                            const remoteMap = new Map(remoteData.map(g => [g.id, g]));
-                            const remoteTitleMap = new Map(remoteData.map(g => [g.title.toLowerCase(), g]));
+            const autoBackup = await getSetting('autoBackup');
+            if (API_URL && activeUserId && autoBackup !== 'false') {
+                const response = await authFetch(`savingsItems?userId=${activeUserId}`);
+                if (response.ok) {
+                    const remoteData: SavingsItem[] = await response.json();
+                    if (Array.isArray(remoteData)) {
+                        const localMap = new Map(localData.map(g => [g.id, g]));
+                        const remoteMap = new Map(remoteData.map(g => [g.id, g]));
+                        const remoteTitleMap = new Map(remoteData.map(g => [g.title.toLowerCase(), g]));
 
-                            const mergedMap = new Map<string, SavingsItem>();
+                        const mergedMap = new Map<string, SavingsItem>();
 
-                            for (const remoteItem of remoteData) {
-                                mergedMap.set(remoteItem.id, remoteItem);
-                            }
-
-                            for (const localItem of localData) {
-                                if (remoteMap.has(localItem.id)) continue;
-                                if (remoteTitleMap.has(localItem.title.toLowerCase())) continue;
-                                mergedMap.set(localItem.id, localItem);
-                                authFetch(`savingsItems`, {
-                                    method: "POST",
-                                    body: JSON.stringify(localItem),
-                                }).catch(err => console.error("Sync missing item:", err));
-                            }
-
-                            const merged = Array.from(mergedMap.values());
-                            await saveSavingsItemsBulk(merged);
-                            setItems(merged);
+                        for (const remoteItem of remoteData) {
+                            mergedMap.set(remoteItem.id, remoteItem);
                         }
+
+                        for (const localItem of localData) {
+                            if (remoteMap.has(localItem.id)) continue;
+                            if (remoteTitleMap.has(localItem.title.toLowerCase())) continue;
+                            mergedMap.set(localItem.id, localItem);
+                            await enqueueAndTrigger('savingsItems', 'create', localItem.id, localItem);
+                        }
+
+                        const merged = Array.from(mergedMap.values());
+                        await saveSavingsItemsBulk(merged);
+                        setItems(merged);
                     }
                 }
+
+                processSyncQueue();
             }
         } catch (error) {
             console.error("Error fetching savings items:", error);
@@ -76,14 +74,10 @@ export function useSavings() {
             await saveSavingsItem(newItem);
             setItems((prev) => [...prev, newItem]);
 
-            if (API_URL) {
-                const autoBackup = await getSetting('autoBackup');
-                if (autoBackup !== 'false') {
-                    authFetch(`savingsItems`, {
-                        method: "POST",
-                        body: JSON.stringify({ ...newItem, userId: activeUserId }),
-                    }).catch(err => console.error("Sync error:", err));
-                }
+            const autoBackup = await getSetting('autoBackup');
+            if (API_URL && autoBackup !== 'false') {
+                const syncData = { ...newItem, userId: activeUserId };
+                await enqueueAndTrigger('savingsItems', 'create', newItem.id, syncData);
             }
         } catch (error) {
             console.error("Error adding savings item:", error);
@@ -96,14 +90,10 @@ export function useSavings() {
             await updateSavingsItemLocal(id, updates);
             setItems((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
 
-            if (API_URL) {
-                const autoBackup = await getSetting('autoBackup');
-                if (autoBackup !== 'false') {
-                    authFetch(`savingsItems/${id}`, {
-                        method: "PUT",
-                        body: JSON.stringify({ ...updates, userId: activeUserId }),
-                    }).catch(err => console.error("Sync error:", err));
-                }
+            const autoBackup = await getSetting('autoBackup');
+            if (API_URL && autoBackup !== 'false') {
+                const syncData = { ...updates, userId: activeUserId };
+                await enqueueAndTrigger('savingsItems', 'update', id, syncData);
             }
         } catch (error) {
             console.error("Error updating savings item:", error);
@@ -115,11 +105,9 @@ export function useSavings() {
             await deleteSavingsItemLocal(id);
             setItems((prev) => prev.filter((g) => g.id !== id));
 
-            if (API_URL) {
-                const autoBackup = await getSetting('autoBackup');
-                if (autoBackup !== 'false') {
-                    authFetch(`savingsItems/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
-                }
+            const autoBackup = await getSetting('autoBackup');
+            if (API_URL && autoBackup !== 'false') {
+                await enqueueAndTrigger('savingsItems', 'delete', id);
             }
         } catch (error) {
             console.error("Error deleting savings item:", error);

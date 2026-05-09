@@ -7,7 +7,7 @@ import { useCurrency } from "../context/CurrencyContext";
 import { useDues } from "../hooks/useDues";
 import { useTransactions } from "../hooks/useTransactions";
 import { useCategories } from "../context/CategoriesContext";
-import { DueFrequency } from "../types";
+import { Due, DueFrequency } from "../types";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 export default function DuesScreen() {
