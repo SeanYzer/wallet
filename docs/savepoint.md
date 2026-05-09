@@ -112,6 +112,7 @@ Entities: `profile`, `settings`, `transactions`, `categories`, `dues`, `savingsI
   - `{ status: "success", data: { dues: [...] } }` → returns `[...]`
   - `{ status: "success", data: { name: "..." } }` → returns `{ name: "..." }`
 - Does NOT throw on HTTP errors (returns `Response` directly — caller must check `.ok`)
+- **Updated (2026-05-09):** Automatic 401 handling — if backend returns 401, clears `authToken` and `activeUserId` from AsyncStorage, and triggers registered logout callback via `setAuthFailureCallback()` (registered by `AuthContext` to reset React state)
 
 ### Sync Pattern per Entity
 
@@ -137,6 +138,11 @@ Each entity follows one of two patterns:
 | Savings Items | ID-map + logical | Remote first, local-only pushed | ID + title (lowercased) |
 
 **Removed (2026-05-09):** Budgets and Subscriptions have been removed from the application entirely. Agendas renamed to Dues. SavingsGoals renamed to SavingsItems.
+
+**UI Terminology Update (2026-05-09):**
+- "Dues" (internal DB: `dues`) → displayed as **"Scheduled"** in UI
+- "Savings" (internal DB: `savingsItems`) → displayed as **"Allocations"** in UI
+- Database layer (`useDues`, `useSavings`, API endpoints, storage keys) remains unchanged — only UI labels updated
 
 ---
 
@@ -337,16 +343,20 @@ FETCH (on page focus):
 
 ```
 totalBalance   = initialBalance + sum(income) - sum(expense)
-reserved       = reservedSavings
+reserved       = totalAllocated
 availableBalance = totalBalance - reserved
 
-reservedSavings = Σ(item.balance) for all savings items
+totalAllocated = Σ(item.balance) for all allocations (savingsItems in DB)
 
-Savings deposit (handleDeposit):
+Allocation transfer-in:
   → creates expense transaction (lowers totalBalance)
-  → increases item.balance (raises reservedSavings)
-  → net: availableBalance drops by 2× deposit amount (intentional)
+  → increases item.balance (raises totalAllocated)
+  → net: availableBalance drops by 2× amount (intentional double-counting for psychological effect)
 ```
+
+**UI vs DB terminology:**
+- UI: "Allocations" | DB: `savingsItems`
+- UI: "Scheduled" | DB: `dues`
 
 ### Clear Data Lifecycle
 
@@ -429,6 +439,8 @@ interface SavingsItem {
 
 ## 13. Known Fixes Applied (this session)
 
+### Session: 2026-05-09 (Budget removal + Agenda→Due, SavingsGoal→SavingsItem)
+
 | # | Issue | File | Fix |
 |----|-------|------|-----|
 | 1 | Navigation guard never fires when `activeUserId` is null | `context/UserProfileContext.tsx:44` | Added `setIsLoading(false)` in the early-return path for null `activeUserId` |
@@ -440,6 +452,18 @@ interface SavingsItem {
 | 7 | Budget logical dedup collides when `categoryId` is undefined | `utils/db.ts:237-244` | Changed dedup key from `categoryId+month` to `name+month` |
 | 8 | `b.name.toLowerCase()` crashes on remote budgets without `name` (pre-schema data) | `hooks/useBudgets.ts:42,132`, `utils/db.ts:250` | Added `(b.name || '').toLowerCase()` guards; remote data migrated with `name: b.name \|\| 'Others'` before merge |
 | 9 | API calls fail with 404 when `.env` missing (`API_URL` = `undefined` → relative URL `"undefined/auth/login"`) | `app/auth.tsx:50,100,186` | Added `if (!API_URL)` guard in `checkConnection`, `handleLogin`, `handleRegister` — skip online attempt, go straight to local-only mode |
+
+### Session: 2026-05-09 (Latest UI fixes + terminology update)
+
+| # | Issue | File | Fix |
+|----|-------|------|-----|
+| 10 | JSX syntax error: unclosed `<View>` tag | `app/add-transaction.tsx:195` | Removed stray opening View tag with duplicate "Payment Source" label |
+| 11 | Import error: `useBudgets` hook doesn't exist | `app/transaction-details.tsx` | Removed incomplete budget/savings linking code (budgets were removed earlier, Transaction type doesn't have `budgetId`/`savingsGoalId`) |
+| 12 | 401 "user no longer exists" doesn't auto-logout | `utils/apiClient.ts`, `context/AuthContext.tsx` | Added `setAuthFailureCallback()` registration system; `authFetch` now detects 401, clears AsyncStorage tokens, and triggers React state reset in `AuthContext` |
+| 13 | Calendar not opening in dues/Scheduled page | `app/dues.tsx` | Replaced `@react-native-community/datetimepicker` with `react-native-calendars` Modal (same pattern as `add-transaction.tsx`); DateTimePicker had rendering issues inside Modals |
+| 14 | Income vs Expense terminology confusing in dues | `app/dues.tsx` | Button "Pay" → "Receive" for income; Alert "DUE" → "RECEIVABLE" for income; confirmation dialogs adjusted by type |
+| 15 | Income/Expense toggle not visually obvious | `app/dues.tsx` | Replaced Chips with SegmentedButtons (theme-styled, selected state much clearer) |
+| 16 | "Dues" label confusing (implies only expense) | UI only | Renamed UI labels: "Dues" → "Scheduled", "Savings" → "Allocations"; database layer (`dues`, `savingsItems`) unchanged |
 
 ---
 
@@ -497,7 +521,9 @@ interface SavingsItem {
 
 Categories belong to **transactions** (they describe the "reason" for an income/expense). Prior to removal, budgets were decoupled from categories with a free-text `name` field.
 
-### Balance Reservation Math (current)
+### Balance Reservation Math (historical)
+
+> ⚠️ See §6 for current terminology: "Savings" (DB: `savingsItems`) is now displayed as **"Allocations"** in the UI, and "reservedSavings" is conceptually "totalAllocated".
 
 ```
 totalBalance   = initialBalance + income - expense
