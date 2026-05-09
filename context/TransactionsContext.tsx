@@ -127,21 +127,46 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     };
 
     /**
-     * MERGE (Insert + Update, no duplicates)
+     * MERGE with Last-Write-Wins (LWW) conflict resolution
+     * Uses updatedAt timestamp to determine winner
      */
     const mergeTransactions = async (remoteData: Transaction[]) => {
         const localData = await getTransactions();
+        const now = Date.now();
 
         const mergedMap = new Map<string, Transaction>();
 
-        // local first
+        // Helper: ensure item has updatedAt (backward compat)
+        const getUpdatedAt = (item: any): number => {
+            if (typeof item.updatedAt === 'number' && item.updatedAt > 0) {
+                return item.updatedAt;
+            }
+            return 0;
+        };
+
+        // Add all local items
         for (const tx of localData) {
             mergedMap.set(tx.id, tx);
         }
 
-        // remote overrides local if same id
-        for (const tx of remoteData) {
-            mergedMap.set(tx.id, tx);
+        // For remote items: only replace if remote is newer (LWW)
+        for (const remoteTx of remoteData) {
+            const localTx = mergedMap.get(remoteTx.id);
+
+            if (!localTx) {
+                // Local doesn't have this - add it
+                mergedMap.set(remoteTx.id, remoteTx);
+            } else {
+                // Both have it - LWW: pick the one with newer updatedAt
+                const localTs = getUpdatedAt(localTx);
+                const remoteTs = getUpdatedAt(remoteTx);
+
+                if (remoteTs > localTs) {
+                    // Remote is newer - use remote
+                    mergedMap.set(remoteTx.id, remoteTx);
+                }
+                // Else: local is newer or same - keep local
+            }
         }
 
         const merged = Array.from(mergedMap.values());

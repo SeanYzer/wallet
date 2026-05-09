@@ -2,13 +2,18 @@ export type TransactionType = "income" | "expense";
 export type DueFrequency = "once" | "weekly" | "biweekly" | "monthly" | "yearly";
 export type PaymentMethod = string;
 
-export interface Category {
+export interface TimestampedEntity {
+  updatedAt: number;
+}
+
+export interface Category extends TimestampedEntity {
   id: string;
   name: string;
   type: TransactionType;
+  isGlobal?: boolean;
 }
 
-export interface Transaction {
+export interface Transaction extends TimestampedEntity {
   id: string;
   title?: string;
   amount: number;
@@ -28,7 +33,7 @@ export interface Transaction {
   dueId?: string;
 }
 
-export interface Due {
+export interface Due extends TimestampedEntity {
   id: string;
   title: string;
   amount: number;
@@ -40,7 +45,7 @@ export interface Due {
   completed?: boolean;
 }
 
-export interface SavingsItem {
+export interface SavingsItem extends TimestampedEntity {
   id: string;
   title: string;
   balance: number;

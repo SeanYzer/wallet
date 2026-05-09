@@ -1,7 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system';
-import { Category, Transaction, Agenda, Subscription, SavingsItem, Due } from '../types';
+import { Category, Transaction, Agenda, Subscription, SavingsItem, Due, TimestampedEntity } from '../types';
+
+function nowTimestamp(): number {
+  return Date.now();
+}
+
+function ensureTimestamp<T extends TimestampedEntity>(entity: T | any): T {
+  if (!entity) return entity;
+  if (typeof entity.updatedAt !== 'number' || entity.updatedAt <= 0) {
+    return { ...entity, updatedAt: nowTimestamp() };
+  }
+  return entity;
+}
+
+function ensureAllTimestamps<T extends TimestampedEntity>(entities: (T | any)[]): T[] {
+  return entities.map(e => ensureTimestamp(e));
+}
 
 /**
  * --- Configuration ---
@@ -9,15 +25,15 @@ import { Category, Transaction, Agenda, Subscription, SavingsItem, Due } from '.
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export const GLOBAL_CATEGORIES: Category[] = [
-  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b11', name: 'Food', type: 'expense', isGlobal: true },
-  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b12', name: 'Bills', type: 'expense', isGlobal: true },
-  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b13', name: 'Transport', type: 'expense', isGlobal: true },
-  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b14', name: 'Shopping', type: 'expense', isGlobal: true },
-  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b15', name: 'Entertainment', type: 'expense', isGlobal: true },
-  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b16', name: 'Salary', type: 'income', isGlobal: true },
-  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b17', name: 'Freelance', type: 'income', isGlobal: true },
-  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b18', name: 'Others', type: 'expense', isGlobal: true },
-  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b19', name: 'Others', type: 'income', isGlobal: true },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b11', name: 'Food', type: 'expense', isGlobal: true, updatedAt: 0 },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b12', name: 'Bills', type: 'expense', isGlobal: true, updatedAt: 0 },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b13', name: 'Transport', type: 'expense', isGlobal: true, updatedAt: 0 },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b14', name: 'Shopping', type: 'expense', isGlobal: true, updatedAt: 0 },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b15', name: 'Entertainment', type: 'expense', isGlobal: true, updatedAt: 0 },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b16', name: 'Salary', type: 'income', isGlobal: true, updatedAt: 0 },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b17', name: 'Freelance', type: 'income', isGlobal: true, updatedAt: 0 },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b18', name: 'Others', type: 'expense', isGlobal: true, updatedAt: 0 },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b19', name: 'Others', type: 'income', isGlobal: true, updatedAt: 0 },
 ];
 
 export const GLOBAL_PAYMENT_METHODS = [
@@ -190,17 +206,18 @@ export const getCategories = async (): Promise<Category[]> => {
   const fullKey = await getPrefixedKey('categories');
   const items = await getItem<Category[]>(fullKey, []);
   console.log("Categories - getCategories", fullKey, items);
-  return deduplicate(items);
+  return ensureAllTimestamps(deduplicate(items));
 };
 
 export const saveCategory = async (category: Category) => {
   const fullKey = await getPrefixedKey('categories');
   const items = await getCategories();
   const index = items.findIndex(c => String(c.id) === String(category.id));
+  const withTimestamp = { ...category, updatedAt: nowTimestamp() };
   if (index >= 0) {
-    items[index] = category;
+    items[index] = withTimestamp;
   } else {
-    items.push(category);
+    items.push(withTimestamp);
   }
   await setItem(fullKey, items);
 };
@@ -211,10 +228,11 @@ export const saveCategoriesBulk = async (categories: Category[]) => {
 
   for (const cat of categories) {
     const index = items.findIndex(c => String(c.id) === String(cat.id));
+    const withTimestamp = { ...cat, updatedAt: cat.updatedAt || nowTimestamp() };
     if (index >= 0) {
-      items[index] = cat;
+      items[index] = withTimestamp;
     } else {
-      items.push(cat);
+      items.push(withTimestamp);
     }
   }
   await setItem(fullKey, items);
@@ -241,7 +259,7 @@ export const getBudgets = async (): Promise<Budget[]> => {
 export const getTransactions = async (): Promise<Transaction[]> => {
   const fullKey = await getPrefixedKey('transactions');
   const items = await getItem<Transaction[]>(fullKey, []);
-  return deduplicate(items);
+  return ensureAllTimestamps(deduplicate(items));
 };
 
 export const saveTransaction = async (t: Transaction) => {
@@ -250,7 +268,7 @@ export const saveTransaction = async (t: Transaction) => {
   const index = items.findIndex(x => String(x.id) === String(t.id));
 
   // Ensure we don't store undefined
-  const sanitized = { ...t };
+  const sanitized = { ...t, updatedAt: nowTimestamp() };
   if (sanitized.note === undefined) sanitized.note = null as any;
   if (sanitized.receiptUrl === undefined) sanitized.receiptUrl = null as any;
 
@@ -268,7 +286,7 @@ export const saveTransactionsBulk = async (transactions: Transaction[]) => {
 
   for (const t of transactions) {
     const index = items.findIndex(x => String(x.id) === String(t.id));
-    const sanitized = { ...t };
+    const sanitized = { ...t, updatedAt: t.updatedAt || nowTimestamp() };
     if (sanitized.note === undefined) sanitized.note = null as any;
     if (sanitized.receiptUrl === undefined) sanitized.receiptUrl = null as any;
 
@@ -292,7 +310,7 @@ export const updateTransactionLocal = async (id: string, updates: Partial<Transa
   const items = await getTransactions();
   const index = items.findIndex(x => String(x.id) === String(id));
   if (index >= 0) {
-    items[index] = { ...items[index], ...updates };
+    items[index] = { ...items[index], ...updates, updatedAt: nowTimestamp() };
     const fullKey = await getPrefixedKey('transactions');
     await setItem(fullKey, items);
   }
@@ -414,22 +432,24 @@ export const getDues = async (): Promise<Due[]> => {
         categoryId: item.categoryId,
         autoProcess: false,
         completed: item.completed || false,
+        updatedAt: nowTimestamp(),
       } as Due;
     }
     return item as Due;
   });
 
-  return migrated;
+  return ensureAllTimestamps(migrated);
 };
 
 export const saveDue = async (due: Due) => {
   const fullKey = await getPrefixedKey('dues');
   const items = await getDues();
   const index = items.findIndex(d => String(d.id) === String(due.id));
+  const withTimestamp = { ...due, updatedAt: nowTimestamp() };
   if (index >= 0) {
-    items[index] = due;
+    items[index] = withTimestamp;
   } else {
-    items.push(due);
+    items.push(withTimestamp);
   }
   await setItem(fullKey, items);
 };
@@ -439,8 +459,9 @@ export const saveDuesBulk = async (dues: Due[]) => {
   const items = await getDues();
   for (const d of dues) {
     const index = items.findIndex(x => String(x.id) === String(d.id));
-    if (index >= 0) items[index] = d;
-    else items.push(d);
+    const withTimestamp = { ...d, updatedAt: d.updatedAt || nowTimestamp() };
+    if (index >= 0) items[index] = withTimestamp;
+    else items.push(withTimestamp);
   }
   await setItem(fullKey, items);
 };
@@ -456,7 +477,7 @@ export const updateDueLocal = async (id: string, updates: Partial<Due>) => {
   const items = await getDues();
   const index = items.findIndex(d => String(d.id) === String(id));
   if (index >= 0) {
-    items[index] = { ...items[index], ...updates };
+    items[index] = { ...items[index], ...updates, updatedAt: nowTimestamp() };
     const fullKey = await getPrefixedKey('dues');
     await setItem(fullKey, items);
   }
@@ -478,28 +499,32 @@ export const getSavingsItems = async (): Promise<SavingsItem[]> => {
         balance: item.currentAmount || 0,
         icon: item.icon,
         color: item.color,
+        updatedAt: nowTimestamp(),
       } as SavingsItem;
     }
     return item as SavingsItem;
   });
 
   const seen = new Set();
-  return migrated.filter((g: SavingsItem) => {
+  const deduplicated = migrated.filter((g: SavingsItem) => {
     const key = g.title.toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+
+  return ensureAllTimestamps(deduplicated);
 };
 
 export const saveSavingsItem = async (item: SavingsItem) => {
   const fullKey = await getPrefixedKey('savingsItems');
   const items = await getSavingsItems();
   const index = items.findIndex(g => String(g.id) === String(item.id));
+  const withTimestamp = { ...item, updatedAt: nowTimestamp() };
   if (index >= 0) {
-    items[index] = item;
+    items[index] = withTimestamp;
   } else {
-    items.push(item);
+    items.push(withTimestamp);
   }
   await setItem(fullKey, items);
 };
@@ -509,8 +534,9 @@ export const saveSavingsItemsBulk = async (items: SavingsItem[]) => {
   const existing = await getSavingsItems();
   for (const g of items) {
     const index = existing.findIndex(x => String(x.id) === String(g.id));
-    if (index >= 0) existing[index] = g;
-    else existing.push(g);
+    const withTimestamp = { ...g, updatedAt: g.updatedAt || nowTimestamp() };
+    if (index >= 0) existing[index] = withTimestamp;
+    else existing.push(withTimestamp);
   }
   await setItem(fullKey, existing);
 };
@@ -526,7 +552,7 @@ export const updateSavingsItemLocal = async (id: string, updates: Partial<Saving
   const items = await getSavingsItems();
   const index = items.findIndex(g => String(g.id) === String(id));
   if (index >= 0) {
-    items[index] = { ...items[index], ...updates };
+    items[index] = { ...items[index], ...updates, updatedAt: nowTimestamp() };
     const fullKey = await getPrefixedKey('savingsItems');
     await setItem(fullKey, items);
   }
