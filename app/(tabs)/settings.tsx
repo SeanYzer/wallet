@@ -399,7 +399,7 @@ export default function SettingsScreen() {
         await authFetch(`transactions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...t, categoryId: String(t.category.id), userId: activeUserId })
+          body: JSON.stringify({ ...t, categoryId: t.category?.id ? String(t.category.id) : (t as any).categoryId, userId: activeUserId })
         }).catch(() => { });
       }
 

@@ -76,7 +76,7 @@ export default function ReportsScreen() {
   const categoryDataMap = filteredTransactions
     .filter(t => t.type === "expense")
     .reduce((acc: any, t) => {
-      const cat = t.category.name;
+      const cat = t.category?.name || "Uncategorized";
       acc[cat] = (acc[cat] || 0) + t.amount;
       return acc;
     }, {});

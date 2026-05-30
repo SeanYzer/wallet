@@ -54,6 +54,12 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="learning-detail"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
                 name="settings"
                 options={{
                     title: "Settings",

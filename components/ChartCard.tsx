@@ -13,7 +13,7 @@ export function ChartCard({ transactions }: { transactions: Transaction[] }) {
 
   // Group by category
   const dataMap = expenses.reduce((acc, curr) => {
-    const cat = curr.category.name;
+    const cat = curr.category?.name || "Uncategorized";
     if (!acc[cat]) acc[cat] = 0;
     acc[cat] += curr.amount;
     return acc;

@@ -61,7 +61,7 @@ export default function LearningScreen() {
                         <Card
                             key={index}
                             style={{ marginBottom: 12, borderRadius: 16, backgroundColor: theme.colors.surface }}
-                            onPress={() => router.push({ pathname: "/learning-detail", params: { id: item.id } })}
+                            onPress={() => router.push({ pathname: "/(tabs)/learning-detail", params: { id: item.id } })}
                         >
                             <Card.Content style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: theme.colors.primaryContainer, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>

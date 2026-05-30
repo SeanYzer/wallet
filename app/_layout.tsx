@@ -153,7 +153,6 @@ function MainLayout() {
             <Stack.Screen name="subscriptions" />
             <Stack.Screen name="savings" />
             <Stack.Screen name="payment-methods" options={{ animation: "slide_from_right" }} />
-            <Stack.Screen name="learning-detail" options={{ animation: "slide_from_right" }} />
           </Stack>
         </View>
       </NetworkProvider>
