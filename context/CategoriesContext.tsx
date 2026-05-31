@@ -52,15 +52,11 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
 
       const autoBackup = await getSetting('autoBackup');
       if (API_URL && activeUserId && autoBackup !== 'false') {
-        const response = await authFetch("categories");
+        const { ok, data } = await authFetch("categories");
 
-        if (response.ok) {
-          const remoteData = await response.json();
-
-          if (Array.isArray(remoteData)) {
-            await saveCategoriesBulk(remoteData);
-            setCategories(remoteData);
-          }
+        if (ok && Array.isArray(data)) {
+          await saveCategoriesBulk(data);
+          setCategories(data);
         }
 
         processSyncQueue();

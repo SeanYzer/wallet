@@ -156,14 +156,14 @@ export default function SettingsScreen() {
      setIsSyncing(true);
      setShowBackupDialog(false);
      try {
-       const [txRes, catRes, profRes] = await Promise.all([
-         authFetch(`transactions?userId=${activeUserId}`),
-         authFetch(`categories?userId=${activeUserId}`),
-         authFetch(`userProfiles?userId=${activeUserId}`)
-       ]);
-       const txs = await txRes.json();
-       const cats = await catRes.json();
-       const profs = await profRes.json();
+      const [txResult, catResult, profResult] = await Promise.all([
+          authFetch(`transactions?userId=${activeUserId}`),
+          authFetch(`categories?userId=${activeUserId}`),
+          authFetch(`userProfiles?userId=${activeUserId}`)
+        ]);
+        const txs = txResult.data || [];
+        const cats = catResult.data || [];
+        const profs = profResult.data || [];
 
        const hasCloudData = (Array.isArray(txs) && txs.length > 0) ||
          (Array.isArray(cats) && cats.length > 0) ||
@@ -195,19 +195,19 @@ export default function SettingsScreen() {
        const localSavings = await getSavingsItems();
        const localProfile = await getUserProfile();
 
-       const [txRes, catRes, dueRes, savRes, profRes] = await Promise.all([
-         authFetch(`transactions?userId=${activeUserId}`),
-         authFetch(`categories?userId=${activeUserId}`),
-         authFetch(`dues?userId=${activeUserId}`),
-         authFetch(`savingsItems?userId=${activeUserId}`),
-         authFetch(`userProfiles?userId=${activeUserId}`)
-       ]);
+       const [txResult, catResult, dueResult, savResult, profResult] = await Promise.all([
+          authFetch(`transactions?userId=${activeUserId}`),
+          authFetch(`categories?userId=${activeUserId}`),
+          authFetch(`dues?userId=${activeUserId}`),
+          authFetch(`savingsItems?userId=${activeUserId}`),
+          authFetch(`userProfiles?userId=${activeUserId}`)
+        ]);
 
-       const remoteTxs = Array.isArray(await txRes.json()) ? await txRes.json() : [];
-       const remoteCats = Array.isArray(await catRes.json()) ? await catRes.json() : [];
-       const remoteDues = Array.isArray(await dueRes.json()) ? await dueRes.json() : [];
-       const remoteSavings = Array.isArray(await savRes.json()) ? await savRes.json() : [];
-       const remoteProfiles = Array.isArray(await profRes.json()) ? await profRes.json() : [];
+        const remoteTxs = Array.isArray(txResult.data) ? txResult.data : [];
+        const remoteCats = Array.isArray(catResult.data) ? catResult.data : [];
+        const remoteDues = Array.isArray(dueResult.data) ? dueResult.data : [];
+        const remoteSavings = Array.isArray(savResult.data) ? savResult.data : [];
+        const remoteProfiles = Array.isArray(profResult.data) ? profResult.data : [];
        const remoteProfile = remoteProfiles[0] || null;
 
        const mergedTxs = mergeLWW(localTxs, remoteTxs);
@@ -244,107 +244,102 @@ export default function SettingsScreen() {
            ? remoteProfile
            : localProfile;
 
-         if (mergedProfile) {
-           const profCheck = await authFetch(`userProfiles?userId=${activeUserId}`);
-           const profExisting = await profCheck.json();
+          if (mergedProfile) {
+            const { data: profExisting } = await authFetch(`userProfiles?userId=${activeUserId}`);
 
-           if (Array.isArray(profExisting) && profExisting.length > 0) {
-             await authFetch(`userProfiles/${profExisting[0].id}`, {
-               method: "PUT",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({ ...mergedProfile, userId: activeUserId })
-             }).catch(() => {});
-           } else {
-             await authFetch(`userProfiles`, {
-               method: "POST",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({ ...mergedProfile, userId: activeUserId })
-             }).catch(() => {});
-           }
-         }
+            if (Array.isArray(profExisting) && profExisting.length > 0) {
+              await authFetch(`userProfiles/${profExisting[0].id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...mergedProfile, userId: activeUserId })
+              }).catch(() => {});
+            } else {
+              await authFetch(`userProfiles`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...mergedProfile, userId: activeUserId })
+              }).catch(() => {});
+            }
+          }
        }
 
-       for (const c of mergedCats) {
-         const check = await authFetch(`categories?id=${c.id}`);
-         const existing = await check.json();
+        for (const c of mergedCats) {
+          const { data: existing } = await authFetch(`categories?id=${c.id}`);
 
-         if (Array.isArray(existing) && existing.length > 0) {
-           await authFetch(`categories/${c.id}`, {
-             method: "PUT",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ ...c, userId: activeUserId })
-           }).catch(() => {});
-         } else {
-           await authFetch(`categories`, {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ ...c, userId: activeUserId })
-           }).catch(() => {});
-         }
-       }
+          if (Array.isArray(existing) && existing.length > 0) {
+            await authFetch(`categories/${c.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...c, userId: activeUserId })
+            }).catch(() => {});
+          } else {
+            await authFetch(`categories`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...c, userId: activeUserId })
+            }).catch(() => {});
+          }
+        }
 
-       for (const d of mergedDues) {
-         const check = await authFetch(`dues?id=${d.id}`);
-         const existing = await check.json();
+        for (const d of mergedDues) {
+          const { data: existing } = await authFetch(`dues?id=${d.id}`);
 
-         if (Array.isArray(existing) && existing.length > 0) {
-           await authFetch(`dues/${d.id}`, {
-             method: "PUT",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ ...d, userId: activeUserId })
-           }).catch(() => {});
-         } else {
-           await authFetch(`dues`, {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ ...d, userId: activeUserId })
-           }).catch(() => {});
-         }
-       }
+          if (Array.isArray(existing) && existing.length > 0) {
+            await authFetch(`dues/${d.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...d, userId: activeUserId })
+            }).catch(() => {});
+          } else {
+            await authFetch(`dues`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...d, userId: activeUserId })
+            }).catch(() => {});
+          }
+        }
 
        for (const s of mergedSavings) {
-         const check = await authFetch(`savingsItems?id=${s.id}`);
-         const existing = await check.json();
+          const { data: existing } = await authFetch(`savingsItems?id=${s.id}`);
 
-         if (Array.isArray(existing) && existing.length > 0) {
-           await authFetch(`savingsItems/${s.id}`, {
-             method: "PUT",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ ...s, userId: activeUserId })
-           }).catch(() => {});
-         } else {
-           await authFetch(`savingsItems`, {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ ...s, userId: activeUserId })
-           }).catch(() => {});
-         }
-       }
+          if (Array.isArray(existing) && existing.length > 0) {
+            await authFetch(`savingsItems/${s.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...s, userId: activeUserId })
+            }).catch(() => {});
+          } else {
+            await authFetch(`savingsItems`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...s, userId: activeUserId })
+            }).catch(() => {});
+          }
+        }
 
-       for (const t of mergedTxs) {
-         const check = await authFetch(`transactions?id=${t.id}`);
-         const existing = await check.json();
+        for (const t of mergedTxs) {
+          const { data: existing } = await authFetch(`transactions?id=${t.id}`);
 
-         const txData = {
-           ...t,
-           categoryId: t.category?.id ? String(t.category.id) : (t as any).categoryId,
-           userId: activeUserId
-         };
+          const txData = {
+            ...t,
+            categoryId: t.category?.id ? String(t.category.id) : (t as any).categoryId,
+            userId: activeUserId
+          };
 
-         if (Array.isArray(existing) && existing.length > 0) {
-           await authFetch(`transactions/${t.id}`, {
-             method: "PUT",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify(txData)
-           }).catch(() => {});
-         } else {
-           await authFetch(`transactions`, {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify(txData)
-           }).catch(() => {});
-         }
-       }
+          if (Array.isArray(existing) && existing.length > 0) {
+            await authFetch(`transactions/${t.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(txData)
+            }).catch(() => {});
+          } else {
+            await authFetch(`transactions`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(txData)
+            }).catch(() => {});
+          }
+        }
 
        await Promise.all([
          refetchTx(),
@@ -372,9 +367,7 @@ export default function SettingsScreen() {
 
 
       if (profile) {
-        // Find existing profile on API to get its ID for PATCH, or POST if none
-        const check = await authFetch(`userProfiles?userId=${activeUserId}`);
-        const existing = await check.json();
+        const { data: existing } = await authFetch(`userProfiles?userId=${activeUserId}`);
 
         const method = (existing && existing.length > 0) ? "PATCH" : "POST";
         const url = (existing && existing.length > 0)
@@ -419,19 +412,17 @@ export default function SettingsScreen() {
         if (activeUserId) {
           console.log("Syncing Clear Data to cloud for user:", activeUserId);
           // 1. Fetch user data from cloud (Except Profile/User)
-          const [txRes, catRes, dueRes, savRes] = await Promise.all([
+          const [txResult, catResult, dueResult, savResult] = await Promise.all([
             authFetch(`transactions?userId=${activeUserId}`),
             authFetch(`categories?userId=${activeUserId}`),
             authFetch(`dues?userId=${activeUserId}`),
             authFetch(`savingsItems?userId=${activeUserId}`)
           ]);
 
-          const [txs, cats, dues, savs] = await Promise.all([
-            txRes.json(),
-            catRes.json(),
-            dueRes.json(),
-            savRes.json()
-          ]);
+          const txs = txResult.data || [];
+          const cats = catResult.data || [];
+          const dues = dueResult.data || [];
+          const savs = savResult.data || [];
 
           // 2. Delete all from cloud
           const deletePromises = [
@@ -538,27 +529,27 @@ export default function SettingsScreen() {
       console.log("[Restore] Starting cloud restore for user:", activeUserId);
 
       // Fetch all to catch legacy data (missing userId)
-      const [txRes, catRes, profRes] = await Promise.all([
+      const [txResult, catResult, profResult] = await Promise.all([
         authFetch(`transactions`),
         authFetch(`categories`),
         authFetch(`userProfiles`)
       ]);
 
       console.log("[Restore] Network status:", {
-        txs: txRes.status,
-        cats: catRes.status,
-        profs: profRes.status
+        txs: txResult.status,
+        cats: catResult.status,
+        profs: profResult.status
       });
 
-      if (!txRes.ok || !catRes.ok || !profRes.ok) {
+      if (!txResult.ok || !catResult.ok || !profResult.ok) {
         console.error("[Restore] Cloud restore network error.");
         alert("Could not connect to the cloud API. Please check your connection.");
         return;
       }
 
-      const allTxs = await txRes.json();
-      const allCats = await catRes.json();
-      const allProfs = await profRes.json();
+      const allTxs = txResult.data || [];
+      const allCats = catResult.data || [];
+      const allProfs = profResult.data || [];
 
       console.log("[Restore] Raw data received:", {
         txs: Array.isArray(allTxs) ? allTxs.length : "error",

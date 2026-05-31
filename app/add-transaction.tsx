@@ -49,9 +49,8 @@ export default function AddTransaction() {
 
   const fetchPaymentMethods = async () => {
     try {
-      const response = await authFetch(`paymentMethods`);
-      if (response.ok) {
-        const data = await response.json();
+      const { ok, data } = await authFetch(`paymentMethods`);
+      if (ok && data) {
         setAvailablePaymentMethods(data);
         if (data.length > 0) {
           setPaymentMethod(data[0].name);

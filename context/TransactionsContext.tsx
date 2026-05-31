@@ -79,7 +79,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                             encoding: 'base64',
                         });
 
-                        const uploadRes = await authFetch(`storage/upload`, {
+                        const { ok, data: uploadData } = await authFetch(`storage/upload`, {
                             method: "POST",
                             body: JSON.stringify({
                                 path: securedPath,
@@ -88,9 +88,8 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                             })
                         });
 
-                        if (uploadRes.ok) {
-                            const { url } = await uploadRes.json();
-                            return { ...tx, receiptUrl: url };
+                        if (ok && uploadData?.url) {
+                            return { ...tx, receiptUrl: uploadData.url };
                         }
                     } catch (e) {
                         console.error("Failed to sync image to cloud:", e);
@@ -100,7 +99,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             }));
 
              // 2. Sync transactions with cloud-ready URLs
-             const response = await authFetch(`transactions/sync`, {
+             const { ok, data: json } = await authFetch<{ transactions: Transaction[] }>(`transactions/sync`, {
                  method: "POST",
                  headers: { "Content-Type": "application/json" },
                  body: JSON.stringify({
@@ -109,10 +108,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                  })
              });
 
-             if (!response.ok) return;
+             if (!ok) return;
 
-            const json = await response.json();
-            const remoteData: Transaction[] = json?.data?.transactions;
+            const remoteData: Transaction[] | undefined = json?.transactions;
 
             if (!Array.isArray(remoteData)) return;
 

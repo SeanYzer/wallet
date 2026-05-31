@@ -24,10 +24,8 @@ export function useDues() {
 
       const autoBackup = await getSetting('autoBackup');
       if (API_URL && activeUserId && autoBackup !== 'false') {
-        const response = await authFetch(`dues`);
-        if (response.ok) {
-          const remoteData = await response.json();
-          if (Array.isArray(remoteData)) {
+        const { ok, data: remoteData } = await authFetch(`dues`);
+        if (ok && Array.isArray(remoteData)) {
             await saveDuesBulk(remoteData);
             const merged = await getDues();
             const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());

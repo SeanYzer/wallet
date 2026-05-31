@@ -26,7 +26,6 @@ const entityEndpoints: Record<SyncEntity, string> = {
 
 interface SyncResult {
   success: boolean;
-  response?: Response;
   error?: string;
 }
 
@@ -57,28 +56,29 @@ async function processSingleItem(item: SyncQueueItem): Promise<SyncResult> {
   const endpoint = entityEndpoints[item.entity];
 
   try {
-    let response: Response;
     const url = item.entityId
       ? `${endpoint}/${item.entityId}`
       : endpoint;
 
+    let apiResult;
+
     switch (item.operation) {
       case 'create':
-        response = await authFetch(endpoint, {
+        apiResult = await authFetch(endpoint, {
           method: 'POST',
           body: JSON.stringify(item.data),
         });
         break;
 
       case 'update':
-        response = await authFetch(url, {
+        apiResult = await authFetch(url, {
           method: 'PUT',
           body: JSON.stringify(item.data),
         });
         break;
 
       case 'delete':
-        response = await authFetch(url, {
+        apiResult = await authFetch(url, {
           method: 'DELETE',
         });
         break;
@@ -87,15 +87,14 @@ async function processSingleItem(item: SyncQueueItem): Promise<SyncResult> {
         return { success: false, error: 'Unknown operation' };
     }
 
-    if (response.ok) {
-      return { success: true, response };
-    } else if (response.status === 401) {
+    if (apiResult.ok) {
+      return { success: true };
+    } else if (apiResult.status === 401) {
       return { success: false, error: 'Unauthorized - session expired' };
     } else {
       return {
         success: false,
-        error: `HTTP ${response.status}`,
-        response,
+        error: apiResult.error || `HTTP ${apiResult.status}`,
       };
     }
   } catch (error: any) {

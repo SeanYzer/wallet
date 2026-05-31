@@ -55,19 +55,16 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         try {
             const local = await getUserProfile();
             
-             if (API_URL && activeUserId) {
-                 const response = await authFetch(`userProfiles?userId=${activeUserId}`);
-                 
-                 if (response.ok) {
-                    const cloudProfile = await response.json();
-                    if (cloudProfile && cloudProfile.name) {
-                        const merged = { ...DEFAULT_PROFILE, ...cloudProfile };
-                        setProfile(merged);
-                        await saveUserProfile(merged);
-                        return;
-                    }
-                }
-            }
+              if (API_URL && activeUserId) {
+                  const { ok, data: cloudProfile } = await authFetch(`userProfiles?userId=${activeUserId}`);
+                  
+                  if (ok && cloudProfile && cloudProfile.name) {
+                     const merged = { ...DEFAULT_PROFILE, ...cloudProfile };
+                     setProfile(merged);
+                     await saveUserProfile(merged);
+                     return;
+                 }
+             }
 
             if (local) {
                 setProfile({ ...DEFAULT_PROFILE, ...local });

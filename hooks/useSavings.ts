@@ -25,10 +25,8 @@ export function useSavings() {
 
             const autoBackup = await getSetting('autoBackup');
             if (API_URL && activeUserId && autoBackup !== 'false') {
-                const response = await authFetch(`savingsItems?userId=${activeUserId}`);
-                if (response.ok) {
-                    const remoteData: SavingsItem[] = await response.json();
-                    if (Array.isArray(remoteData)) {
+                const { ok, data: remoteData } = await authFetch<SavingsItem[]>(`savingsItems?userId=${activeUserId}`);
+                if (ok && Array.isArray(remoteData)) {
                         const localMap = new Map(localData.map(g => [g.id, g]));
                         const remoteMap = new Map(remoteData.map(g => [g.id, g]));
                         const remoteTitleMap = new Map(remoteData.map(g => [g.title.toLowerCase(), g]));
