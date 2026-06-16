@@ -199,10 +199,6 @@ export const getCategories = async (): Promise<Category[]> => {
   return categoryRepo.getAll();
 };
 
-export const saveCategoriesBulk = async (categories: Category[]) => {
-  await categoryRepo.upsertBulk(categories);
-};
-
 // --- Transactions CRUD ---
 
 export const getTransactions = async (): Promise<Transaction[]> => {
@@ -211,16 +207,6 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     ...t,
     category: t.category || { id: 'uncategorized', name: 'Others', type: t.type || 'expense', updatedAt: 0 },
   }));
-};
-
-export const saveTransactionsBulk = async (transactions: Transaction[]) => {
-  const sanitized = transactions.map(t => {
-    const withTimestamp = { ...t, updatedAt: t.updatedAt || nowTimestamp() };
-    if ((withTimestamp as any).note === undefined) (withTimestamp as any).note = null;
-    if ((withTimestamp as any).receiptUrl === undefined) (withTimestamp as any).receiptUrl = null;
-    return withTimestamp;
-  });
-  await transactionRepo.upsertBulk(sanitized);
 };
 
 // --- Agendas CRUD ---
@@ -262,10 +248,6 @@ export const getDues = async (): Promise<Due[]> => {
   return migrated;
 };
 
-export const saveDuesBulk = async (dues: Due[]) => {
-  await dueRepo.upsertBulk(dues);
-};
-
 // --- Savings Items CRUD ---
 
 export const getSavingsItems = async (): Promise<SavingsItem[]> => {
@@ -294,10 +276,6 @@ export const getSavingsItems = async (): Promise<SavingsItem[]> => {
     seen.add(key);
     return true;
   });
-};
-
-export const saveSavingsItemsBulk = async (items: SavingsItem[]) => {
-  await savingsItemRepo.upsertBulk(items);
 };
 
 // --- Master Users (Auth) ---

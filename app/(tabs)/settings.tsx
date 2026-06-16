@@ -5,7 +5,8 @@ import { useRouter } from "expo-router";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
-import { getSetting, setSetting, clearAllLocalData, getTransactions, getCategories, getUserProfile, getDues, getSavingsItems, exportData, importData, deleteUser, mergeLWW, saveTransactionsBulk, saveCategoriesBulk, saveDuesBulk, saveSavingsItemsBulk, saveUserProfile } from "../../utils/db";
+import { useRepositories } from "../../context/RepositoryContext";
+import { getSetting, setSetting, clearAllLocalData, exportData, importData, deleteUser, mergeLWW } from "../../utils/db";
 import { useAuth } from "../../context/AuthContext";
 import { useCurrency, CURRENCIES, CurrencyCode } from "../../context/CurrencyContext";
 import { useAppTheme } from "../../context/ThemeContext";
@@ -113,6 +114,7 @@ export default function SettingsScreen() {
   const { activeUserId, logout } = useAuth();
   const { refetch: refetchTx } = useTransactionsContext();
   const { refetch: refetchCats } = useCategories();
+  const repos = useRepositories();
 
   const handleLogout = async () => {
     await logout();
@@ -200,11 +202,11 @@ export default function SettingsScreen() {
      try {
        console.log("[MergeLWW] Starting Last-Write-Wins merge...");
 
-       const localTxs = await getTransactions();
-       const localCats = await getCategories();
-       const localDues = await getDues();
-       const localSavings = await getSavingsItems();
-       const localProfile = await getUserProfile();
+        const localTxs = await repos.transactions.getAll();
+        const localCats = await repos.categories.getAll();
+        const localDues = await repos.dues.getAll();
+        const localSavings = await repos.savingsItems.getAll();
+        const [localProfile] = await repos.profiles.getAll();
 
        const [txResult, catResult, dueResult, savResult, profResult] = await Promise.all([
           authFetch(`transactions?userId=${activeUserId}`),
@@ -233,16 +235,16 @@ export default function SettingsScreen() {
          savingsItems: mergedSavings.length
        });
 
-       await saveTransactionsBulk(mergedTxs);
-       await saveCategoriesBulk(mergedCats);
-       await saveDuesBulk(mergedDues);
-       await saveSavingsItemsBulk(mergedSavings);
+        await repos.transactions.upsertBulk(mergedTxs);
+        await repos.categories.upsertBulk(mergedCats);
+        await repos.dues.upsertBulk(mergedDues);
+        await repos.savingsItems.upsertBulk(mergedSavings);
 
        if (localProfile && remoteProfile) {
          const localTs = (localProfile as any).updatedAt || 0;
          const remoteTs = (remoteProfile as any).updatedAt || 0;
          if (remoteTs > localTs) {
-           await saveUserProfile(remoteProfile);
+            await repos.profiles.upsert(remoteProfile as any);
          }
        }
 
@@ -372,9 +374,9 @@ export default function SettingsScreen() {
    const handleManualBackup = async () => {
     setIsSyncing(true);
     try {
-      const txs = await getTransactions();
-      const cats = await getCategories();
-      const profile = await getUserProfile();
+       const txs = await repos.transactions.getAll();
+       const cats = await repos.categories.getAll();
+       const [profile] = await repos.profiles.getAll();
 
 
       if (profile) {
