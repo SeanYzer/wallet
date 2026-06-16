@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from './db';
+import { getSecureItem, removeSecureItem } from './secureStorage';
 
 let onAuthFailure: (() => void) | null = null;
 
@@ -8,7 +9,8 @@ export const setAuthFailureCallback = (callback: () => void) => {
 };
 
 const clearAuthStorage = async () => {
-    await AsyncStorage.multiRemove(['authToken', 'activeUserId']);
+    await removeSecureItem('authToken');
+    await AsyncStorage.removeItem('activeUserId');
 };
 
 export interface ApiResult<T = any> {
@@ -22,7 +24,7 @@ export async function authFetch<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResult<T>> {
-  const token = await AsyncStorage.getItem('authToken');
+  const token = await getSecureItem('authToken');
 
   const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 

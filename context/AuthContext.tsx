@@ -4,6 +4,7 @@ import { Alert, Platform } from "react-native";
 import { API_URL } from "../utils/db";
 import { setAuthFailureCallback } from "../utils/apiClient";
 import { setCachedUserId } from "../utils/cache";
+import { setSecureItem, getSecureItem, removeSecureItem } from "../utils/secureStorage";
 
 interface AuthContextType {
   activeUserId: string | null;
@@ -23,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     Promise.all([
       AsyncStorage.getItem('activeUserId'),
-      AsyncStorage.getItem('authToken')
+      getSecureItem('authToken')
     ]).then(([id, t]) => {
       if (id) {
         setActiveUserId(id);
@@ -45,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [handleAuthFailure]);
 
   const login = async (userId: string, token: string) => {
-    await AsyncStorage.setItem('authToken', token);
+    await setSecureItem('authToken', token);
     await AsyncStorage.setItem('activeUserId', String(userId));
     setActiveUserId(String(userId));
     setCachedUserId(String(userId));
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await AsyncStorage.removeItem('activeUserId');
-    await AsyncStorage.removeItem('authToken');
+    await removeSecureItem('authToken');
     setActiveUserId(null);
     setCachedUserId(null);
     setToken(null);
