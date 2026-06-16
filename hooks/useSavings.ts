@@ -51,7 +51,6 @@ export function useSavings() {
                 }
 
                 processSyncQueue();
-            }
         } catch (error) {
             console.error("Error fetching savings items:", error);
         } finally {

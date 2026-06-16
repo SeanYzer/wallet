@@ -34,7 +34,6 @@ export function useDues() {
         }
 
         processSyncQueue();
-      }
     } catch (error) {
       console.error("Error fetching dues:", error);
     } finally {
