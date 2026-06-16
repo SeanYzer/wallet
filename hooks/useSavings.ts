@@ -1,16 +1,43 @@
 import { useState, useEffect } from "react";
 import { SavingsItem } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { API_URL, getSavingsItems, saveSavingsItem, saveSavingsItemsBulk, deleteSavingsItemLocal, updateSavingsItemLocal, getSetting } from "../utils/db";
+import { API_URL, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { enqueueAndTrigger, processSyncQueue } from "../utils/syncProcessor";
+import { useRepositories } from "../context/RepositoryContext";
 import { generateUUID } from "../utils/uuid";
+import { nowTimestamp } from "../utils/storage";
+
+function migrateSavingsItem(item: any): SavingsItem {
+  if (item.targetAmount !== undefined && item.balance === undefined) {
+    return {
+      id: item.id,
+      title: item.title,
+      balance: item.currentAmount || 0,
+      icon: item.icon,
+      color: item.color,
+      updatedAt: nowTimestamp(),
+    } as SavingsItem;
+  }
+  return item as SavingsItem;
+}
+
+function titleDeduplicate(items: SavingsItem[]): SavingsItem[] {
+  const seen = new Set<string>();
+  return items.filter((g) => {
+    const key = g.title.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 export function useSavings() {
     const [items, setItems] = useState<SavingsItem[]>([]);
     const [loading, setLoading] = useState(false);
 
     const { activeUserId } = useAuth();
+    const repos = useRepositories();
 
     useEffect(() => {
         if (!activeUserId) return;
@@ -20,14 +47,16 @@ export function useSavings() {
     const fetchItems = async () => {
         setLoading(true);
         try {
-            const localData = await getSavingsItems();
-            setItems(localData);
+            const localData = await repos.savingsItems.getAll();
+            const migrated = localData.map(migrateSavingsItem);
+            const deduped = titleDeduplicate(migrated);
+            setItems(deduped);
 
             const autoBackup = await getSetting('autoBackup');
             if (API_URL && activeUserId && autoBackup !== 'false') {
                 const { ok, data: remoteData } = await authFetch<SavingsItem[]>(`savingsItems?userId=${activeUserId}`);
                 if (ok && Array.isArray(remoteData)) {
-                        const localMap = new Map(localData.map(g => [g.id, g]));
+                        const localMap = new Map(deduped.map(g => [g.id, g]));
                         const remoteMap = new Map(remoteData.map(g => [g.id, g]));
                         const remoteTitleMap = new Map(remoteData.map(g => [g.title.toLowerCase(), g]));
 
@@ -37,7 +66,7 @@ export function useSavings() {
                             mergedMap.set(remoteItem.id, remoteItem);
                         }
 
-                        for (const localItem of localData) {
+                        for (const localItem of deduped) {
                             if (remoteMap.has(localItem.id)) continue;
                             if (remoteTitleMap.has(localItem.title.toLowerCase())) continue;
                             mergedMap.set(localItem.id, localItem);
@@ -45,7 +74,7 @@ export function useSavings() {
                         }
 
                         const merged = Array.from(mergedMap.values());
-                        await saveSavingsItemsBulk(merged);
+                        await repos.savingsItems.upsertBulk(merged);
                         setItems(merged);
                     }
                 }
@@ -66,9 +95,9 @@ export function useSavings() {
                 return;
             }
 
-            const newItem = { ...item, id: generateUUID(), userId: activeUserId } as any;
+            const newItem = { ...item, id: generateUUID() } as SavingsItem;
 
-            await saveSavingsItem(newItem);
+            await repos.savingsItems.upsert(newItem);
             setItems((prev) => [...prev, newItem]);
 
             const autoBackup = await getSetting('autoBackup');
@@ -84,7 +113,10 @@ export function useSavings() {
 
     const updateItem = async (id: string, updates: Partial<SavingsItem>) => {
         try {
-            await updateSavingsItemLocal(id, updates);
+            const existing = await repos.savingsItems.getById(id);
+            if (existing) {
+                await repos.savingsItems.upsert({ ...existing, ...updates } as SavingsItem);
+            }
             setItems((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
 
             const autoBackup = await getSetting('autoBackup');
@@ -99,7 +131,7 @@ export function useSavings() {
 
     const deleteItem = async (id: string) => {
         try {
-            await deleteSavingsItemLocal(id);
+            await repos.savingsItems.deleteById(id);
             setItems((prev) => prev.filter((g) => g.id !== id));
 
             const autoBackup = await getSetting('autoBackup');

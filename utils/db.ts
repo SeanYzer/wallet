@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Category, Transaction, Agenda, Subscription, SavingsItem, Due, TimestampedEntity, Budget, UserProfile, PaymentMethodInfo } from '../types';
+import { Category, Transaction, Agenda, Subscription, SavingsItem, Due, TimestampedEntity, UserProfile } from '../types';
 import { AsyncStorageTransactionRepository } from '../repositories/transaction.repo';
 import { AsyncStorageCategoryRepository } from '../repositories/category.repo';
 import { AsyncStorageDueRepository } from '../repositories/due.repo';
@@ -247,34 +247,14 @@ export const getPaymentMethods = async () => {
   return paymentMethodRepo.getAll();
 };
 
-export const savePaymentMethod = async (method: PaymentMethodInfo) => {
-  await paymentMethodRepo.upsert(method);
-};
-
 // --- Categories CRUD ---
 
 export const getCategories = async (): Promise<Category[]> => {
   return categoryRepo.getAll();
 };
 
-export const saveCategory = async (category: Category) => {
-  await categoryRepo.upsert(category);
-};
-
 export const saveCategoriesBulk = async (categories: Category[]) => {
   await categoryRepo.upsertBulk(categories);
-};
-
-export const deleteCategoryLocal = async (id: string) => {
-  await categoryRepo.deleteById(id);
-};
-
-// --- Budgets CRUD ---
-
-export const getBudgets = async (): Promise<Budget[]> => {
-  const fullKey = await getPrefixedKey('budgets');
-  const items = await getItem<Budget[]>(fullKey, []);
-  return deduplicate(items);
 };
 
 // --- Transactions CRUD ---
@@ -321,23 +301,8 @@ export const getAgendas = async (): Promise<Agenda[]> => {
   return agendaRepo.getAll();
 };
 
-export const saveAgenda = async (agenda: Agenda) => {
-  await agendaRepo.upsert(agenda);
-};
-
 export const saveAgendasBulk = async (agendas: Agenda[]) => {
   await agendaRepo.upsertBulk(agendas);
-};
-
-export const deleteAgendaLocal = async (id: string) => {
-  await agendaRepo.deleteById(id);
-};
-
-export const updateAgendaLocal = async (id: string, updates: Partial<Agenda>) => {
-  const item = await agendaRepo.getById(id);
-  if (item) {
-    await agendaRepo.upsert({ ...item, ...updates } as Agenda);
-  }
 };
 
 // --- Subscriptions CRUD ---
@@ -346,23 +311,8 @@ export const getSubscriptions = async (): Promise<Subscription[]> => {
   return subscriptionRepo.getAll();
 };
 
-export const saveSubscription = async (sub: Subscription) => {
-  await subscriptionRepo.upsert(sub);
-};
-
 export const saveSubscriptionsBulk = async (subscriptions: Subscription[]) => {
   await subscriptionRepo.upsertBulk(subscriptions);
-};
-
-export const deleteSubscriptionLocal = async (id: string) => {
-  await subscriptionRepo.deleteById(id);
-};
-
-export const updateSubscriptionLocal = async (id: string, updates: Partial<Subscription>) => {
-  const item = await subscriptionRepo.getById(id);
-  if (item) {
-    await subscriptionRepo.upsert({ ...item, ...updates } as Subscription);
-  }
 };
 
 // --- Dues CRUD ---
@@ -392,23 +342,8 @@ export const getDues = async (): Promise<Due[]> => {
   return migrated;
 };
 
-export const saveDue = async (due: Due) => {
-  await dueRepo.upsert(due);
-};
-
 export const saveDuesBulk = async (dues: Due[]) => {
   await dueRepo.upsertBulk(dues);
-};
-
-export const deleteDueLocal = async (id: string) => {
-  await dueRepo.deleteById(id);
-};
-
-export const updateDueLocal = async (id: string, updates: Partial<Due>) => {
-  const item = await dueRepo.getById(id);
-  if (item) {
-    await dueRepo.upsert({ ...item, ...updates } as Due);
-  }
 };
 
 // --- Savings Items CRUD ---
@@ -441,23 +376,8 @@ export const getSavingsItems = async (): Promise<SavingsItem[]> => {
   });
 };
 
-export const saveSavingsItem = async (item: SavingsItem) => {
-  await savingsItemRepo.upsert(item);
-};
-
 export const saveSavingsItemsBulk = async (items: SavingsItem[]) => {
   await savingsItemRepo.upsertBulk(items);
-};
-
-export const deleteSavingsItemLocal = async (id: string) => {
-  await savingsItemRepo.deleteById(id);
-};
-
-export const updateSavingsItemLocal = async (id: string, updates: Partial<SavingsItem>) => {
-  const item = await savingsItemRepo.getById(id);
-  if (item) {
-    await savingsItemRepo.upsert({ ...item, ...updates } as SavingsItem);
-  }
 };
 
 // --- Master Users (Auth) ---

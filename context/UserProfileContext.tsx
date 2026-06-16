@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getUserProfile, saveUserProfile, getSetting, API_URL } from "../utils/db";
+import { API_URL, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
+import { useRepositories } from "./RepositoryContext";
 
 interface UserProfile {
     name: string;
@@ -38,6 +39,7 @@ const UserProfileContext = createContext<UserProfileContextType | undefined>(und
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
     const { activeUserId } = useAuth();
+    const repos = useRepositories();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -53,15 +55,15 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     const fetchProfile = async () => {
         setIsLoading(true);
         try {
-            const local = await getUserProfile();
-            
+            const local = await repos.profiles.getById('default');
+
               if (API_URL && activeUserId) {
                   const { ok, data: cloudProfile } = await authFetch(`userProfiles?userId=${activeUserId}`);
-                  
+
                   if (ok && cloudProfile && cloudProfile.name) {
                      const merged = { ...DEFAULT_PROFILE, ...cloudProfile };
                      setProfile(merged);
-                     await saveUserProfile(merged);
+                     await repos.profiles.upsert(merged as UserProfile);
                      return;
                  }
              }
@@ -82,11 +84,10 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     const updateProfile = async (updates: Partial<UserProfile>) => {
         if (!profile) return;
         const newProfile = { ...profile, ...updates };
-        
-        await saveUserProfile(newProfile);
+
+        await repos.profiles.upsert(newProfile as UserProfile);
         setProfile(newProfile);
 
-        // Only sync to cloud if autoBackup is enabled (as per integration.md)
         if (API_URL && activeUserId && newProfile.autoBackup) {
             try {
                 await authFetch(`userProfiles/${activeUserId}`, {
@@ -101,19 +102,19 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
 
     const resetProfileToDefaults = async () => {
         if (!profile) return;
-        await updateProfile({ 
-            ...DEFAULT_PROFILE, 
-            name: profile.name, 
-            isFirstRun: false 
+        await updateProfile({
+            ...DEFAULT_PROFILE,
+            name: profile.name,
+            isFirstRun: false
         });
     };
 
     const completeSetup = async (name: string, balance: number) => {
         try {
-            await updateProfile({ 
-                name, 
+            await updateProfile({
+                name,
                 initialBalance: balance,
-                isFirstRun: false 
+                isFirstRun: false
             });
         } catch (error) {
             console.error("Error completing setup:", error);

@@ -1,22 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Category } from "../types";
-import { getCategories, saveCategory, deleteCategoryLocal, getSetting, API_URL, saveCategoriesBulk } from "../utils/db";
+import { API_URL, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { enqueueAndTrigger, processSyncQueue } from "../utils/syncProcessor";
 import { useAuth } from "./AuthContext";
+import { useRepositories } from "./RepositoryContext";
 import { generateUUID } from "../utils/uuid";
-
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: "1", name: "Food", type: "expense", updatedAt: 0 },
-  { id: "2", name: "Bills", type: "expense", updatedAt: 0 },
-  { id: "3", name: "Transport", type: "expense", updatedAt: 0 },
-  { id: "4", name: "Shopping", type: "expense", updatedAt: 0 },
-  { id: "5", name: "Entertainment", type: "expense", updatedAt: 0 },
-  { id: "6", name: "Salary", type: "income", updatedAt: 0 },
-  { id: "7", name: "Freelance", type: "income", updatedAt: 0 },
-  { id: "8", name: "Others", type: "expense", updatedAt: 0 },
-  { id: "9", name: "Others", type: "income", updatedAt: 0 },
-];
 
 interface CategoriesContextType {
   categories: Category[];
@@ -30,32 +19,23 @@ const CategoriesContext = createContext<CategoriesContextType | undefined>(undef
 
 export function CategoriesProvider({ children }: { children: ReactNode }) {
   const { activeUserId } = useAuth();
+  const repos = useRepositories();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
-  const isUUID = (value: any) =>
-    typeof value === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
   const fetchCategories = async () => {
     setLoading(true);
 
     try {
-      let data: any[] = [];
-
-      const localData = await getCategories();
-      const validLocal = localData.filter(item => isUUID(item.id));
-
-      if (validLocal.length > 0) {
-        data = validLocal;
-        setCategories(validLocal);
-      }
+      const localData = await repos.categories.getAll();
+      setCategories(localData);
 
       const autoBackup = await getSetting('autoBackup');
       if (API_URL && activeUserId && autoBackup !== 'false') {
         const { ok, data } = await authFetch("categories");
 
         if (ok && Array.isArray(data)) {
-          await saveCategoriesBulk(data);
+          await repos.categories.upsertBulk(data);
           setCategories(data);
         }
 
@@ -78,7 +58,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
   const addCategory = async (category: Omit<Category, "id">) => {
     try {
       const newCategory = { ...category, id: generateUUID() };
-      await saveCategory(newCategory);
+      await repos.categories.upsert(newCategory);
       setCategories((prev) => [...prev, newCategory]);
 
       const autoBackup = await getSetting('autoBackup');
@@ -93,7 +73,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
 
   const deleteCategory = async (id: string) => {
     try {
-      await deleteCategoryLocal(id);
+      await repos.categories.deleteById(id);
       setCategories((prev) => prev.filter((c) => c.id !== id));
 
       const autoBackup = await getSetting('autoBackup');

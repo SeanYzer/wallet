@@ -1,15 +1,36 @@
 import { useState, useEffect } from "react";
 import { Due } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { API_URL, getDues, saveDue, saveDuesBulk, deleteDueLocal, updateDueLocal, getSetting } from "../utils/db";
+import { API_URL, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { enqueueAndTrigger, triggerSyncProcessing, processSyncQueue } from "../utils/syncProcessor";
+import { useRepositories } from "../context/RepositoryContext";
 import { generateUUID } from "../utils/uuid";
+import { nowTimestamp } from "../utils/storage";
+
+function migrateDue(item: any): Due {
+  if (item.isRecurring !== undefined && item.frequency === undefined) {
+    return {
+      id: item.id,
+      title: item.title,
+      amount: item.amount || 0,
+      date: item.date,
+      frequency: item.isRecurring ? "monthly" : "once",
+      type: item.type || "expense",
+      categoryId: item.categoryId,
+      autoProcess: false,
+      completed: item.completed || false,
+      updatedAt: nowTimestamp(),
+    } as Due;
+  }
+  return item as Due;
+}
 
 export function useDues() {
   const [dues, setDues] = useState<Due[]>([]);
   const [loading, setLoading] = useState(false);
   const { activeUserId } = useAuth();
+  const repos = useRepositories();
 
   useEffect(() => {
     if (!activeUserId) return;
@@ -19,17 +40,17 @@ export function useDues() {
   const fetchDues = async () => {
     setLoading(true);
     try {
-      const localData = await getDues();
-      setDues(localData);
+      const localData = await repos.dues.getAll();
+      const migrated = localData.map(migrateDue);
+      setDues(migrated);
 
       const autoBackup = await getSetting('autoBackup');
       if (API_URL && activeUserId && autoBackup !== 'false') {
         const { ok, data: remoteData } = await authFetch(`dues`);
         if (ok && Array.isArray(remoteData)) {
-            await saveDuesBulk(remoteData);
-            const merged = await getDues();
-            const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
-            setDues(unique);
+            await repos.dues.upsertBulk(remoteData);
+            const merged = await repos.dues.getAll();
+            setDues(merged.map(migrateDue));
           }
         }
 
@@ -43,8 +64,8 @@ export function useDues() {
 
   const addDue = async (due: Omit<Due, "id">) => {
     try {
-      const newDue = { ...due, id: generateUUID(), userId: activeUserId } as Due;
-      await saveDue(newDue);
+      const newDue = { ...due, id: generateUUID() } as Due;
+      await repos.dues.upsert(newDue);
       setDues((prev) => [...prev, newDue]);
 
       const autoBackup = await getSetting('autoBackup');
@@ -60,7 +81,10 @@ export function useDues() {
 
   const updateDue = async (id: string, updates: Partial<Due>) => {
     try {
-      await updateDueLocal(id, updates);
+      const existing = await repos.dues.getById(id);
+      if (existing) {
+        await repos.dues.upsert({ ...existing, ...updates } as Due);
+      }
       setDues((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)));
 
       const autoBackup = await getSetting('autoBackup');
@@ -75,7 +99,7 @@ export function useDues() {
 
   const deleteDue = async (id: string) => {
     try {
-      await deleteDueLocal(id);
+      await repos.dues.deleteById(id);
       setDues((prev) => prev.filter((d) => d.id !== id));
 
       const autoBackup = await getSetting('autoBackup');
