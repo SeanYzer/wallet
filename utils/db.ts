@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Category, Transaction, Agenda, Subscription, SavingsItem, Due, TimestampedEntity, UserProfile } from '../types';
+import { Category, Transaction, Agenda, Subscription, SavingsItem, Due, UserProfile } from '../types';
 import { AsyncStorageTransactionRepository } from '../repositories/transaction.repo';
 import { AsyncStorageCategoryRepository } from '../repositories/category.repo';
 import { AsyncStorageDueRepository } from '../repositories/due.repo';
@@ -10,6 +10,7 @@ import { AsyncStorageSubscriptionRepository } from '../repositories/subscription
 import { AsyncStorageAgendaRepository } from '../repositories/agenda.repo';
 import { AsyncStoragePaymentMethodRepository } from '../repositories/payment-method.repo';
 import { AsyncStorageProfileRepository } from '../repositories/profile.repo';
+import { nowTimestamp, getPrefixedKey, getItem, setItem, deduplicate } from './storage';
 
 const transactionRepo = new AsyncStorageTransactionRepository();
 const categoryRepo = new AsyncStorageCategoryRepository();
@@ -19,22 +20,6 @@ const subscriptionRepo = new AsyncStorageSubscriptionRepository();
 const agendaRepo = new AsyncStorageAgendaRepository();
 const paymentMethodRepo = new AsyncStoragePaymentMethodRepository();
 const profileRepo = new AsyncStorageProfileRepository();
-
-function nowTimestamp(): number {
-  return Date.now();
-}
-
-function ensureTimestamp<T extends TimestampedEntity>(entity: T | any): T {
-  if (!entity) return entity;
-  if (typeof entity.updatedAt !== 'number' || entity.updatedAt <= 0) {
-    return { ...entity, updatedAt: nowTimestamp() };
-  }
-  return entity;
-}
-
-function ensureAllTimestamps<T extends TimestampedEntity>(entities: (T | any)[]): T[] {
-  return entities.map(e => ensureTimestamp(e));
-}
 
 function getUpdatedAt(item: any): number {
   if (typeof item.updatedAt === 'number' && item.updatedAt > 0) {
@@ -96,45 +81,6 @@ export const GLOBAL_PAYMENT_METHODS = [
 ];
 
 export const CURRENT_SEED_VERSION = 1;
-
-/**
- * --- Keys & Helpers ---
- * Data is stored as JSON strings.
- * User-specific keys are prefixed with user_{id}_
- */
-
-const getPrefixedKey = async (baseKey: string, overrideUserId?: string): Promise<string> => {
-  const userId = overrideUserId || await AsyncStorage.getItem('activeUserId');
-  return userId ? `user_${userId}_${baseKey}` : `default_${baseKey}`;
-};
-
-async function getItem<T>(key: string, defaultValue: T): Promise<T> {
-  try {
-    const val = await AsyncStorage.getItem(key);
-    return val ? JSON.parse(val) : defaultValue;
-  } catch (e) {
-    console.error(`Error reading key ${key}:`, e);
-    return defaultValue;
-  }
-}
-
-async function setItem<T>(key: string, value: T): Promise<void> {
-  try {
-    await AsyncStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.error(`Error writing key ${key}:`, e);
-  }
-}
-
-function deduplicate<T extends { id: any }>(items: T[]): T[] {
-  const seen = new Set();
-  return items.filter(item => {
-    const id = String(item.id);
-    if (seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-}
 
 // --- Lifecycle & Initialization (Stubs for compatibility) ---
 
@@ -267,13 +213,6 @@ export const getTransactions = async (): Promise<Transaction[]> => {
   }));
 };
 
-export const saveTransaction = async (t: Transaction) => {
-  const withTimestamp = { ...t, updatedAt: nowTimestamp() };
-  if ((withTimestamp as any).note === undefined) (withTimestamp as any).note = null;
-  if ((withTimestamp as any).receiptUrl === undefined) (withTimestamp as any).receiptUrl = null;
-  await transactionRepo.upsert(withTimestamp);
-};
-
 export const saveTransactionsBulk = async (transactions: Transaction[]) => {
   const sanitized = transactions.map(t => {
     const withTimestamp = { ...t, updatedAt: t.updatedAt || nowTimestamp() };
@@ -284,35 +223,16 @@ export const saveTransactionsBulk = async (transactions: Transaction[]) => {
   await transactionRepo.upsertBulk(sanitized);
 };
 
-export const deleteTransactionLocal = async (id: string) => {
-  await transactionRepo.deleteById(id);
-};
-
-export const updateTransactionLocal = async (id: string, updates: Partial<Transaction>) => {
-  const item = await transactionRepo.getById(id);
-  if (item) {
-    await transactionRepo.upsert({ ...item, ...updates } as Transaction);
-  }
-};
-
 // --- Agendas CRUD ---
 
 export const getAgendas = async (): Promise<Agenda[]> => {
   return agendaRepo.getAll();
 };
 
-export const saveAgendasBulk = async (agendas: Agenda[]) => {
-  await agendaRepo.upsertBulk(agendas);
-};
-
 // --- Subscriptions CRUD ---
 
 export const getSubscriptions = async (): Promise<Subscription[]> => {
   return subscriptionRepo.getAll();
-};
-
-export const saveSubscriptionsBulk = async (subscriptions: Subscription[]) => {
-  await subscriptionRepo.upsertBulk(subscriptions);
 };
 
 // --- Dues CRUD ---
