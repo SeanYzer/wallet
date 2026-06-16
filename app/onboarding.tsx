@@ -44,8 +44,9 @@ export default function OnboardingScreen() {
                     amount: initialBalance,
                     type: "income",
                     date: new Date().toISOString(),
-                    category: { id: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b19", name: "Others", type: "income" },
+                    category: { id: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b19", name: "Others", type: "income", updatedAt: 0 },
                     note: "Initial account setup",
+                    updatedAt: Date.now(),
                 });
             }
 

@@ -20,13 +20,13 @@ import { useNetwork } from "../../context/NetworkContext";
 
 function SyncStatusCard() {
   const { isOnline, checkConnectivity, isChecking } = useNetwork();
-  const { pendingCount, lastSyncedAt, hasErrors, retryAll } = useSyncStatus();
+  const { pending, lastSyncedAt, hasFailed, refresh: retryAll } = useSyncStatus();
   const paperTheme = usePaperTheme();
 
   const getStatusColor = () => {
     if (isChecking) return { icon: "cloud-sync", text: "Checking...", color: paperTheme.colors.primary };
     if (!isOnline) return { icon: "cloud-off", text: "Offline", color: paperTheme.colors.error };
-    if (pendingCount > 0) return { icon: "upload", text: `${pendingCount} pending`, color: paperTheme.colors.tertiary };
+    if (pending > 0) return { icon: "upload", text: `${pending} pending`, color: paperTheme.colors.tertiary };
     return { icon: "cloud-check", text: "All synced", color: paperTheme.colors.secondary };
   };
 
@@ -44,7 +44,7 @@ function SyncStatusCard() {
       {
         backgroundColor: !isOnline
           ? paperTheme.colors.errorContainer
-          : pendingCount > 0
+          : pending > 0
           ? paperTheme.colors.tertiaryContainer
           : paperTheme.colors.secondaryContainer
       }
@@ -65,7 +65,7 @@ function SyncStatusCard() {
           </Text>
         </View>
       </View>
-      {pendingCount > 0 && isOnline && (
+      {pending > 0 && isOnline && (
         <Button
           mode="text"
           compact

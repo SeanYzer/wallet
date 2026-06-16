@@ -114,6 +114,7 @@ export default function DuesScreen() {
       autoProcess,
       categoryId: selectedCategoryId,
       completed: false,
+      updatedAt: Date.now(),
     });
     setTitle("");
     setAmount("");
@@ -131,7 +132,8 @@ export default function DuesScreen() {
         amount: item.amount,
         type: item.type || "expense",
         date: new Date().toISOString(),
-        category: categories.find(c => c.type === (item.type || "expense")) || { id: "8", name: "Others", type: "expense" },
+        category: categories.find(c => c.type === (item.type || "expense")) || { id: "8", name: "Others", type: "expense", updatedAt: 0 },
+        updatedAt: Date.now(),
       });
       await updateDue(item.id, { completed: true });
 
@@ -152,6 +154,7 @@ export default function DuesScreen() {
           autoProcess: item.autoProcess,
           categoryId: item.categoryId,
           completed: false,
+          updatedAt: Date.now(),
         });
       }
 

@@ -121,6 +121,7 @@ export default function AddTransaction() {
         paymentMethod,
         establishment: establishment || undefined,
         receiptUrl: receiptImage || undefined,
+        updatedAt: Date.now(),
       });
 
       router.back();

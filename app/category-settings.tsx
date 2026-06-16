@@ -17,7 +17,7 @@ export default function CategorySettings() {
 
   const handleAdd = async () => {
     if (newCatName.trim()) {
-      await addCategory({ name: newCatName.trim(), type });
+      await addCategory({ name: newCatName.trim(), type, updatedAt: Date.now() });
       setNewCatName("");
       setModalVisible(false);
     }

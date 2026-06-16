@@ -8,15 +8,15 @@ import { useTransactions } from "../hooks/useTransactions";
 import { TransactionType, PaymentMethod, Transaction, Category } from "../types";
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: "1", name: "Food", type: "expense" },
-  { id: "2", name: "Bills", type: "expense" },
-  { id: "3", name: "Transport", type: "expense" },
-  { id: "4", name: "Shopping", type: "expense" },
-  { id: "5", name: "Entertainment", type: "expense" },
-  { id: "6", name: "Salary", type: "income" },
-  { id: "7", name: "Freelance", type: "income" },
-  { id: "8", name: "Others", type: "expense" },
-  { id: "9", name: "Others", type: "income" },
+  { id: "1", name: "Food", type: "expense", updatedAt: 0 },
+  { id: "2", name: "Bills", type: "expense", updatedAt: 0 },
+  { id: "3", name: "Transport", type: "expense", updatedAt: 0 },
+  { id: "4", name: "Shopping", type: "expense", updatedAt: 0 },
+  { id: "5", name: "Entertainment", type: "expense", updatedAt: 0 },
+  { id: "6", name: "Salary", type: "income", updatedAt: 0 },
+  { id: "7", name: "Freelance", type: "income", updatedAt: 0 },
+  { id: "8", name: "Others", type: "expense", updatedAt: 0 },
+  { id: "9", name: "Others", type: "income", updatedAt: 0 },
 ];
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [

@@ -41,6 +41,7 @@ export default function SavingsScreen() {
             await addItem({
                 title,
                 balance: numBalance,
+                updatedAt: Date.now(),
             });
             setModalVisible(false);
             setTitle("");
@@ -71,6 +72,7 @@ export default function SavingsScreen() {
                 type: "expense",
                 date: new Date().toISOString(),
                 category: savingsCat,
+                updatedAt: Date.now(),
             });
 
             setTransferInModalVisible(false);
@@ -107,6 +109,7 @@ export default function SavingsScreen() {
                 type: "income",
                 date: new Date().toISOString(),
                 category: savingsCat,
+                updatedAt: Date.now(),
             });
 
             setTransferOutModalVisible(false);
@@ -140,6 +143,7 @@ export default function SavingsScreen() {
                                 type: "income",
                                 date: new Date().toISOString(),
                                 category: savingsCat,
+                                updatedAt: Date.now(),
                             });
                         }
                         await deleteItem(id);

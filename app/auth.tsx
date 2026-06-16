@@ -34,7 +34,7 @@ export default function AuthScreen() {
         if (!deviceId) {
             const { generateUUID } = require('../utils/uuid');
             deviceId = generateUUID();
-            await AsyncStorage.setItem('localDeviceId', deviceId);
+            await AsyncStorage.setItem('localDeviceId', deviceId!);
         }
         return deviceId;
     };
@@ -69,7 +69,7 @@ export default function AuthScreen() {
         }
 
         await addUser(offlineId, username, pin);
-        await saveUserProfile(username, true, 0, offlineId);
+        await saveUserProfile({ name: username, isFirstRun: true, initialBalance: 0 }, offlineId);
         await initDb(offlineId);
         await setSetting('autoBackup', 'false');
         await login(offlineId, "offline_token");
@@ -93,7 +93,7 @@ export default function AuthScreen() {
 
             if (response.ok) {
                 await addUser(responseData.data.user.id, email.trim(), pin.trim());
-                await saveUserProfile(email.trim(), true, 0, responseData.data.user.id);
+                await saveUserProfile({ name: email.trim(), isFirstRun: true, initialBalance: 0 }, responseData.data.user.id);
                 await initDb(responseData.data.user.id);
                 await setSetting('autoBackup', 'true');
                 await login(responseData.data.user.id, responseData.data.token);
@@ -224,7 +224,7 @@ export default function AuthScreen() {
                  }
 
                  await addUser(data.user.id, name.trim(), passcode.trim());
-                 await saveUserProfile(name.trim(), false, 0, data.user.id);
+                 await saveUserProfile({ name: name.trim(), isFirstRun: false, initialBalance: 0 }, data.user.id);
                  await login(data.user.id, data.token);
               } else if (response.status === 401) {
                   console.log("Cloud login returned 401 - checking local users...");

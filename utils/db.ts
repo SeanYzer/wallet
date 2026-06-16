@@ -1,7 +1,24 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
-import * as FileSystem from 'expo-file-system';
-import { Category, Transaction, Agenda, Subscription, SavingsItem, Due, TimestampedEntity } from '../types';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Category, Transaction, Agenda, Subscription, SavingsItem, Due, TimestampedEntity, Budget, UserProfile, PaymentMethodInfo } from '../types';
+import { AsyncStorageTransactionRepository } from '../repositories/transaction.repo';
+import { AsyncStorageCategoryRepository } from '../repositories/category.repo';
+import { AsyncStorageDueRepository } from '../repositories/due.repo';
+import { AsyncStorageSavingsItemRepository } from '../repositories/savings-item.repo';
+import { AsyncStorageSubscriptionRepository } from '../repositories/subscription.repo';
+import { AsyncStorageAgendaRepository } from '../repositories/agenda.repo';
+import { AsyncStoragePaymentMethodRepository } from '../repositories/payment-method.repo';
+import { AsyncStorageProfileRepository } from '../repositories/profile.repo';
+
+const transactionRepo = new AsyncStorageTransactionRepository();
+const categoryRepo = new AsyncStorageCategoryRepository();
+const dueRepo = new AsyncStorageDueRepository();
+const savingsItemRepo = new AsyncStorageSavingsItemRepository();
+const subscriptionRepo = new AsyncStorageSubscriptionRepository();
+const agendaRepo = new AsyncStorageAgendaRepository();
+const paymentMethodRepo = new AsyncStoragePaymentMethodRepository();
+const profileRepo = new AsyncStorageProfileRepository();
 
 function nowTimestamp(): number {
   return Date.now();
@@ -201,81 +218,55 @@ export const setSetting = async (key: string, value: string) => {
 // --- Profile CRUD ---
 
 export const getUserProfile = async (overrideUserId?: string) => {
-  const fullKey = await getPrefixedKey('profile', overrideUserId);
-  const profile = await getItem<any>(fullKey, null);
-  if (profile) {
-    return {
-      ...profile,
-      isFirstRun: profile.isFirstRun === true || profile.isFirstRun === 1
-    };
+  if (overrideUserId) {
+    const fullKey = await getPrefixedKey('profile', overrideUserId);
+    const profile = await getItem<any>(fullKey, null);
+    if (profile) {
+      return { ...profile, isFirstRun: profile.isFirstRun === true || profile.isFirstRun === 1 };
+    }
+    return null;
   }
-  return null;
+  return profileRepo.getById('default');
 };
 
 export const saveUserProfile = async (profile: Partial<UserProfile>, overrideUserId?: string) => {
-  const fullKey = await getPrefixedKey('profile', overrideUserId);
-  const current = await getUserProfile(overrideUserId) || {};
-  const updated = { ...current, ...profile };
-  await setItem(fullKey, updated);
+  if (overrideUserId) {
+    const fullKey = await getPrefixedKey('profile', overrideUserId);
+    const current = await getUserProfile(overrideUserId) || {} as UserProfile;
+    const updated = { ...current, ...profile };
+    await setItem(fullKey, updated);
+    return;
+  }
+  const current = await profileRepo.getById('default') || {} as UserProfile;
+  await profileRepo.upsert({ ...current, ...profile } as UserProfile);
 };
 
 // --- Payment Methods ---
 
 export const getPaymentMethods = async () => {
-  const fullKey = await getPrefixedKey('paymentMethods');
-  return getItem<any[]>(fullKey, []);
+  return paymentMethodRepo.getAll();
 };
 
-export const savePaymentMethod = async (method: any) => {
-  const fullKey = await getPrefixedKey('paymentMethods');
-  const methods = await getItem<any[]>(fullKey, []);
-  methods.push(method);
-  await setItem(fullKey, deduplicate(methods));
+export const savePaymentMethod = async (method: PaymentMethodInfo) => {
+  await paymentMethodRepo.upsert(method);
 };
 
 // --- Categories CRUD ---
 
 export const getCategories = async (): Promise<Category[]> => {
-  const fullKey = await getPrefixedKey('categories');
-  const items = await getItem<Category[]>(fullKey, []);
-  console.log("Categories - getCategories", fullKey, items);
-  return ensureAllTimestamps(deduplicate(items));
+  return categoryRepo.getAll();
 };
 
 export const saveCategory = async (category: Category) => {
-  const fullKey = await getPrefixedKey('categories');
-  const items = await getCategories();
-  const index = items.findIndex(c => String(c.id) === String(category.id));
-  const withTimestamp = { ...category, updatedAt: nowTimestamp() };
-  if (index >= 0) {
-    items[index] = withTimestamp;
-  } else {
-    items.push(withTimestamp);
-  }
-  await setItem(fullKey, items);
+  await categoryRepo.upsert(category);
 };
 
 export const saveCategoriesBulk = async (categories: Category[]) => {
-  const fullKey = await getPrefixedKey('categories');
-  const items = await getCategories();
-
-  for (const cat of categories) {
-    const index = items.findIndex(c => String(c.id) === String(cat.id));
-    const withTimestamp = { ...cat, updatedAt: cat.updatedAt || nowTimestamp() };
-    if (index >= 0) {
-      items[index] = withTimestamp;
-    } else {
-      items.push(withTimestamp);
-    }
-  }
-  await setItem(fullKey, items);
+  await categoryRepo.upsertBulk(categories);
 };
 
 export const deleteCategoryLocal = async (id: string) => {
-  const fullKey = await getPrefixedKey('categories');
-  const items = await getCategories();
-  const filtered = items.filter(c => String(c.id) !== String(id));
-  await setItem(fullKey, filtered);
+  await categoryRepo.deleteById(id);
 };
 
 // --- Budgets CRUD ---
@@ -289,174 +280,98 @@ export const getBudgets = async (): Promise<Budget[]> => {
 // --- Transactions CRUD ---
 
 export const getTransactions = async (): Promise<Transaction[]> => {
-  const fullKey = await getPrefixedKey('transactions');
-  const items = await getItem<any[]>(fullKey, []);
-  const sanitized = items.map(t => ({
+  const items = await transactionRepo.getAll();
+  return items.map(t => ({
     ...t,
     category: t.category || { id: 'uncategorized', name: 'Others', type: t.type || 'expense', updatedAt: 0 },
   }));
-  return ensureAllTimestamps(deduplicate(sanitized)) as Transaction[];
 };
 
 export const saveTransaction = async (t: Transaction) => {
-  const fullKey = await getPrefixedKey('transactions');
-  const items = await getTransactions();
-  const index = items.findIndex(x => String(x.id) === String(t.id));
-
-  // Ensure we don't store undefined
-  const sanitized = { ...t, updatedAt: nowTimestamp() };
-  if (sanitized.note === undefined) sanitized.note = null as any;
-  if (sanitized.receiptUrl === undefined) sanitized.receiptUrl = null as any;
-
-  if (index >= 0) {
-    items[index] = sanitized;
-  } else {
-    items.push(sanitized);
-  }
-  await setItem(fullKey, items);
+  const withTimestamp = { ...t, updatedAt: nowTimestamp() };
+  if ((withTimestamp as any).note === undefined) (withTimestamp as any).note = null;
+  if ((withTimestamp as any).receiptUrl === undefined) (withTimestamp as any).receiptUrl = null;
+  await transactionRepo.upsert(withTimestamp);
 };
 
 export const saveTransactionsBulk = async (transactions: Transaction[]) => {
-  const fullKey = await getPrefixedKey('transactions');
-  const items = await getTransactions();
-
-  for (const t of transactions) {
-    const index = items.findIndex(x => String(x.id) === String(t.id));
-    const sanitized = { ...t, updatedAt: t.updatedAt || nowTimestamp() };
-    if (sanitized.note === undefined) sanitized.note = null as any;
-    if (sanitized.receiptUrl === undefined) sanitized.receiptUrl = null as any;
-
-    if (index >= 0) {
-      items[index] = sanitized;
-    } else {
-      items.push(sanitized);
-    }
-  }
-  await setItem(fullKey, items);
+  const sanitized = transactions.map(t => {
+    const withTimestamp = { ...t, updatedAt: t.updatedAt || nowTimestamp() };
+    if ((withTimestamp as any).note === undefined) (withTimestamp as any).note = null;
+    if ((withTimestamp as any).receiptUrl === undefined) (withTimestamp as any).receiptUrl = null;
+    return withTimestamp;
+  });
+  await transactionRepo.upsertBulk(sanitized);
 };
 
 export const deleteTransactionLocal = async (id: string) => {
-  const fullKey = await getPrefixedKey('transactions');
-  const items = await getTransactions();
-  const filtered = items.filter(x => String(x.id) !== String(id));
-  await setItem(fullKey, filtered);
+  await transactionRepo.deleteById(id);
 };
 
 export const updateTransactionLocal = async (id: string, updates: Partial<Transaction>) => {
-  const items = await getTransactions();
-  const index = items.findIndex(x => String(x.id) === String(id));
-  if (index >= 0) {
-    items[index] = { ...items[index], ...updates, updatedAt: nowTimestamp() };
-    const fullKey = await getPrefixedKey('transactions');
-    await setItem(fullKey, items);
+  const item = await transactionRepo.getById(id);
+  if (item) {
+    await transactionRepo.upsert({ ...item, ...updates } as Transaction);
   }
 };
 
 // --- Agendas CRUD ---
 
 export const getAgendas = async (): Promise<Agenda[]> => {
-  const fullKey = await getPrefixedKey('agendas');
-  const items = await getItem<Agenda[]>(fullKey, []);
-  return deduplicate(items);
+  return agendaRepo.getAll();
 };
 
 export const saveAgenda = async (agenda: Agenda) => {
-  const fullKey = await getPrefixedKey('agendas');
-  const items = await getAgendas();
-  const index = items.findIndex(a => String(a.id) === String(agenda.id));
-  if (index >= 0) {
-    items[index] = agenda;
-  } else {
-    items.push(agenda);
-  }
-  await setItem(fullKey, items);
+  await agendaRepo.upsert(agenda);
 };
 
 export const saveAgendasBulk = async (agendas: Agenda[]) => {
-  const fullKey = await getPrefixedKey('agendas');
-  const items = await getAgendas();
-  for (const a of agendas) {
-    const index = items.findIndex(x => String(x.id) === String(a.id));
-    if (index >= 0) items[index] = a;
-    else items.push(a);
-  }
-  await setItem(fullKey, items);
+  await agendaRepo.upsertBulk(agendas);
 };
 
 export const deleteAgendaLocal = async (id: string) => {
-  const fullKey = await getPrefixedKey('agendas');
-  const items = await getAgendas();
-  const filtered = items.filter(a => String(a.id) !== String(id));
-  await setItem(fullKey, filtered);
+  await agendaRepo.deleteById(id);
 };
 
 export const updateAgendaLocal = async (id: string, updates: Partial<Agenda>) => {
-  const items = await getAgendas();
-  const index = items.findIndex(a => String(a.id) === String(id));
-  if (index >= 0) {
-    items[index] = { ...items[index], ...updates };
-    const fullKey = await getPrefixedKey('agendas');
-    await setItem(fullKey, items);
+  const item = await agendaRepo.getById(id);
+  if (item) {
+    await agendaRepo.upsert({ ...item, ...updates } as Agenda);
   }
 };
 
 // --- Subscriptions CRUD ---
 
 export const getSubscriptions = async (): Promise<Subscription[]> => {
-  const fullKey = await getPrefixedKey('subscriptions');
-  const items = await getItem<Subscription[]>(fullKey, []);
-  return deduplicate(items);
+  return subscriptionRepo.getAll();
 };
 
 export const saveSubscription = async (sub: Subscription) => {
-  const fullKey = await getPrefixedKey('subscriptions');
-  const items = await getSubscriptions();
-  const index = items.findIndex(s => String(s.id) === String(sub.id));
-  if (index >= 0) {
-    items[index] = sub;
-  } else {
-    items.push(sub);
-  }
-  await setItem(fullKey, items);
+  await subscriptionRepo.upsert(sub);
 };
 
 export const saveSubscriptionsBulk = async (subscriptions: Subscription[]) => {
-  const fullKey = await getPrefixedKey('subscriptions');
-  const items = await getSubscriptions();
-  for (const s of subscriptions) {
-    const index = items.findIndex(x => String(x.id) === String(s.id));
-    if (index >= 0) items[index] = s;
-    else items.push(s);
-  }
-  await setItem(fullKey, items);
+  await subscriptionRepo.upsertBulk(subscriptions);
 };
 
 export const deleteSubscriptionLocal = async (id: string) => {
-  const fullKey = await getPrefixedKey('subscriptions');
-  const items = await getSubscriptions();
-  const filtered = items.filter(s => String(s.id) !== String(id));
-  await setItem(fullKey, filtered);
+  await subscriptionRepo.deleteById(id);
 };
 
 export const updateSubscriptionLocal = async (id: string, updates: Partial<Subscription>) => {
-  const items = await getSubscriptions();
-  const index = items.findIndex(s => String(s.id) === String(id));
-  if (index >= 0) {
-    items[index] = { ...items[index], ...updates };
-    const fullKey = await getPrefixedKey('subscriptions');
-    await setItem(fullKey, items);
+  const item = await subscriptionRepo.getById(id);
+  if (item) {
+    await subscriptionRepo.upsert({ ...item, ...updates } as Subscription);
   }
 };
 
 // --- Dues CRUD ---
 
 export const getDues = async (): Promise<Due[]> => {
-  const fullKey = await getPrefixedKey('dues');
-  const items = await getItem<any[]>(fullKey, []);
-  const uniqueById = deduplicate(items);
+  const items = await dueRepo.getAll();
 
   // Migration: convert old Agenda format to Due
-  const migrated = uniqueById.map((item: any) => {
+  const migrated = items.map((item: any) => {
     if (item.isRecurring !== undefined && item.frequency === undefined) {
       return {
         id: item.id,
@@ -474,60 +389,35 @@ export const getDues = async (): Promise<Due[]> => {
     return item as Due;
   });
 
-  return ensureAllTimestamps(migrated);
+  return migrated;
 };
 
 export const saveDue = async (due: Due) => {
-  const fullKey = await getPrefixedKey('dues');
-  const items = await getDues();
-  const index = items.findIndex(d => String(d.id) === String(due.id));
-  const withTimestamp = { ...due, updatedAt: nowTimestamp() };
-  if (index >= 0) {
-    items[index] = withTimestamp;
-  } else {
-    items.push(withTimestamp);
-  }
-  await setItem(fullKey, items);
+  await dueRepo.upsert(due);
 };
 
 export const saveDuesBulk = async (dues: Due[]) => {
-  const fullKey = await getPrefixedKey('dues');
-  const items = await getDues();
-  for (const d of dues) {
-    const index = items.findIndex(x => String(x.id) === String(d.id));
-    const withTimestamp = { ...d, updatedAt: d.updatedAt || nowTimestamp() };
-    if (index >= 0) items[index] = withTimestamp;
-    else items.push(withTimestamp);
-  }
-  await setItem(fullKey, items);
+  await dueRepo.upsertBulk(dues);
 };
 
 export const deleteDueLocal = async (id: string) => {
-  const fullKey = await getPrefixedKey('dues');
-  const items = await getDues();
-  const filtered = items.filter(d => String(d.id) !== String(id));
-  await setItem(fullKey, filtered);
+  await dueRepo.deleteById(id);
 };
 
 export const updateDueLocal = async (id: string, updates: Partial<Due>) => {
-  const items = await getDues();
-  const index = items.findIndex(d => String(d.id) === String(id));
-  if (index >= 0) {
-    items[index] = { ...items[index], ...updates, updatedAt: nowTimestamp() };
-    const fullKey = await getPrefixedKey('dues');
-    await setItem(fullKey, items);
+  const item = await dueRepo.getById(id);
+  if (item) {
+    await dueRepo.upsert({ ...item, ...updates } as Due);
   }
 };
 
 // --- Savings Items CRUD ---
 
 export const getSavingsItems = async (): Promise<SavingsItem[]> => {
-  const fullKey = await getPrefixedKey('savingsItems');
-  const items = await getItem<any[]>(fullKey, []);
-  const uniqueById = deduplicate(items);
+  const items = await savingsItemRepo.getAll();
 
   // Migration: convert old SavingsGoal format to SavingsItem
-  const migrated = uniqueById.map((item: any) => {
+  const migrated = items.map((item: any) => {
     if (item.targetAmount !== undefined && item.balance === undefined) {
       return {
         id: item.id,
@@ -541,56 +431,32 @@ export const getSavingsItems = async (): Promise<SavingsItem[]> => {
     return item as SavingsItem;
   });
 
+  // Title-based dedup (title is the display key for savings goals)
   const seen = new Set();
-  const deduplicated = migrated.filter((g: SavingsItem) => {
+  return migrated.filter((g: SavingsItem) => {
     const key = g.title.toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-
-  return ensureAllTimestamps(deduplicated);
 };
 
 export const saveSavingsItem = async (item: SavingsItem) => {
-  const fullKey = await getPrefixedKey('savingsItems');
-  const items = await getSavingsItems();
-  const index = items.findIndex(g => String(g.id) === String(item.id));
-  const withTimestamp = { ...item, updatedAt: nowTimestamp() };
-  if (index >= 0) {
-    items[index] = withTimestamp;
-  } else {
-    items.push(withTimestamp);
-  }
-  await setItem(fullKey, items);
+  await savingsItemRepo.upsert(item);
 };
 
 export const saveSavingsItemsBulk = async (items: SavingsItem[]) => {
-  const fullKey = await getPrefixedKey('savingsItems');
-  const existing = await getSavingsItems();
-  for (const g of items) {
-    const index = existing.findIndex(x => String(x.id) === String(g.id));
-    const withTimestamp = { ...g, updatedAt: g.updatedAt || nowTimestamp() };
-    if (index >= 0) existing[index] = withTimestamp;
-    else existing.push(withTimestamp);
-  }
-  await setItem(fullKey, existing);
+  await savingsItemRepo.upsertBulk(items);
 };
 
 export const deleteSavingsItemLocal = async (id: string) => {
-  const fullKey = await getPrefixedKey('savingsItems');
-  const items = await getSavingsItems();
-  const filtered = items.filter(g => String(g.id) !== String(id));
-  await setItem(fullKey, filtered);
+  await savingsItemRepo.deleteById(id);
 };
 
 export const updateSavingsItemLocal = async (id: string, updates: Partial<SavingsItem>) => {
-  const items = await getSavingsItems();
-  const index = items.findIndex(g => String(g.id) === String(id));
-  if (index >= 0) {
-    items[index] = { ...items[index], ...updates, updatedAt: nowTimestamp() };
-    const fullKey = await getPrefixedKey('savingsItems');
-    await setItem(fullKey, items);
+  const item = await savingsItemRepo.getById(id);
+  if (item) {
+    await savingsItemRepo.upsert({ ...item, ...updates } as SavingsItem);
   }
 };
 

@@ -112,7 +112,6 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         try {
             await updateProfile({ 
                 name, 
-                balance, 
                 initialBalance: balance,
                 isFirstRun: false 
             });

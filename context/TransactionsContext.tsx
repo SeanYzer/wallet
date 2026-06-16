@@ -13,8 +13,7 @@ import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
 import { useUserProfile } from "./UserProfileContext";
 import { generateUUID } from "../utils/uuid";
-import * as FileSystem from 'expo-file-system';
-import { decode } from 'base64-arraybuffer'; // Necessary for direct blob upload if needed
+import * as FileSystem from 'expo-file-system/legacy';
 
 interface TransactionsContextType {
     transactions: Transaction[];

@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from "../context/AuthContext";
 import { NetworkProvider, useNetwork } from "../context/NetworkContext";
 import PasscodeScreen from "./passcode-screen";
 import { DbRecoveryProvider } from "../context/DbRecoveryContext";
+import { RepositoryProvider } from "../context/RepositoryContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL, hardResetLocalData } from "../utils/db";
 
@@ -219,6 +220,7 @@ export default function RootLayout() {
 
   return (
     <DbRecoveryProvider>
+      <RepositoryProvider>
       <AuthProvider>
         <UserProfileProvider>
           <SystemResetManager />
@@ -239,6 +241,7 @@ export default function RootLayout() {
           </ThemeProvider>
         </UserProfileProvider>
       </AuthProvider>
+      </RepositoryProvider>
     </DbRecoveryProvider>
   );
 }
