@@ -1,17 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Transaction } from "../types";
 import {
-    getTransactions,
-    saveTransaction,
-    saveTransactionsBulk,
-    updateTransactionLocal,
-    deleteTransactionLocal,
     getSetting,
     API_URL
 } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
 import { useUserProfile } from "./UserProfileContext";
+import { useRepositories } from "./RepositoryContext";
 import { generateUUID } from "../utils/uuid";
 import * as FileSystem from 'expo-file-system/legacy';
 import { enqueueAndTrigger, processSyncQueue } from "../utils/syncProcessor";
@@ -27,9 +23,22 @@ interface TransactionsContextType {
 
 const TransactionsContext = createContext<TransactionsContextType | undefined>(undefined);
 
+const sanitizeTransaction = (t: Transaction): Transaction => {
+    const withTimestamp = { ...t, updatedAt: t.updatedAt || Date.now() };
+    if ((withTimestamp as any).note === undefined) (withTimestamp as any).note = null;
+    if ((withTimestamp as any).receiptUrl === undefined) (withTimestamp as any).receiptUrl = null;
+    return withTimestamp as Transaction;
+};
+
+const addCategoryFallback = (t: Transaction): Transaction => ({
+    ...t,
+    category: t.category || { id: 'uncategorized', name: 'Others', type: t.type || 'expense', updatedAt: 0 },
+});
+
 export function TransactionsProvider({ children }: { children: ReactNode }) {
     const { activeUserId } = useAuth();
     const { profile } = useUserProfile();
+    const { transactions: txRepo } = useRepositories();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -67,7 +76,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     const fetchTransactions = async () => {
         setLoading(true);
         try {
-            const localData = await getTransactions();
+            const localData = (await txRepo.getAll()).map(addCategoryFallback);
             setTransactions(localData);
 
             const autoBackup = await getSetting('autoBackup');
@@ -95,7 +104,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                     }
 
                     const merged = Array.from(mergedMap.values());
-                    await saveTransactionsBulk(merged);
+                    await txRepo.upsertBulk(merged.map(sanitizeTransaction));
                     setTransactions(merged);
                 }
             }
@@ -115,7 +124,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 id: generateUUID()
             };
 
-            await saveTransaction(newTransaction);
+            await txRepo.upsert(sanitizeTransaction(newTransaction));
             setTransactions((prev) => [...prev, newTransaction]);
 
             const autoBackup = await getSetting('autoBackup');
@@ -132,7 +141,10 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
     const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
         try {
-            await updateTransactionLocal(id, updates);
+            const item = await txRepo.getById(id);
+            if (item) {
+                await txRepo.upsert(sanitizeTransaction({ ...item, ...updates } as Transaction));
+            }
             setTransactions((prev) => prev.map(t =>
                 t.id === id ? { ...t, ...updates } : t
             ));
@@ -150,7 +162,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
     const deleteTransaction = async (id: string) => {
         try {
-            await deleteTransactionLocal(id);
+            await txRepo.deleteById(id);
             setTransactions((prev) => prev.filter(t => t.id !== id));
 
             const autoBackup = await getSetting('autoBackup');
