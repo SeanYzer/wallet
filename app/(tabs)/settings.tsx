@@ -121,19 +121,30 @@ export default function SettingsScreen() {
 
   const handleTogglePasscode = (enabled: boolean) => {
     if (enabled) {
-      // In a real app, we'd show a modal to set the code
-      setPasscode("1234");
-      setIsPasscodeEnabled(true);
-      setIsUnlocked(false);
+      setShowPinSetup(true);
     } else {
       setIsPasscodeEnabled(false);
       setPasscode(null);
     }
   };
 
+  const confirmPinSetup = () => {
+    if (pinSetupInput.length !== 4 || !/^\d{4}$/.test(pinSetupInput)) {
+      Alert.alert("Invalid PIN", "Please enter a 4-digit PIN.");
+      return;
+    }
+    setPasscode(pinSetupInput);
+    setIsPasscodeEnabled(true);
+    setIsUnlocked(false);
+    setShowPinSetup(false);
+    setPinSetupInput("");
+  };
+
   const autoBackup = profile?.autoBackup ?? true;
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPinPrompt, setShowPinPrompt] = useState(false);
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [pinSetupInput, setPinSetupInput] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showBackupDialog, setShowBackupDialog] = useState(false);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
@@ -406,7 +417,7 @@ export default function SettingsScreen() {
   };
 
   const handleClearData = async () => {
-    if (pinInput === (passcode || "1234")) {
+    if (pinInput === passcode) {
       setIsSyncing(true);
       try {
         if (activeUserId) {
@@ -856,6 +867,25 @@ export default function SettingsScreen() {
           <Dialog.Actions>
             <Button onPress={() => setShowPinPrompt(false)}>Cancel</Button>
             <Button onPress={handleClearData} textColor={paperTheme.colors.error}>Clear Data</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={showPinSetup} onDismiss={() => { setShowPinSetup(false); setPinSetupInput(""); }}>
+          <Dialog.Title>Set Passcode</Dialog.Title>
+          <Dialog.Content>
+            <Text style={{ marginBottom: 16 }}>Enter a 4-digit PIN to secure the app on startup.</Text>
+            <TextInput
+              label="New PIN"
+              value={pinSetupInput}
+              onChangeText={setPinSetupInput}
+              secureTextEntry
+              keyboardType="numeric"
+              maxLength={4}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => { setShowPinSetup(false); setPinSetupInput(""); }}>Cancel</Button>
+            <Button onPress={confirmPinSetup}>Set Passcode</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

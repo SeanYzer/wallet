@@ -52,7 +52,18 @@ export async function authFetch<T = any>(
       }
     }
 
-    const body = await response.json();
+    let body: any;
+    try {
+      body = await response.json();
+    } catch {
+      const text = await response.text().catch(() => '');
+      return {
+        ok: false,
+        status: response.status,
+        error: text ? `Non-JSON response: ${text.slice(0, 200)}` : `HTTP ${response.status} (empty body)`,
+      };
+    }
+
     const unwrapped = body?.status === 'success' && body?.data ? body.data : body;
 
     return {

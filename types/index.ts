@@ -24,7 +24,7 @@ export interface Transaction extends TimestampedEntity {
   id: string;
   title?: string;
   amount: number;
-  category: Category;
+  category?: Category;
   date: string;
   note?: string;
   receiptUrl?: string;

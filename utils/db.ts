@@ -283,16 +283,19 @@ export const deleteCategoryLocal = async (id: string) => {
 export const getBudgets = async (): Promise<Budget[]> => {
   const fullKey = await getPrefixedKey('budgets');
   const items = await getItem<Budget[]>(fullKey, []);
-  const uniqueById = deduplicate(items);
-
+  return deduplicate(items);
 };
 
 // --- Transactions CRUD ---
 
 export const getTransactions = async (): Promise<Transaction[]> => {
   const fullKey = await getPrefixedKey('transactions');
-  const items = await getItem<Transaction[]>(fullKey, []);
-  return ensureAllTimestamps(deduplicate(items));
+  const items = await getItem<any[]>(fullKey, []);
+  const sanitized = items.map(t => ({
+    ...t,
+    category: t.category || { id: 'uncategorized', name: 'Others', type: t.type || 'expense', updatedAt: 0 },
+  }));
+  return ensureAllTimestamps(deduplicate(sanitized)) as Transaction[];
 };
 
 export const saveTransaction = async (t: Transaction) => {
@@ -636,6 +639,11 @@ export const exportData = async () => {
   const settings = await getItem(settingsFullKey, {});
   const categories = await getCategories();
   const rawTransactions = await getTransactions();
+  const dues = await getDues();
+  const savingsItems = await getSavingsItems();
+  const subscriptions = await getSubscriptions();
+  const agendas = await getAgendas();
+  const paymentMethods = await getPaymentMethods();
 
   // Enhance transactions with Base64 images for self-contained backup
   const transactions = await Promise.all(rawTransactions.map(async (t) => {
@@ -656,7 +664,12 @@ export const exportData = async () => {
     profile,
     settings,
     categories,
-    transactions
+    transactions,
+    dues,
+    savingsItems,
+    subscriptions,
+    agendas,
+    paymentMethods,
   });
 };
 
@@ -697,5 +710,25 @@ export const importData = async (jsonString: string) => {
 
     const transactionsFullKey = await getPrefixedKey('transactions');
     await setItem(transactionsFullKey, restoredTransactions);
+  }
+  if (data.dues) {
+    const duesFullKey = await getPrefixedKey('dues');
+    await setItem(duesFullKey, data.dues);
+  }
+  if (data.savingsItems) {
+    const savingsFullKey = await getPrefixedKey('savingsItems');
+    await setItem(savingsFullKey, data.savingsItems);
+  }
+  if (data.subscriptions) {
+    const subscriptionsFullKey = await getPrefixedKey('subscriptions');
+    await setItem(subscriptionsFullKey, data.subscriptions);
+  }
+  if (data.agendas) {
+    const agendasFullKey = await getPrefixedKey('agendas');
+    await setItem(agendasFullKey, data.agendas);
+  }
+  if (data.paymentMethods) {
+    const paymentMethodsFullKey = await getPrefixedKey('paymentMethods');
+    await setItem(paymentMethodsFullKey, data.paymentMethods);
   }
 };
