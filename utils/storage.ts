@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TimestampedEntity } from '../types';
+import { getCachedUserId } from './cache';
 
 export function nowTimestamp(): number {
   return Date.now();
@@ -25,7 +26,7 @@ export function getUpdatedAt(item: any): number {
 }
 
 export const getPrefixedKey = async (baseKey: string, overrideUserId?: string): Promise<string> => {
-  const userId = overrideUserId || await AsyncStorage.getItem('activeUserId');
+  const userId = overrideUserId || getCachedUserId() || await AsyncStorage.getItem('activeUserId');
   return userId ? `user_${userId}_${baseKey}` : `default_${baseKey}`;
 };
 

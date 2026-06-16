@@ -45,7 +45,8 @@ export function generateQueueItemId(
 }
 
 export function getRetryDelay(retryCount: number): number {
-  return Math.min(Math.pow(2, retryCount) * 1000, 32000);
+  const base = Math.min(Math.pow(2, retryCount) * 1000, 32000);
+  return Math.random() * base;
 }
 
 export async function enqueueSync(

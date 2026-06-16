@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, Platform } from "react-native";
 import { API_URL } from "../utils/db";
 import { setAuthFailureCallback } from "../utils/apiClient";
+import { setCachedUserId } from "../utils/cache";
 
 interface AuthContextType {
   activeUserId: string | null;
@@ -24,7 +25,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       AsyncStorage.getItem('activeUserId'),
       AsyncStorage.getItem('authToken')
     ]).then(([id, t]) => {
-      if (id) setActiveUserId(id);
+      if (id) {
+        setActiveUserId(id);
+        setCachedUserId(id);
+      }
       if (t) setToken(t);
       setIsLoading(false);
     });
@@ -44,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem('authToken', token);
     await AsyncStorage.setItem('activeUserId', String(userId));
     setActiveUserId(String(userId));
+    setCachedUserId(String(userId));
     setToken(token);
   };
 
@@ -51,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.removeItem('activeUserId');
     await AsyncStorage.removeItem('authToken');
     setActiveUserId(null);
+    setCachedUserId(null);
     setToken(null);
   };
 

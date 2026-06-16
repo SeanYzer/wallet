@@ -11,6 +11,7 @@ import { AsyncStorageAgendaRepository } from '../repositories/agenda.repo';
 import { AsyncStoragePaymentMethodRepository } from '../repositories/payment-method.repo';
 import { AsyncStorageProfileRepository } from '../repositories/profile.repo';
 import { nowTimestamp, getPrefixedKey, getItem, setItem, deduplicate } from './storage';
+import { getCachedSetting, setCachedSetting, clearSettingsCache } from './cache';
 
 const transactionRepo = new AsyncStorageTransactionRepository();
 const categoryRepo = new AsyncStorageCategoryRepository();
@@ -149,9 +150,14 @@ export const clearAllLocalData = async () => {
 // --- Settings CRUD ---
 
 export const getSetting = async (key: string): Promise<string | null> => {
+  const cached = getCachedSetting(key);
+  if (cached !== undefined) return cached;
+
   const fullKey = await getPrefixedKey('settings');
   const settings = await getItem<Record<string, string>>(fullKey, {});
-  return settings[key] || null;
+  const value = settings[key] || null;
+  setCachedSetting(key, value);
+  return value;
 };
 
 export const setSetting = async (key: string, value: string) => {
@@ -159,6 +165,7 @@ export const setSetting = async (key: string, value: string) => {
   const settings = await getItem<Record<string, string>>(fullKey, {});
   settings[key] = value;
   await setItem(fullKey, settings);
+  setCachedSetting(key, value);
 };
 
 // --- Profile CRUD ---
@@ -313,6 +320,7 @@ export const hardResetLocalData = async () => {
   const keys = await AsyncStorage.getAllKeys();
   const keysToWipe = keys.filter(k => k !== 'system_reset_epoch');
   await AsyncStorage.multiRemove(keysToWipe);
+  clearSettingsCache();
 };
 
 // --- Import / Export ---
