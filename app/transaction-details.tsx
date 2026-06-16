@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Image, Alert } from "react-native";
+import { View, ScrollView, Alert } from "react-native";
+import { Image } from "expo-image";
 import { Appbar, Text, Card, Chip, Button, Divider, useTheme, Portal, Dialog } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTransactions } from "../hooks/useTransactions";
-import { useCurrency } from "../context/CurrencyContext";
+import { useCurrencyActions } from "../context/CurrencyContext";
 import { Transaction } from "../types";
 
 export default function TransactionDetails() {
@@ -11,7 +12,7 @@ export default function TransactionDetails() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { transactions, deleteTransaction } = useTransactions();
-  const { formatAmount } = useCurrency();
+  const { formatAmount } = useCurrencyActions();
 
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -126,7 +127,7 @@ export default function TransactionDetails() {
               <Image
                 source={{ uri: transaction.receiptUrl }}
                 style={{ width: "100%", height: 250, borderRadius: 8 }}
-                resizeMode="cover"
+                contentFit="cover"
               />
             </Card.Content>
           </Card>

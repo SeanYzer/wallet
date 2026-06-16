@@ -1,15 +1,19 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import { API_URL } from "../utils/db";
 import { processSyncQueue, triggerSyncProcessing } from "../utils/syncProcessor";
 
-interface NetworkContextType {
+interface NetworkData {
   isOnline: boolean;
   isChecking: boolean;
   lastCheckedAt: number | null;
+}
+
+interface NetworkActions {
   checkConnectivity: () => Promise<boolean>;
 }
 
-const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
+const NetworkDataContext = createContext<NetworkData | undefined>(undefined);
+const NetworkActionsContext = createContext<NetworkActions | undefined>(undefined);
 
 const PING_ENDPOINT = "/paymentMethods";
 const PING_TIMEOUT = 3000;
@@ -88,29 +92,46 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [checkConnectivity]);
 
+  const dataValue = useMemo(() => ({
+    isOnline,
+    isChecking,
+    lastCheckedAt,
+  }), [isOnline, isChecking, lastCheckedAt]);
+
+  const actionsValue = useMemo(() => ({
+    checkConnectivity,
+  }), [checkConnectivity]);
+
   return (
-    <NetworkContext.Provider
-      value={{
-        isOnline,
-        isChecking,
-        lastCheckedAt,
-        checkConnectivity,
-      }}
-    >
-      {children}
-    </NetworkContext.Provider>
+    <NetworkDataContext.Provider value={dataValue}>
+      <NetworkActionsContext.Provider value={actionsValue}>
+        {children}
+      </NetworkActionsContext.Provider>
+    </NetworkDataContext.Provider>
   );
 }
 
-export function useNetwork() {
-  const context = useContext(NetworkContext);
+export function useNetworkData(): NetworkData {
+  const context = useContext(NetworkDataContext);
   if (!context) {
-    throw new Error("useNetwork must be used within a NetworkProvider");
+    throw new Error("useNetworkData must be used within a NetworkProvider");
   }
   return context;
 }
 
+export function useNetworkActions(): NetworkActions {
+  const context = useContext(NetworkActionsContext);
+  if (!context) {
+    throw new Error("useNetworkActions must be used within a NetworkProvider");
+  }
+  return context;
+}
+
+export function useNetwork(): NetworkData & NetworkActions {
+  return { ...useNetworkData(), ...useNetworkActions() };
+}
+
 export function useIsOnline() {
-  const context = useContext(NetworkContext);
+  const context = useContext(NetworkDataContext);
   return context?.isOnline ?? true;
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useMemo, useCallback, useRef, ReactNode } from "react";
 import { useColorScheme } from "react-native";
 import {
     MD3LightTheme,
@@ -55,47 +55,76 @@ const CustomDarkTheme = {
 
 const CombinedDefaultTheme = {
     ...merge(LightTheme, CustomLightTheme),
-    roundness: 3, // More modern, rounded feel
+    roundness: 3,
 };
 const CombinedDarkTheme = {
     ...merge(DarkTheme, CustomDarkTheme),
     roundness: 3,
 };
 
-interface ThemeContextType {
+interface ThemeData {
     isDarkMode: boolean;
-    toggleTheme: () => void;
     theme: MD3Theme & NavigationTheme;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+interface ThemeActions {
+    toggleTheme: () => void;
+}
+
+const ThemeDataContext = createContext<ThemeData | undefined>(undefined);
+const ThemeActionsContext = createContext<ThemeActions | undefined>(undefined);
 
 import { useUserProfile } from "./UserProfileContext";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const { profile, updateProfile } = useUserProfile();
     const systemColorScheme = useColorScheme();
-    
-    // Use profile setting, fallback to system scheme if no profile
+
     const isDarkMode = profile ? profile.isDarkMode : systemColorScheme === 'dark';
 
-    const toggleTheme = () => {
-        updateProfile({ isDarkMode: !isDarkMode });
-    };
+    const isDarkModeRef = useRef(isDarkMode);
+    isDarkModeRef.current = isDarkMode;
+
+    const toggleTheme = useCallback(() => {
+        updateProfile({ isDarkMode: !isDarkModeRef.current });
+    }, [updateProfile]);
 
     const theme = isDarkMode ? CombinedDarkTheme : CombinedDefaultTheme;
 
+    const dataValue = useMemo(() => ({
+        isDarkMode,
+        theme,
+    }), [isDarkMode, theme]);
+
+    const actionsValue = useMemo(() => ({
+        toggleTheme,
+    }), [toggleTheme]);
+
     return (
-        <ThemeContext.Provider value={{ isDarkMode, toggleTheme, theme }}>
-            {children}
-        </ThemeContext.Provider>
+        <ThemeDataContext.Provider value={dataValue}>
+            <ThemeActionsContext.Provider value={actionsValue}>
+                {children}
+            </ThemeActionsContext.Provider>
+        </ThemeDataContext.Provider>
     );
 }
 
-export function useAppTheme() {
-    const context = useContext(ThemeContext);
+export function useThemeData(): ThemeData {
+    const context = useContext(ThemeDataContext);
     if (!context) {
-        throw new Error("useAppTheme must be used within a ThemeProvider");
+        throw new Error("useThemeData must be used within a ThemeProvider");
     }
     return context;
+}
+
+export function useThemeActions(): ThemeActions {
+    const context = useContext(ThemeActionsContext);
+    if (!context) {
+        throw new Error("useThemeActions must be used within a ThemeProvider");
+    }
+    return context;
+}
+
+export function useAppTheme(): ThemeData & ThemeActions {
+    return { ...useThemeData(), ...useThemeActions() };
 }

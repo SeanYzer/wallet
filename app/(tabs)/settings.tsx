@@ -13,8 +13,8 @@ import { useAppTheme } from "../../context/ThemeContext";
 import { useUserProfile } from "../../context/UserProfileContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { usePasscode } from "../../context/PasscodeContext";
-import { useTransactionsContext } from "../../context/TransactionsContext";
-import { useCategories } from "../../context/CategoriesContext";
+import { useTransactionsActions } from "../../context/TransactionsContext";
+import { useCategoriesActions } from "../../context/CategoriesContext";
 import { authFetch } from "../../utils/apiClient";
 import { useSyncStatus } from "../../hooks/useSyncStatus";
 import { useNetwork } from "../../context/NetworkContext";
@@ -112,8 +112,8 @@ export default function SettingsScreen() {
   const { language, setLanguage, t } = useLanguage();
   const { isPasscodeEnabled, setIsPasscodeEnabled, passcode, setPasscode, setIsUnlocked } = usePasscode();
   const { activeUserId, logout } = useAuth();
-  const { refetch: refetchTx } = useTransactionsContext();
-  const { refetch: refetchCats } = useCategories();
+  const { refetch: refetchTx } = useTransactionsActions();
+  const { refetch: refetchCats } = useCategoriesActions();
   const repos = useRepositories();
 
   const handleLogout = async () => {

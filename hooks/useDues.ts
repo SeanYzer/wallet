@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Due } from "../types";
-import { useAuth } from "../context/AuthContext";
+import { useAuthData } from "../context/AuthContext";
 import { API_URL, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { enqueueAndTrigger, triggerSyncProcessing, processSyncQueue } from "../utils/syncProcessor";
@@ -29,7 +29,7 @@ function migrateDue(item: any): Due {
 export function useDues() {
   const [dues, setDues] = useState<Due[]>([]);
   const [loading, setLoading] = useState(false);
-  const { activeUserId } = useAuth();
+  const { activeUserId } = useAuthData();
   const repos = useRepositories();
 
   const fetchDues = useCallback(async () => {

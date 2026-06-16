@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import { View, ScrollView } from "react-native";
 import { Appbar, List, IconButton, FAB, Portal, Modal, TextInput, Button, SegmentedButtons, useTheme, Card } from "react-native-paper";
 import { useRouter } from "expo-router";
-import { useCategories } from "../context/CategoriesContext";
+import { useCategoriesData, useCategoriesActions } from "../context/CategoriesContext";
 import { TransactionType } from "../types";
 
 export default function CategorySettings() {
   const router = useRouter();
   const theme = useTheme();
-  const { categories, addCategory, deleteCategory } = useCategories();
+  const { categories } = useCategoriesData();
+  const { addCategory, deleteCategory } = useCategoriesActions();
   const [type, setType] = useState<TransactionType>("expense");
   const [modalVisible, setModalVisible] = useState(false);
   const [newCatName, setNewCatName] = useState("");

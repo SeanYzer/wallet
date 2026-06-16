@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import { View, Text, Platform, StyleSheet } from "react-native";
 import { initMasterDb, initDb } from "../utils/db";
 import { PaperProvider, Banner, IconButton } from "react-native-paper";
-import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
+import { ThemeProvider, useThemeData } from "../context/ThemeContext";
 import { CurrencyProvider } from "../context/CurrencyContext";
 import { TransactionsProvider } from "../context/TransactionsContext";
 import { UserProfileProvider, useUserProfile } from "../context/UserProfileContext";
 import { CategoriesProvider } from "../context/CategoriesContext";
 import { LanguageProvider } from "../context/LanguageContext";
 import { PasscodeProvider, usePasscode } from "../context/PasscodeContext";
-import { AuthProvider, useAuth } from "../context/AuthContext";
+import { AuthProvider, useAuthData, useAuthActions } from "../context/AuthContext";
 import { NetworkProvider, useNetwork } from "../context/NetworkContext";
 import PasscodeScreen from "./passcode-screen";
 import { DbRecoveryProvider } from "../context/DbRecoveryContext";
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
 
 function SystemResetManager() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout } = useAuthActions();
 
   useEffect(() => {
     const checkReset = async () => {
@@ -100,9 +100,9 @@ function SystemResetManager() {
 }
 
 function MainLayout() {
-  const { theme } = useAppTheme();
+  const { theme } = useThemeData();
   const { isPasscodeEnabled, isUnlocked } = usePasscode();
-  const { activeUserId, isLoading: authLoading } = useAuth();
+  const { activeUserId, isLoading: authLoading } = useAuthData();
   const { profile, isLoading: profileLoading } = useUserProfile();
   const segments = useSegments();
   const router = useRouter();
@@ -163,7 +163,7 @@ function MainLayout() {
 }
 
 export function AuthLoader({ children }: { children: React.ReactNode }) {
-  const { activeUserId, isLoading } = useAuth();
+  const { activeUserId, isLoading } = useAuthData();
   const segments = useSegments();
   const router = useRouter();
   const [dbLoading, setDbLoading] = useState(false);

@@ -4,18 +4,18 @@ import { View, ScrollView, Alert } from "react-native";
 import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, IconButton, useTheme } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSavings } from "../hooks/useSavings";
-import { useCurrency } from "../context/CurrencyContext";
-import { useTransactions } from "../hooks/useTransactions";
-import { useCategories } from "../context/CategoriesContext";
+import { useCurrencyActions } from "../context/CurrencyContext";
+import { useTransactionsActions } from "../hooks/useTransactions";
+import { useCategoriesData } from "../context/CategoriesContext";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 export default function SavingsScreen() {
     const router = useRouter();
     const theme = useTheme();
     const { items, loading, addItem, updateItem, deleteItem, refetch } = useSavings();
-    const { formatAmount } = useCurrency();
-    const { addTransaction } = useTransactions();
-    const { categories } = useCategories();
+    const { formatAmount } = useCurrencyActions();
+    const { addTransaction } = useTransactionsActions();
+    const { categories } = useCategoriesData();
 
     const [modalVisible, setModalVisible] = useState(false);
     const [transferInModalVisible, setTransferInModalVisible] = useState(false);

@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Alert, Platform } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import { useAuthData, useAuthActions } from '../context/AuthContext';
 import { API_URL, getSetting, setSetting } from '../utils/db';
 
 export function useCloudLink() {
-    const { token, login, activeUserId } = useAuth();
+    const { token, activeUserId } = useAuthData();
+    const { login } = useAuthActions();
     const [isChecking, setIsChecking] = useState(false);
 
     const checkConnection = async () => {

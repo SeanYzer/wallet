@@ -1,23 +1,37 @@
 import { useState, useCallback, useMemo } from "react";
-import { View, ScrollView, Alert } from "react-native";
-import { Appbar, Text, Card, FAB, Portal, Modal, TextInput, Button, List, Checkbox, useTheme, Divider, Chip, IconButton, SegmentedButtons } from "react-native-paper";
+import { View, Alert } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { Appbar, Text, Card, FAB, Portal, Modal, TextInput, Button, Checkbox, useTheme, Chip, IconButton, SegmentedButtons } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Calendar } from "react-native-calendars";
-import { useCurrency } from "../context/CurrencyContext";
+import { useCurrencyActions } from "../context/CurrencyContext";
 import { useDues } from "../hooks/useDues";
-import { useTransactions } from "../hooks/useTransactions";
-import { useCategories } from "../context/CategoriesContext";
+import { useTransactionsActions } from "../hooks/useTransactions";
+import { useCategoriesData } from "../context/CategoriesContext";
 import { Due, DueFrequency } from "../types";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import EmptyState from "../components/EmptyState";
 
+const FREQUENCY_LABELS: Record<DueFrequency, string> = {
+  once: "Once",
+  weekly: "Weekly",
+  biweekly: "Biweekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+};
+
+type ListItem =
+  | { kind: "upcoming-header" }
+  | { kind: "completed-header" }
+  | { kind: "due"; item: Due; section: "upcoming" | "completed" };
+
 export default function DuesScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { formatAmount } = useCurrency();
+  const { formatAmount } = useCurrencyActions();
   const { dues, addDue, updateDue, deleteDue, refetch } = useDues();
-  const { addTransaction } = useTransactions();
-  const { categories } = useCategories();
+  const { addTransaction } = useTransactionsActions();
+  const { categories } = useCategoriesData();
 
   const [filter, setFilter] = useState<"week" | "month" | "all">("week");
   const [modalVisible, setModalVisible] = useState(false);
@@ -102,7 +116,18 @@ export default function DuesScreen() {
       }, 0);
   }, [dues, startOfMonth, endOfMonth]);
 
-
+  const listData = useMemo<ListItem[]>(() => {
+    const items: ListItem[] = [];
+    if (filteredDues.upcoming.length > 0) {
+      items.push({ kind: "upcoming-header" });
+      filteredDues.upcoming.forEach((due) => items.push({ kind: "due", item: due, section: "upcoming" }));
+    }
+    if (filteredDues.completed.length > 0) {
+      items.push({ kind: "completed-header" });
+      filteredDues.completed.forEach((due) => items.push({ kind: "due", item: due, section: "completed" }));
+    }
+    return items;
+  }, [filteredDues]);
 
   const handleAdd = async () => {
     if (!title) return;
@@ -132,7 +157,7 @@ export default function DuesScreen() {
     setModalVisible(false);
   };
 
-  const recordTransaction = async (item: any) => {
+  const recordTransaction = useCallback(async (item: any) => {
     try {
       await addTransaction({
         title: item.title,
@@ -169,29 +194,133 @@ export default function DuesScreen() {
      } catch (error) {
        console.error("Failed to record transaction:", error);
      }
-   };
+   }, [addTransaction, addDue, updateDue, categories]);
 
-   const handleDelete = async (id: string) => {
+   const handleDelete = useCallback(async (id: string) => {
     await deleteDue(id);
-  };
+  }, [deleteDue]);
 
-  const getFrequencyLabel = (freq?: DueFrequency) => {
-    switch (freq) {
-      case "weekly": return "Weekly";
-      case "biweekly": return "Biweekly";
-      case "monthly": return "Monthly";
-      case "yearly": return "Yearly";
-      default: return "Once";
+  const renderItem = useCallback(({ item }: { item: ListItem }) => {
+    if (item.kind === "upcoming-header") {
+      return (
+        <Text variant="titleMedium" style={{ marginBottom: 8 }}>
+          Upcoming
+        </Text>
+      );
     }
-  };
+    if (item.kind === "completed-header") {
+      return (
+        <Text variant="titleMedium" style={{ marginBottom: 8, marginTop: 16 }}>
+          Completed
+        </Text>
+      );
+    }
 
-  return (
-    <View style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
-      <Appbar.Header>
-        <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="Scheduled" />
-      </Appbar.Header>
+    const due = item.item;
+    const isToday = new Date(due.date).toDateString() === new Date().toDateString();
 
+    if (item.section === "upcoming") {
+      return (
+        <Card style={{ marginBottom: 12, borderRadius: 16 }}>
+          <Card.Content>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: theme.colors.surfaceVariant,
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 12,
+              }}>
+                <MaterialCommunityIcons
+                  name={due.type === "income" ? "arrow-up-circle" : "arrow-down-circle"}
+                  size={24}
+                  color={due.type === "income" ? "#2E7D32" : "#D32F2F"}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text variant="titleSmall" style={{ fontWeight: isToday ? "bold" : "600" }}>
+                  {due.title}
+                </Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.outline, marginTop: 2 }}>
+                  {new Date(due.date).toLocaleDateString()}  {formatAmount(due.amount)}  {FREQUENCY_LABELS[due.frequency || "once"]}
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                {isToday && (
+                  <Text
+                    variant="labelSmall"
+                    style={{
+                      color: theme.colors.primary,
+                      marginRight: 8,
+                      fontWeight: "bold",
+                      fontSize: 10,
+                    }}
+                  >
+                    {due.type === "income" ? "RECEIVABLE" : "DUE"}
+                  </Text>
+                )}
+                {due.autoProcess && (
+                  <MaterialCommunityIcons
+                    name="lightning-bolt"
+                    size={16}
+                    color="#D97706"
+                    style={{ marginRight: 4 }}
+                  />
+                )}
+                <Button mode="outlined" compact onPress={() => recordTransaction(due)} style={{ marginRight: 4 }}>
+                  {due.type === "income" ? "Receive" : "Pay"}
+                </Button>
+                <IconButton icon="delete" onPress={() => handleDelete(due.id)} iconColor={theme.colors.error} size={20} />
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
+      );
+    }
+
+    return (
+      <Card style={{ marginBottom: 12, borderRadius: 16, opacity: 0.7 }}>
+        <Card.Content>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: theme.colors.surfaceVariant,
+              justifyContent: "center",
+              alignItems: "center",
+              marginRight: 12,
+            }}>
+              <MaterialCommunityIcons
+                name={due.type === "income" ? "arrow-up-circle" : "arrow-down-circle"}
+                size={24}
+                color="gray"
+              />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text
+                variant="titleSmall"
+                style={{ textDecorationLine: "line-through", color: "gray", fontWeight: "600" }}
+              >
+                {due.title}
+              </Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.outline, marginTop: 2 }}>
+                {new Date(due.date).toLocaleDateString()}  {formatAmount(due.amount)}
+              </Text>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  }, [theme, formatAmount, recordTransaction, handleDelete]);
+
+  const ListHeader = useCallback(() => (
+    <View>
       <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
         <SegmentedButtons
           value={filter}
@@ -210,87 +339,37 @@ export default function DuesScreen() {
             <Text variant="labelSmall" style={{ color: theme.colors.onErrorContainer, textAlign: "center" }}>
               {filter === "week" ? "Week" : "Month"} Total
             </Text>
-            <Text variant="titleMedium" style={{ fontWeight: "700", textAlign: "center", color: (filter === "week" ? weekTotal : monthTotal) > 0 ? theme.colors.onErrorContainer : theme.colors.onErrorContainer }}>
+            <Text variant="titleMedium" style={{ fontWeight: "700", textAlign: "center", color: theme.colors.onErrorContainer }}>
               {formatAmount(Math.abs(filter === "week" ? weekTotal : monthTotal))}
             </Text>
           </Card>
         </View>
       )}
 
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {filteredDues.upcoming.length === 0 && filteredDues.completed.length === 0 ? (
-          <EmptyState icon="calendar-clock" title="No dues in this period" subtitle="Tap + to add a due payment" />
-        ) : (
-          <>
-            {filteredDues.upcoming.length > 0 && (
-              <>
-                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Upcoming</Text>
-                <Card style={{ marginBottom: 16 }}>
-                  <Card.Content>
-                    {filteredDues.upcoming.map((item, index, arr) => {
-                      const isToday = new Date(item.date).toDateString() === now.toDateString();
-                      return (
-                        <View key={item.id}>
-                          <List.Item
-                            title={item.title}
-                            titleStyle={{ fontWeight: isToday ? "bold" : "normal" }}
-                            description={`${new Date(item.date).toLocaleDateString()}  ${formatAmount(item.amount)}  ${getFrequencyLabel(item.frequency)}`}
-                             left={() => (
-                               <IconButton
-                                 icon={item.type === "income" ? "arrow-up-circle" : "arrow-down-circle"}
-                                 iconColor={item.type === "income" ? "#2E7D32" : "#D32F2F"}
-                                 size={24}
-                               />
-                             )}
-                            right={() => (
-                              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                 {isToday && <Text variant="labelSmall" style={{ color: theme.colors.primary, marginRight: 8, fontWeight: "bold" }}>{item.type === "income" ? "RECEIVABLE" : "DUE"}</Text>}
-                                 {item.autoProcess && <MaterialCommunityIcons name="lightning-bolt" size={16} color="#D97706" style={{ marginRight: 4 }} />}
-                                 <Button mode="outlined" compact onPress={() => recordTransaction(item)} style={{ marginRight: 8 }}>
-                                   {item.type === "income" ? "Receive" : "Pay"}
-                                 </Button>
-                                <IconButton icon="delete" onPress={() => handleDelete(item.id)} iconColor={theme.colors.error} />
-                              </View>
-                            )}
-                          />
-                          {index < arr.length - 1 && <Divider />}
-                        </View>
-                      );
-                    })}
-                  </Card.Content>
-                </Card>
-              </>
-            )}
+      <View style={{ marginTop: 8 }} />
+    </View>
+  ), [filter, theme, formatAmount, weekTotal, monthTotal]);
 
-             {filteredDues.completed.length > 0 && (
-               <>
-                 <Text variant="titleMedium" style={{ marginBottom: 8 }}>Completed</Text>
-                 <Card style={{ marginBottom: 16 }}>
-                   <Card.Content>
-                     {filteredDues.completed.map((item, index) => (
-                       <View key={item.id}>
-                         <List.Item
-                           title={item.title}
-                           titleStyle={{ textDecorationLine: "line-through", color: "gray" }}
-                           description={`${new Date(item.date).toLocaleDateString()}  ${formatAmount(item.amount)}`}
-                           left={() => (
-                             <IconButton
-                               icon={item.type === "income" ? "arrow-up-circle" : "arrow-down-circle"}
-                               iconColor="gray"
-                               size={20}
-                             />
-                           )}
-                         />
-                         {index < filteredDues.completed.length - 1 && <Divider />}
-                       </View>
-                     ))}
-                   </Card.Content>
-                 </Card>
-               </>
-             )}
-          </>
-        )}
-      </ScrollView>
+  return (
+    <View style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
+      <Appbar.Header>
+        <Appbar.BackAction onPress={() => router.back()} />
+        <Appbar.Content title="Scheduled" />
+      </Appbar.Header>
+
+      <FlashList
+        data={listData}
+        renderItem={renderItem}
+        keyExtractor={(item: ListItem, index: number) =>
+          item.kind === "due" ? item.item.id : `${item.kind}-${index}`
+        }
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={
+          <EmptyState icon="calendar-clock" title="No dues in this period" subtitle="Tap + to add a due payment" />
+        }
+        contentContainerStyle={{ padding: 16 }}
+        showsVerticalScrollIndicator={false}
+      />
 
       <Portal>
         <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
@@ -341,21 +420,19 @@ export default function DuesScreen() {
            />
 
           <Text style={{ marginBottom: 8, fontWeight: "600" }}>Category (Optional)</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-            <View style={{ flexDirection: "row", gap: 6 }}>
-              {categories.filter((c) => c.type === type).map((cat) => (
-                <Chip
-                  key={cat.id}
-                  selected={selectedCategoryId === cat.id}
-                  onPress={() => setSelectedCategoryId(selectedCategoryId === cat.id ? undefined : cat.id)}
-                  mode="outlined"
-                  style={{ borderRadius: 16 }}
-                >
-                  {cat.name}
-                </Chip>
-              ))}
-            </View>
-          </ScrollView>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+            {categories.filter((c) => c.type === type).map((cat) => (
+              <Chip
+                key={cat.id}
+                selected={selectedCategoryId === cat.id}
+                onPress={() => setSelectedCategoryId(selectedCategoryId === cat.id ? undefined : cat.id)}
+                mode="outlined"
+                style={{ borderRadius: 16 }}
+              >
+                {cat.name}
+              </Chip>
+            ))}
+          </View>
 
           <Button mode="contained" onPress={handleAdd} disabled={!title || !amount}>Add Due</Button>
          </Modal>

@@ -3,13 +3,13 @@ import { View, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from "re
 import { Text, TextInput, Button, HelperText } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useUserProfile } from "../context/UserProfileContext";
-import { useTransactionsContext } from "../context/TransactionsContext";
+import { useUserProfileActions } from "../context/UserProfileContext";
+import { useTransactionsActions } from "../context/TransactionsContext";
 
 export default function OnboardingScreen() {
     const router = useRouter();
-    const { completeSetup } = useUserProfile();
-    const { addTransaction } = useTransactionsContext();
+    const { completeSetup } = useUserProfileActions();
+    const { addTransaction } = useTransactionsActions();
 
     const [name, setName] = useState("");
     const [balance, setBalance] = useState("0");

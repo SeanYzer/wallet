@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Alert, Image, Platform, TouchableOpacity } from "react-native";
+import { View, ScrollView, Alert, Platform, TouchableOpacity } from "react-native";
+import { Image } from "expo-image";
 import { Appbar, TextInput, Button, SegmentedButtons, Text, Chip, IconButton, useTheme, Card, Portal, Modal } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -238,7 +239,7 @@ export default function EditTransaction() {
 
         {receiptImage && (
           <View style={{ position: "relative", marginBottom: 16 }}>
-            <Image source={{ uri: receiptImage }} style={{ width: "100%", height: 200, borderRadius: 8 }} resizeMode="cover" />
+            <Image source={{ uri: receiptImage }} style={{ width: "100%", height: 200, borderRadius: 8 }} contentFit="cover" />
             <IconButton icon="close-circle" size={24} iconColor="red" style={{ position: "absolute", top: 0, right: 0 }} onPress={() => setReceiptImage(null)} />
           </View>
         )}

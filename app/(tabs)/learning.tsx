@@ -3,10 +3,10 @@ import { Text, Card, useTheme, Appbar, IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { FinancialTip } from "../../components/FinancialTip";
-import { useAppTheme } from "../../context/ThemeContext";
+import { useThemeData } from "../../context/ThemeContext";
 
 export default function LearningScreen() {
-    const { theme } = useAppTheme();
+    const { theme } = useThemeData();
 
     const resources = [
         {

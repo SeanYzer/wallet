@@ -2,15 +2,15 @@ import { View, Platform, TouchableOpacity } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useCurrency } from "../context/CurrencyContext";
-import { useUserProfile } from "../context/UserProfileContext";
+import { useCurrencyActions } from "../context/CurrencyContext";
+import { useUserProfileData } from "../context/UserProfileContext";
 import { useState } from "react";
 import { BalanceBreakdown } from "./BalanceBreakdown";
 
 export function SummaryCard({ transactions = [], goals = [] }: any) {
   const theme = useTheme();
-  const { formatAmount } = useCurrency();
-  const { profile } = useUserProfile();
+  const { formatAmount } = useCurrencyActions();
+  const { profile } = useUserProfileData();
   const [showBreakdown, setShowBreakdown] = useState(false);
 
   const initialBalance = Number(profile?.initialBalance || 0);

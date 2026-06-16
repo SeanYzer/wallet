@@ -1,6 +1,6 @@
 import { View, ScrollView } from "react-native";
 import { Modal, Portal, Text, Button, Divider, useTheme } from "react-native-paper";
-import { useCurrency } from "../context/CurrencyContext";
+import { useCurrencyActions } from "../context/CurrencyContext";
 
 interface BalanceBreakdownProps {
   visible: boolean;
@@ -22,7 +22,7 @@ export function BalanceBreakdown({
   transactions,
 }: BalanceBreakdownProps) {
   const theme = useTheme();
-  const { formatAmount } = useCurrency();
+  const { formatAmount } = useCurrencyActions();
 
   const balance = initialBalance + income - expense;
 

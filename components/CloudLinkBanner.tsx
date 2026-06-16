@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Text, IconButton } from 'react-native-paper';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useAuth } from '../context/AuthContext';
+import { useAuthData } from '../context/AuthContext';
 import { API_URL } from '../utils/db';
 import { useRouter } from 'expo-router';
 
 export function CloudLinkBanner() {
-    const { token, activeUserId } = useAuth();
+    const { token, activeUserId } = useAuthData();
     const [isOnline, setIsOnline] = useState(true);
     const [isVisible, setIsVisible] = useState(false);
     const router = useRouter();

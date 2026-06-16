@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { createContext, useContext, useMemo, ReactNode } from "react";
 import type {
   TransactionRepository,
   CategoryRepository,
@@ -32,7 +32,7 @@ export interface Repositories {
 const RepositoryContext = createContext<Repositories | undefined>(undefined);
 
 export function RepositoryProvider({ children }: { children: ReactNode }) {
-  const repos: Repositories = {
+  const repos = useMemo<Repositories>(() => ({
     transactions: new AsyncStorageTransactionRepository(),
     categories: new AsyncStorageCategoryRepository(),
     dues: new AsyncStorageDueRepository(),
@@ -41,7 +41,7 @@ export function RepositoryProvider({ children }: { children: ReactNode }) {
     agendas: new AsyncStorageAgendaRepository(),
     paymentMethods: new AsyncStoragePaymentMethodRepository(),
     profiles: new AsyncStorageProfileRepository(),
-  };
+  }), []);
 
   return (
     <RepositoryContext.Provider value={repos}>

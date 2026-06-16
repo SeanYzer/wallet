@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { SavingsItem } from "../types";
-import { useAuth } from "../context/AuthContext";
+import { useAuthData } from "../context/AuthContext";
 import { API_URL, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { enqueueAndTrigger, processSyncQueue } from "../utils/syncProcessor";
@@ -36,7 +36,7 @@ export function useSavings() {
     const [items, setItems] = useState<SavingsItem[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const { activeUserId } = useAuth();
+    const { activeUserId } = useAuthData();
     const repos = useRepositories();
 
     const fetchItems = useCallback(async () => {

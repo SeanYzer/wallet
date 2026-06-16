@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useMemo, useCallback, useRef, ReactNode } from "react";
 
 type Language = "en" | "tl";
 
-interface LanguageContextType {
+interface LanguageData {
   language: Language;
+}
+
+interface LanguageActions {
   setLanguage: (lang: Language) => void;
   t: (key: string) => string;
 }
@@ -47,7 +50,8 @@ const translations = {
   },
 };
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LanguageDataContext = createContext<LanguageData | undefined>(undefined);
+const LanguageActionsContext = createContext<LanguageActions | undefined>(undefined);
 
 import { useUserProfile } from "./UserProfileContext";
 
@@ -55,25 +59,51 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const { profile, updateProfile } = useUserProfile();
   const language = (profile?.language as Language) || "en";
 
-  const setLanguage = (lang: Language) => {
-    updateProfile({ language: lang });
-  };
+  const languageRef = useRef(language);
+  languageRef.current = language;
 
-  const t = (key: string) => {
-    return (translations[language] as any)[key] || key;
-  };
+  const t = useCallback((key: string) => {
+    return (translations[languageRef.current] as any)[key] || key;
+  }, []);
+
+  const setLanguage = useCallback((lang: Language) => {
+    updateProfile({ language: lang });
+  }, [updateProfile]);
+
+  const dataValue = useMemo(() => ({
+    language,
+  }), [language]);
+
+  const actionsValue = useMemo(() => ({
+    setLanguage,
+    t,
+  }), [setLanguage, t]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
-      {children}
-    </LanguageContext.Provider>
+    <LanguageDataContext.Provider value={dataValue}>
+      <LanguageActionsContext.Provider value={actionsValue}>
+        {children}
+      </LanguageActionsContext.Provider>
+    </LanguageDataContext.Provider>
   );
 }
 
-export function useLanguage() {
-  const context = useContext(LanguageContext);
+export function useLanguageData(): LanguageData {
+  const context = useContext(LanguageDataContext);
   if (!context) {
-    throw new Error("useLanguage must be used within a LanguageProvider");
+    throw new Error("useLanguageData must be used within a LanguageProvider");
   }
   return context;
+}
+
+export function useLanguageActions(): LanguageActions {
+  const context = useContext(LanguageActionsContext);
+  if (!context) {
+    throw new Error("useLanguageActions must be used within a LanguageProvider");
+  }
+  return context;
+}
+
+export function useLanguage(): LanguageData & LanguageActions {
+  return { ...useLanguageData(), ...useLanguageActions() };
 }

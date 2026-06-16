@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Image, Platform, Alert, TouchableOpacity } from "react-native";
+import { View, ScrollView, Platform, Alert, TouchableOpacity } from "react-native";
+import { Image } from "expo-image";
 import {
   TextInput,
   Button,
@@ -19,13 +20,13 @@ import * as ImagePicker from "expo-image-picker";
 import { Calendar } from "react-native-calendars";
 import { useTransactions } from "../hooks/useTransactions";
 import { Category, TransactionType, PaymentMethod } from "../types";
-import { useCategories } from "../context/CategoriesContext";
-import { useCurrency } from "../context/CurrencyContext";
+import { useCategoriesData } from "../context/CategoriesContext";
+import { useCurrencyActions } from "../context/CurrencyContext";
 
 export default function AddTransaction() {
   const router = useRouter();
   const { transactions, addTransaction } = useTransactions();
-  const { categories: availableCategories } = useCategories();
+  const { categories: availableCategories } = useCategoriesData();
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -38,7 +39,7 @@ export default function AddTransaction() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { formatAmount } = useCurrency();
+  const { formatAmount } = useCurrencyActions();
 
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<{ id: string; name: string; type: string; icon: string }[]>([]);
   const [selectedMethodType, setSelectedMethodType] = useState<string>("cash");
@@ -278,7 +279,7 @@ export default function AddTransaction() {
             <Image
               source={{ uri: receiptImage }}
               style={{ width: "100%", height: 200, borderRadius: 8 }}
-              resizeMode="cover"
+              contentFit="cover"
             />
             <IconButton
               icon="close-circle"

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import { Transaction } from "../types";
 import {
     getSetting,
@@ -12,16 +12,20 @@ import { generateUUID } from "../utils/uuid";
 import * as FileSystem from 'expo-file-system/legacy';
 import { enqueueAndTrigger, processSyncQueue } from "../utils/syncProcessor";
 
-interface TransactionsContextType {
+interface TransactionsData {
     transactions: Transaction[];
     loading: boolean;
+}
+
+interface TransactionsActions {
     refetch: () => Promise<void>;
     addTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
     updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
     deleteTransaction: (id: string) => Promise<void>;
 }
 
-const TransactionsContext = createContext<TransactionsContextType | undefined>(undefined);
+const TransactionsDataContext = createContext<TransactionsData | undefined>(undefined);
+const TransactionsActionsContext = createContext<TransactionsActions | undefined>(undefined);
 
 const sanitizeTransaction = (t: Transaction): Transaction => {
     const withTimestamp = { ...t, updatedAt: t.updatedAt || Date.now() };
@@ -42,7 +46,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const uploadReceiptIfNeeded = async (tx: Transaction): Promise<Transaction> => {
+    const uploadReceiptIfNeeded = useCallback(async (tx: Transaction): Promise<Transaction> => {
         if (tx.receiptUrl && tx.receiptUrl.startsWith('file://')) {
             try {
                 const fileName = `${tx.id}.jpg`;
@@ -66,7 +70,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             }
         }
         return tx;
-    };
+    }, [activeUserId]);
 
     const fetchTransactions = useCallback(async () => {
         setLoading(true);
@@ -110,15 +114,14 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         } finally {
             setLoading(false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeUserId, txRepo]);
+    }, [activeUserId, txRepo, uploadReceiptIfNeeded]);
 
     useEffect(() => {
         if (!activeUserId) return;
         fetchTransactions();
     }, [activeUserId, fetchTransactions]);
 
-    const addTransaction = async (transaction: Omit<Transaction, "id">) => {
+    const addTransaction = useCallback(async (transaction: Omit<Transaction, "id">) => {
         try {
             const newTransaction: Transaction = {
                 ...transaction,
@@ -138,9 +141,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             console.error("Error adding transaction:", error);
             throw error;
         }
-    };
+    }, [txRepo, activeUserId, uploadReceiptIfNeeded]);
 
-    const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
         try {
             const item = await txRepo.getById(id);
             if (item) {
@@ -159,9 +162,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             console.error("Error updating transaction:", error);
             throw error;
         }
-    };
+    }, [txRepo, activeUserId]);
 
-    const deleteTransaction = async (id: string) => {
+    const deleteTransaction = useCallback(async (id: string) => {
         try {
             await txRepo.deleteById(id);
             setTransactions((prev) => prev.filter(t => t.id !== id));
@@ -174,28 +177,45 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             console.error("Error deleting transaction:", error);
             throw error;
         }
-    };
+    }, [txRepo]);
+
+    const dataValue = useMemo(() => ({
+        transactions,
+        loading,
+    }), [transactions, loading]);
+
+    const actionsValue = useMemo(() => ({
+        refetch: fetchTransactions,
+        addTransaction,
+        updateTransaction,
+        deleteTransaction,
+    }), [fetchTransactions, addTransaction, updateTransaction, deleteTransaction]);
 
     return (
-        <TransactionsContext.Provider
-            value={{
-                transactions,
-                loading,
-                refetch: fetchTransactions,
-                addTransaction,
-                updateTransaction,
-                deleteTransaction
-            }}
-        >
-            {children}
-        </TransactionsContext.Provider>
+        <TransactionsDataContext.Provider value={dataValue}>
+            <TransactionsActionsContext.Provider value={actionsValue}>
+                {children}
+            </TransactionsActionsContext.Provider>
+        </TransactionsDataContext.Provider>
     );
 }
 
-export function useTransactionsContext() {
-    const context = useContext(TransactionsContext);
+export function useTransactionsData(): TransactionsData {
+    const context = useContext(TransactionsDataContext);
     if (!context) {
-        throw new Error("useTransactionsContext must be used within a TransactionsProvider");
+        throw new Error("useTransactionsData must be used within a TransactionsProvider");
     }
     return context;
+}
+
+export function useTransactionsActions(): TransactionsActions {
+    const context = useContext(TransactionsActionsContext);
+    if (!context) {
+        throw new Error("useTransactionsActions must be used within a TransactionsProvider");
+    }
+    return context;
+}
+
+export function useTransactionsContext(): TransactionsData & TransactionsActions {
+    return { ...useTransactionsData(), ...useTransactionsActions() };
 }

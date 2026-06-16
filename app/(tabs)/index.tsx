@@ -1,21 +1,23 @@
-import { View, ActivityIndicator, ScrollView, TouchableOpacity, Platform } from "react-native";
-import { FAB, Appbar, Text, Button, Card, IconButton } from "react-native-paper";
+import { View, ActivityIndicator, TouchableOpacity, Platform } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { FAB, Text, Card, IconButton } from "react-native-paper";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useRouter, useFocusEffect, Redirect } from "expo-router";
-import { useCallback } from "react";
-import { useAppTheme } from "../../context/ThemeContext";
+import { useRouter, useFocusEffect } from "expo-router";
+import { useState, useCallback, useMemo } from "react";
+import { useThemeData } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { useTransactions } from "../../hooks/useTransactions";
 import { useSavings } from "../../hooks/useSavings";
 import { useDues } from "../../hooks/useDues";
-import { useCurrency } from "../../context/CurrencyContext";
+import { useCurrencyActions } from "../../context/CurrencyContext";
 import { useUserProfile } from "../../context/UserProfileContext";
 import { SummaryCard } from "../../components/SummaryCard";
-import { TransactionList } from "../../components/TransactionList";
 import { FinancialTip } from "../../components/FinancialTip";
 import { DashboardSkeleton } from "../../components/SkeletonLoader";
 import { CloudLinkBanner } from "../../components/CloudLinkBanner";
 import { SmartInsights } from "../../components/SmartInsights";
+import { Transaction } from "../../types";
+import EmptyState from "../../components/EmptyState";
 
 
 export default function Dashboard() {
@@ -24,8 +26,8 @@ export default function Dashboard() {
   const { transactions, loading: txLoading, refetch: refetchTx } = useTransactions();
   const { items: savingsItems, refetch: refetchSavings } = useSavings();
   const { dues, refetch: refetchDues } = useDues();
-  const { formatAmount } = useCurrency();
-  const { theme } = useAppTheme();
+  const { formatAmount } = useCurrencyActions();
+  const { theme } = useThemeData();
   const { activeUserId } = useAuth();
 
   const loading = txLoading;
@@ -40,7 +42,207 @@ export default function Dashboard() {
     }, [activeUserId, refetchTx, refetchSavings, refetchDues])
   );
 
-  if (!activeUserId) return null; // Let AuthLoader handle redirection
+  const now = useMemo(() => new Date(), []);
+  const weekFromNow = useMemo(() => {
+    const d = new Date(now);
+    d.setDate(now.getDate() + 7);
+    return d;
+  }, [now]);
+
+  const upcomingDues = useMemo(
+    () => dues
+      .filter((d) => !d.completed)
+      .filter((d) => {
+        const dDate = new Date(d.date);
+        return dDate >= now && dDate <= weekFromNow;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [dues, now, weekFromNow]
+  );
+
+  const totalExpenses = useMemo(
+    () => upcomingDues.filter((d) => d.type === "expense").reduce((s, d) => s + d.amount, 0),
+    [upcomingDues]
+  );
+
+  const totalIncome = useMemo(
+    () => upcomingDues.filter((d) => d.type === "income").reduce((s, d) => s + d.amount, 0),
+    [upcomingDues]
+  );
+
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
+
+  const transactionData = useMemo(() => {
+    const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return sorted.slice(0, page * PAGE_SIZE);
+  }, [transactions, page]);
+
+  const hasMore = useMemo(
+    () => transactions.length > page * PAGE_SIZE,
+    [transactions, page]
+  );
+
+  const loadMore = useCallback(() => {
+    if (hasMore) setPage((p) => p + 1);
+  }, [hasMore]);
+
+  const renderTransactionItem = useCallback(
+    ({ item }: { item: Transaction }) => (
+      <TouchableOpacity
+        onPress={() => router.push(`/transaction-details?id=${item.id}`)}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor: theme.colors.surface,
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 12,
+          marginHorizontal: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          ...Platform.select({
+            web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)' },
+            default: {
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 1
+            }
+          })
+        }}
+      >
+        <View style={{
+          width: 48,
+          height: 48,
+          borderRadius: 12,
+          backgroundColor: theme.colors.surfaceVariant,
+          justifyContent: "center",
+          alignItems: "center",
+          marginRight: 16
+        }}>
+          <MaterialCommunityIcons
+            name={
+              ({
+                cash: "cash",
+                card: "credit-card",
+                bank_transfer: "bank",
+                e_wallet: "wallet",
+              } as Record<string, any>)[item.paymentMethod || "cash"]
+            }
+            size={24}
+            color={theme.colors.primary}
+          />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyLarge" style={{ fontWeight: "600", color: theme.colors.onSurface }}>
+            {item.category?.name || "Others"}
+          </Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.outline, marginTop: 2 }}>
+            {item.establishment || (item.note?.replace(/\s*\[Split Bill\].*$/s, "").trim()) || "No details"}
+          </Text>
+        </View>
+
+        <View style={{ alignItems: "flex-end" }}>
+          <Text
+            variant="titleMedium"
+            style={{
+              fontWeight: "700",
+              color: item.type === "income" ? "#27AE60" : theme.colors.error,
+            }}
+          >
+            {item.type === "income" ? "+" : "-"}{formatAmount(item.amount)}
+          </Text>
+          <Text variant="labelSmall" style={{ color: theme.colors.outline, marginTop: 2 }}>
+            {new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    ),
+    [theme, router, formatAmount]
+  );
+
+  const ListHeader = useCallback(() => (
+    <View>
+      <CloudLinkBanner />
+
+      <View style={{ marginTop: 8 }}>
+        <SummaryCard transactions={transactions} goals={savingsItems} />
+      </View>
+
+      <View style={{ paddingHorizontal: 16 }}>
+        <SmartInsights />
+      </View>
+
+      <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", paddingHorizontal: 16, marginTop: 20 }}>
+        {[
+          { label: "Scheduled", icon: "calendar-check-outline", path: "/dues" },
+          { label: "Allocations", icon: "piggy-bank-outline", path: "/savings" },
+        ].map((item) => (
+          <TouchableOpacity
+            key={item.path}
+            onPress={() => router.push(item.path as any)}
+            style={{ width: "23%", alignItems: "center", marginBottom: 16 }}
+          >
+            <View style={{
+              width: 56,
+              height: 56,
+              borderRadius: 18,
+              backgroundColor: theme.colors.surface,
+              justifyContent: "center",
+              alignItems: "center",
+              marginBottom: 8,
+              ...Platform.select({
+                web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)' },
+                default: {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 4,
+                  elevation: 2
+                }
+              })
+            }}>
+              <MaterialCommunityIcons name={item.icon as any} size={26} color={theme.colors.primary} />
+            </View>
+            <Text variant="labelSmall" style={{ fontWeight: "600", color: theme.colors.onSurfaceVariant }}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {upcomingDues.length > 0 && (
+        <TouchableOpacity onPress={() => router.push("/dues")} style={{ marginTop: 16, paddingHorizontal: 20 }}>
+          <Card style={{ backgroundColor: theme.colors.surfaceVariant, borderRadius: 16 }}>
+            <Card.Content>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                <MaterialCommunityIcons name="calendar-clock" size={20} color={theme.colors.primary} />
+                <Text variant="titleSmall" style={{ fontWeight: "700", marginLeft: 8 }}>Next 7 Days</Text>
+              </View>
+              <Text variant="bodyMedium">
+                {upcomingDues.length} due{upcomingDues.length > 1 ? "s" : ""}: {formatAmount(totalExpenses)} in expenses
+                {totalIncome > 0 ? `, ${formatAmount(totalIncome)} in income` : ""}
+              </Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.outline, marginTop: 4 }}>Tap to view all dues</Text>
+            </Card.Content>
+          </Card>
+        </TouchableOpacity>
+      )}
+
+      <View style={{ marginTop: 8 }}>
+        <FinancialTip />
+      </View>
+
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 8, paddingHorizontal: 20 }}>
+        <Text variant="titleMedium" style={{ fontWeight: "700", color: theme.colors.onBackground }}>Recent Activity</Text>
+        <TouchableOpacity onPress={() => router.push("/reports")}>
+          <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: "600" }}>See All</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  ), [theme, transactions, savingsItems, router, formatAmount, upcomingDues, totalExpenses, totalIncome]);
+
+  if (!activeUserId) return null;
 
   if (profileLoading || (loading && transactions.length === 0)) {
     return <DashboardSkeleton />;
@@ -60,95 +262,18 @@ export default function Dashboard() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        <CloudLinkBanner />
-
-        <View style={{ marginTop: 8 }}>
-          <SummaryCard transactions={transactions} goals={savingsItems} />
-        </View>
-
-        <View style={{ paddingHorizontal: 16 }}>
-          <SmartInsights />
-        </View>
-
-        <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", paddingHorizontal: 16, marginTop: 20 }}>
-          {[
-             { label: "Scheduled", icon: "calendar-check-outline", path: "/dues" },
-             { label: "Allocations", icon: "piggy-bank-outline", path: "/savings" },
-          ].map((item) => (
-            <TouchableOpacity
-              key={item.path}
-              onPress={() => router.push(item.path as any)}
-              style={{ width: "23%", alignItems: "center", marginBottom: 16 }}
-            >
-              <View style={{
-                width: 56,
-                height: 56,
-                borderRadius: 18,
-                backgroundColor: theme.colors.surface,
-                justifyContent: "center",
-                alignItems: "center",
-                marginBottom: 8,
-                ...Platform.select({
-                  web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)' },
-                  default: {
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 4,
-                    elevation: 2
-                  }
-                })
-              }}>
-                <MaterialCommunityIcons name={item.icon as any} size={26} color={theme.colors.primary} />
-              </View>
-              <Text variant="labelSmall" style={{ fontWeight: "600", color: theme.colors.onSurfaceVariant }}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {(() => {
-          const now = new Date();
-          const weekFromNow = new Date(now);
-          weekFromNow.setDate(now.getDate() + 7);
-          const upcomingDues = dues.filter(d => {
-            if (d.completed) return false;
-            const dDate = new Date(d.date);
-            return dDate >= now && dDate <= weekFromNow;
-          }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-          if (upcomingDues.length === 0) return null;
-
-          const totalExpenses = upcomingDues.filter(d => d.type === "expense").reduce((s, d) => s + d.amount, 0);
-          const totalIncome = upcomingDues.filter(d => d.type === "income").reduce((s, d) => s + d.amount, 0);
-
-          return (
-            <TouchableOpacity onPress={() => router.push("/dues")} style={{ marginTop: 16, paddingHorizontal: 20 }}>
-              <Card style={{ backgroundColor: theme.colors.surfaceVariant, borderRadius: 16 }}>
-                <Card.Content>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                    <MaterialCommunityIcons name="calendar-clock" size={20} color={theme.colors.primary} />
-                    <Text variant="titleSmall" style={{ fontWeight: "700", marginLeft: 8 }}>Next 7 Days</Text>
-                  </View>
-                  <Text variant="bodyMedium">
-                    {upcomingDues.length} due{upcomingDues.length > 1 ? "s" : ""}: {formatAmount(totalExpenses)} in expenses
-                    {totalIncome > 0 ? `, ${formatAmount(totalIncome)} in income` : ""}
-                  </Text>
-                  <Text variant="labelSmall" style={{ color: theme.colors.outline, marginTop: 4 }}>Tap to view all dues</Text>
-                </Card.Content>
-              </Card>
-            </TouchableOpacity>
-          );
-        })()}
-
-        <View style={{ marginTop: 8 }}>
-          <FinancialTip />
-        </View>
-
-        <View style={{ marginTop: 8 }}>
-          <TransactionList transactions={transactions} />
-        </View>
-      </ScrollView>
+      <FlashList
+        data={transactionData}
+        renderItem={renderTransactionItem}
+        keyExtractor={(item: Transaction) => item.id}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={<EmptyState icon="receipt" title="No transactions yet" subtitle="Tap + to add your first transaction" />}
+        ListFooterComponent={hasMore ? <View style={{ paddingVertical: 16, alignItems: "center" }}><Text variant="bodySmall" style={{ color: theme.colors.outline }}>Scroll for more</Text></View> : null}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      />
 
       <FAB
         icon="plus"

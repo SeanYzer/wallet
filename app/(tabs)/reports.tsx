@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { View, ScrollView, Dimensions } from "react-native";
 import { Appbar, Text, Card, useTheme, Button, Menu, Divider, IconButton } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -24,7 +24,7 @@ export default function ReportsScreen() {
     }, [refetch])
   );
 
-  const getFilteredData = () => {
+  const filteredTransactions = useMemo(() => {
     const now = new Date();
     let start: Date, end: Date;
 
@@ -49,9 +49,7 @@ export default function ReportsScreen() {
       const d = new Date(t.date);
       return isWithinInterval(d, { start, end });
     });
-  };
-
-  const filteredTransactions = getFilteredData();
+  }, [transactions, period]);
   const income = filteredTransactions.filter(t => t.type === "income").reduce((sum, t) => sum + (t.amount || 0), 0);
   const expense = filteredTransactions.filter(t => t.type === "expense").reduce((sum, t) => sum + (t.amount || 0), 0);
 

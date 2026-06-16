@@ -1,7 +1,7 @@
-import { useTransactions } from "./useTransactions";
+import { useTransactionsData } from "./useTransactions";
 import { useSavings } from "./useSavings";
 import { useDues } from "./useDues";
-import { useCurrency } from "../context/CurrencyContext";
+import { useCurrencyActions } from "../context/CurrencyContext";
 
 export interface Insight {
   id: string;
@@ -12,10 +12,10 @@ export interface Insight {
 }
 
 export function useInsights() {
-  const { transactions } = useTransactions();
+  const { transactions } = useTransactionsData();
   const { items: savingsItems } = useSavings();
   const { dues } = useDues();
-  const { formatAmount } = useCurrency();
+  const { formatAmount } = useCurrencyActions();
 
   const insights: Insight[] = [];
   const now = new Date();

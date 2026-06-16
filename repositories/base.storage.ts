@@ -18,13 +18,14 @@ export abstract class BaseAsyncStorageRepository<T extends { id: string }> imple
   }
 
   async getById(id: string): Promise<T | undefined> {
-    const items = await this.getAll();
+    const key = await getPrefixedKey(this.storageKey);
+    const items = await getItem<T[]>(key, []);
     return items.find(x => String(x.id) === String(id));
   }
 
   async upsert(entity: T): Promise<void> {
     const key = await getPrefixedKey(this.storageKey);
-    const items = await this.getAll();
+    const items = await getItem<T[]>(key, []);
     const index = items.findIndex(x => String(x.id) === String(entity.id));
     const withTimestamp = { ...entity, updatedAt: nowTimestamp() };
     if (index >= 0) {
@@ -37,7 +38,7 @@ export abstract class BaseAsyncStorageRepository<T extends { id: string }> imple
 
   async upsertBulk(entities: T[]): Promise<void> {
     const key = await getPrefixedKey(this.storageKey);
-    const items = await this.getAll();
+    const items = await getItem<T[]>(key, []);
     for (const entity of entities) {
       const index = items.findIndex(x => String(x.id) === String(entity.id));
       const withTimestamp = { ...entity, updatedAt: nowTimestamp() };
@@ -52,7 +53,7 @@ export abstract class BaseAsyncStorageRepository<T extends { id: string }> imple
 
   async deleteById(id: string): Promise<void> {
     const key = await getPrefixedKey(this.storageKey);
-    const items = await this.getAll();
+    const items = await getItem<T[]>(key, []);
     const filtered = items.filter(x => String(x.id) !== String(id));
     await setItem(key, filtered);
   }

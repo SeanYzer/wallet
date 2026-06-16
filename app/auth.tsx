@@ -2,8 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Text, TextInput, Button, Card, HelperText } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useAuth } from '../context/AuthContext';
-import { useUserProfile } from '../context/UserProfileContext';
+import { useAuthData, useAuthActions } from '../context/AuthContext';
+import { useUserProfileData } from '../context/UserProfileContext';
 import { addUser, saveUserProfile, API_URL, initDb, getSetting, setSetting, getUsers } from '../utils/db';
 import * as Crypto from 'expo-crypto';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,8 +12,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AuthScreen() {
     const router = useRouter();
-    const { login, token } = useAuth();
-    const { profile } = useUserProfile();
+    const { token } = useAuthData();
+    const { login } = useAuthActions();
+    const { profile } = useUserProfileData();
 
     useFocusEffect(
         useCallback(() => {
