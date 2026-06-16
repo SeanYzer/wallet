@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { Transaction } from "../types";
 import {
     getSetting,
@@ -42,11 +42,6 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (!activeUserId) return;
-        fetchTransactions();
-    }, [activeUserId]);
-
     const uploadReceiptIfNeeded = async (tx: Transaction): Promise<Transaction> => {
         if (tx.receiptUrl && tx.receiptUrl.startsWith('file://')) {
             try {
@@ -73,7 +68,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         return tx;
     };
 
-    const fetchTransactions = async () => {
+    const fetchTransactions = useCallback(async () => {
         setLoading(true);
         try {
             const localData = (await txRepo.getAll()).map(addCategoryFallback);
@@ -115,7 +110,13 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         } finally {
             setLoading(false);
         }
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeUserId, txRepo]);
+
+    useEffect(() => {
+        if (!activeUserId) return;
+        fetchTransactions();
+    }, [activeUserId, fetchTransactions]);
 
     const addTransaction = async (transaction: Omit<Transaction, "id">) => {
         try {

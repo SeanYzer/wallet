@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Alert, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { API_URL, getSetting, setSetting } from '../utils/db';
@@ -23,13 +23,7 @@ export function useCloudLink() {
         }
     };
 
-    useEffect(() => {
-        if (token === 'offline_token' && activeUserId) {
-            handleCheck();
-        }
-    }, [token, activeUserId]);
-
-    const handleCheck = async () => {
+    const handleCheck = useCallback(async () => {
         const isOnline = await checkConnection();
         if (!isOnline) return;
 
@@ -42,7 +36,13 @@ export function useCloudLink() {
                 { text: "Link Now", onPress: () => performLink() }
             ]
         );
-    };
+    }, []);
+
+    useEffect(() => {
+        if (token === 'offline_token' && activeUserId) {
+            handleCheck();
+        }
+    }, [token, activeUserId, handleCheck]);
 
     const performLink = async () => {
         setIsChecking(true);

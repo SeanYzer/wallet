@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Transaction } from "../types";
 import { useCurrency } from "../context/CurrencyContext";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import EmptyState from "./EmptyState";
 
 const PAYMENT_ICONS: Record<string, any> = {
   cash: "cash",
@@ -95,10 +96,7 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
       ))}
 
       {recentTransactions.length === 0 && (
-        <View style={{ padding: 40, alignItems: "center" }}>
-          <MaterialCommunityIcons name="receipt" size={48} color={theme.colors.outline} style={{ opacity: 0.3 }} />
-          <Text style={{ marginTop: 12, color: theme.colors.outline }}>No transactions yet.</Text>
-        </View>
+        <EmptyState icon="receipt" title="No transactions yet" subtitle="Tap + to add your first transaction" />
       )}
     </View>
   );

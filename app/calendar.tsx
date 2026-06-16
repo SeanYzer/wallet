@@ -15,7 +15,7 @@ export default function CalendarScreen() {
   useFocusEffect(
     useCallback(() => {
       refetch();
-    }, [])
+    }, [refetch])
   );
 
   // Build marked dates from transactions

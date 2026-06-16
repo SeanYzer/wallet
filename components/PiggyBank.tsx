@@ -18,7 +18,7 @@ export function PiggyBank({ progress, size = 200 }: PiggyBankProps) {
             easing: Easing.bezier(0.4, 0, 0.2, 1),
             useNativeDriver: false, // Cannot use native driver for fill level calculation
         }).start();
-    }, [progress]);
+    }, [progress, animatedValue]);
 
     const fillHeight = animatedValue.interpolate({
         inputRange: [0, 1],

@@ -37,7 +37,7 @@ export default function Dashboard() {
         refetchSavings();
         refetchDues();
       }
-    }, [activeUserId])
+    }, [activeUserId, refetchTx, refetchSavings, refetchDues])
   );
 
   if (!activeUserId) return null; // Let AuthLoader handle redirection

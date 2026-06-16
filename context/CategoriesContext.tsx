@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { Category } from "../types";
 import { API_URL, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
@@ -23,7 +23,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -48,12 +48,13 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeUserId]);
 
   useEffect(() => {
     if (!activeUserId) return;
     fetchCategories();
-  }, [activeUserId]);
+  }, [activeUserId, fetchCategories]);
 
   const addCategory = async (category: Omit<Category, "id">) => {
     try {

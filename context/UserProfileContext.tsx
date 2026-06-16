@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { API_URL, getSetting } from "../utils/db";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { API_URL } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
 import { useRepositories } from "./RepositoryContext";
@@ -43,16 +43,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        if (!activeUserId) {
-            setIsLoading(false);
-            setProfile(null);
-            return;
-        }
-        fetchProfile();
-    }, [activeUserId]);
-
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         setIsLoading(true);
         try {
             const local = await repos.profiles.getById('default');
@@ -79,7 +70,16 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [activeUserId, repos]);
+
+    useEffect(() => {
+        if (!activeUserId) {
+            setIsLoading(false);
+            setProfile(null);
+            return;
+        }
+        fetchProfile();
+    }, [activeUserId, fetchProfile]);
 
     const updateProfile = async (updates: Partial<UserProfile>) => {
         if (!profile) return;

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import EmptyState from "../components/EmptyState";
 import { View, ScrollView, Alert } from "react-native";
 import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, IconButton, useTheme } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -27,7 +28,7 @@ export default function SavingsScreen() {
     useFocusEffect(
         useCallback(() => {
             refetch();
-        }, [])
+        }, [refetch])
     );
 
     const handleAddItem = async () => {
@@ -175,11 +176,7 @@ export default function SavingsScreen() {
                 )}
 
                 {items.length === 0 ? (
-                    <Card style={{ padding: 20 }}>
-                        <Text style={{ textAlign: "center", color: "gray" }}>
-                            No savings yet. Tap + to create a savings item!
-                        </Text>
-                    </Card>
+                    <EmptyState icon="piggy-bank" title="No savings yet" subtitle="Tap + to create a savings item" />
                 ) : (
                     items.map((item) => (
                         <Card key={item.id} style={{ marginBottom: 16, borderRadius: 16 }}>

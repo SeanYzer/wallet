@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Due } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { API_URL, getSetting } from "../utils/db";
@@ -32,12 +32,7 @@ export function useDues() {
   const { activeUserId } = useAuth();
   const repos = useRepositories();
 
-  useEffect(() => {
-    if (!activeUserId) return;
-    fetchDues();
-  }, [activeUserId]);
-
-  const fetchDues = async () => {
+  const fetchDues = useCallback(async () => {
     setLoading(true);
     try {
       const localData = await repos.dues.getAll();
@@ -60,7 +55,12 @@ export function useDues() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeUserId, repos]);
+
+  useEffect(() => {
+    if (!activeUserId) return;
+    fetchDues();
+  }, [activeUserId, fetchDues]);
 
   const addDue = async (due: Omit<Due, "id">) => {
     try {

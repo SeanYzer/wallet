@@ -15,6 +15,7 @@ import { NetworkProvider, useNetwork } from "../context/NetworkContext";
 import PasscodeScreen from "./passcode-screen";
 import { DbRecoveryProvider } from "../context/DbRecoveryContext";
 import { RepositoryProvider } from "../context/RepositoryContext";
+import ProviderComposer from "../components/ProviderComposer";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL, hardResetLocalData } from "../utils/db";
 
@@ -93,7 +94,7 @@ function SystemResetManager() {
     };
 
     checkReset();
-  }, []);
+  }, [router]);
 
   return null;
 }
@@ -130,7 +131,7 @@ function MainLayout() {
         setTimeout(() => router.replace('/'), 0);
       }
     }
-  }, [activeUserId, authLoading, profileLoading, profile?.isFirstRun, segments, navigationState?.key]);
+  }, [activeUserId, authLoading, profileLoading, profile?.isFirstRun, segments, navigationState?.key, router]);
 
   if (isPasscodeEnabled && !isUnlocked) {
       return <PasscodeScreen />;
@@ -186,7 +187,7 @@ export function AuthLoader({ children }: { children: React.ReactNode }) {
     } else if (!activeUserId) {
         setDbInitializedFor(null);
     }
-  }, [activeUserId, isLoading]);
+  }, [activeUserId, isLoading, dbInitializedFor]);
 
   // 2. Handle Navigation handled in MainLayout to avoid race-condition with Stack registration 
   
@@ -221,26 +222,25 @@ export default function RootLayout() {
   return (
     <DbRecoveryProvider>
       <RepositoryProvider>
-      <AuthProvider>
-        <UserProfileProvider>
-          <SystemResetManager />
-          <ThemeProvider>
-            <LanguageProvider>
-              <PasscodeProvider>
-                <CurrencyProvider>
-                  <AuthLoader>
-                    <CategoriesProvider>
-                      <TransactionsProvider>
-                        <MainLayout />
-                      </TransactionsProvider>
-                    </CategoriesProvider>
-                  </AuthLoader>
-                </CurrencyProvider>
-              </PasscodeProvider>
-            </LanguageProvider>
-          </ThemeProvider>
-        </UserProfileProvider>
-      </AuthProvider>
+        <AuthProvider>
+          <UserProfileProvider>
+            <SystemResetManager />
+            <ProviderComposer
+              providers={[
+                ThemeProvider,
+                LanguageProvider,
+                PasscodeProvider,
+                CurrencyProvider,
+              ]}
+            >
+              <AuthLoader>
+                <ProviderComposer providers={[CategoriesProvider, TransactionsProvider]}>
+                  <MainLayout />
+                </ProviderComposer>
+              </AuthLoader>
+            </ProviderComposer>
+          </UserProfileProvider>
+        </AuthProvider>
       </RepositoryProvider>
     </DbRecoveryProvider>
   );

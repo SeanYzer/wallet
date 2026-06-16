@@ -78,7 +78,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     checkConnectivity();
-  }, []);
+  }, [checkConnectivity]);
 
   useEffect(() => {
     const interval = setInterval(() => {

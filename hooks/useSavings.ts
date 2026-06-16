@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SavingsItem } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { API_URL, getSetting } from "../utils/db";
@@ -39,12 +39,7 @@ export function useSavings() {
     const { activeUserId } = useAuth();
     const repos = useRepositories();
 
-    useEffect(() => {
-        if (!activeUserId) return;
-        fetchItems();
-    }, [activeUserId]);
-
-    const fetchItems = async () => {
+    const fetchItems = useCallback(async () => {
         setLoading(true);
         try {
             const localData = await repos.savingsItems.getAll();
@@ -85,7 +80,12 @@ export function useSavings() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeUserId, repos]);
+
+    useEffect(() => {
+        if (!activeUserId) return;
+        fetchItems();
+    }, [activeUserId, fetchItems]);
 
     const addItem = async (item: Omit<SavingsItem, "id">) => {
         try {

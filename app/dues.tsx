@@ -9,6 +9,7 @@ import { useTransactions } from "../hooks/useTransactions";
 import { useCategories } from "../context/CategoriesContext";
 import { Due, DueFrequency } from "../types";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import EmptyState from "../components/EmptyState";
 
 export default function DuesScreen() {
   const router = useRouter();
@@ -32,16 +33,22 @@ export default function DuesScreen() {
   useFocusEffect(
     useCallback(() => {
       refetch();
-    }, [])
+    }, [refetch])
   );
 
-  const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const now = useMemo(() => new Date(), []);
+  const startOfWeek = useMemo(() => {
+    const d = new Date(now);
+    d.setDate(now.getDate() - now.getDay());
+    return d;
+  }, [now]);
+  const endOfWeek = useMemo(() => {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + 6);
+    return d;
+  }, [startOfWeek]);
+  const startOfMonth = useMemo(() => new Date(now.getFullYear(), now.getMonth(), 1), [now]);
+  const endOfMonth = useMemo(() => new Date(now.getFullYear(), now.getMonth() + 1, 0), [now]);
 
   const filteredDues = useMemo(() => {
     const upcoming = dues.filter((d) => !d.completed).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -67,7 +74,7 @@ export default function DuesScreen() {
       upcoming: filterByDate(upcoming),
       completed: filterByDate(completed),
     };
-  }, [dues, filter]);
+  }, [dues, filter, startOfWeek, endOfWeek, startOfMonth, endOfMonth]);
 
   const weekTotal = useMemo(() => {
     return dues
@@ -80,7 +87,7 @@ export default function DuesScreen() {
         const amount = d.type === "expense" ? d.amount : -d.amount;
         return sum + amount;
       }, 0);
-  }, [dues]);
+  }, [dues, startOfWeek, endOfWeek]);
 
   const monthTotal = useMemo(() => {
     return dues
@@ -93,7 +100,7 @@ export default function DuesScreen() {
         const amount = d.type === "expense" ? d.amount : -d.amount;
         return sum + amount;
       }, 0);
-  }, [dues]);
+  }, [dues, startOfMonth, endOfMonth]);
 
 
 
@@ -212,9 +219,7 @@ export default function DuesScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {filteredDues.upcoming.length === 0 && filteredDues.completed.length === 0 ? (
-          <Card style={{ marginBottom: 16, padding: 16 }}>
-            <Text style={{ color: "gray", textAlign: "center" }}>No dues in this period. Tap + to add one!</Text>
-          </Card>
+          <EmptyState icon="calendar-clock" title="No dues in this period" subtitle="Tap + to add a due payment" />
         ) : (
           <>
             {filteredDues.upcoming.length > 0 && (
