@@ -32,9 +32,8 @@ export default function PaymentMethodsScreen() {
 
     const fetchMethods = async () => {
         try {
-            const response = await authFetch(`paymentMethods`);
-            if (response.ok) {
-                const data = await response.json();
+            const { ok, data } = await authFetch(`paymentMethods`);
+            if (ok && Array.isArray(data)) {
                 setMethods(data);
             }
         } catch (error) {
@@ -52,11 +51,11 @@ export default function PaymentMethodsScreen() {
         };
 
         try {
-            const response = await authFetch(`paymentMethods`, {
+            const { ok } = await authFetch(`paymentMethods`, {
                 method: "POST",
                 body: JSON.stringify(newMethod),
             });
-            if (response.ok) {
+            if (ok) {
                 setMethods([...methods, newMethod]);
                 setVisible(false);
                 setName("");
@@ -74,10 +73,10 @@ export default function PaymentMethodsScreen() {
                 style: "destructive",
                 onPress: async () => {
                     try {
-                        const response = await authFetch(`paymentMethods/${id}`, {
+                        const { ok } = await authFetch(`paymentMethods/${id}`, {
                             method: "DELETE",
                         });
-                        if (response.ok) {
+                        if (ok) {
                             setMethods(methods.filter((m) => m.id !== id));
                         }
                     } catch (error) {

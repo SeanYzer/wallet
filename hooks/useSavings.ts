@@ -1,117 +1,147 @@
-import { useState, useEffect } from "react";
-import { SavingsGoal } from "../types";
-import { useAuth } from "../context/AuthContext";
-import { USE_API, getSavingsGoals, saveSavingsGoal, saveSavingsGoalsBulk, deleteSavingsGoalLocal, updateSavingsGoalLocal, getSetting } from "../utils/db";
+import { useState, useEffect, useCallback } from "react";
+import { SavingsItem } from "../types";
+import { useAuthData } from "../context/AuthContext";
+import { API_URL, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
+import { enqueueAndTrigger, processSyncQueue } from "../utils/syncProcessor";
+import { useRepositories } from "../context/RepositoryContext";
+import { generateUUID } from "../utils/uuid";
+import { nowTimestamp } from "../utils/storage";
+
+function migrateSavingsItem(item: any): SavingsItem {
+  if (item.targetAmount !== undefined && item.balance === undefined) {
+    return {
+      id: item.id,
+      title: item.title,
+      balance: item.currentAmount || 0,
+      icon: item.icon,
+      color: item.color,
+      updatedAt: nowTimestamp(),
+    } as SavingsItem;
+  }
+  return item as SavingsItem;
+}
+
+function titleDeduplicate(items: SavingsItem[]): SavingsItem[] {
+  const seen = new Set<string>();
+  return items.filter((g) => {
+    const key = g.title.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 export function useSavings() {
-    const [goals, setGoals] = useState<SavingsGoal[]>([]);
+    const [items, setItems] = useState<SavingsItem[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const { activeUserId } = useAuth();
+    const { activeUserId } = useAuthData();
+    const repos = useRepositories();
 
-    useEffect(() => {
-        if (!activeUserId) return;
-        fetchGoals();
-    }, [activeUserId]);
-
-    const fetchGoals = async () => {
+    const fetchItems = useCallback(async () => {
         setLoading(true);
         try {
-            // 1. Always load from local first (source of truth)
-            const localData = await getSavingsGoals();
-            setGoals(localData);
+            const localData = await repos.savingsItems.getAll();
+            const migrated = localData.map(migrateSavingsItem);
+            const deduped = titleDeduplicate(migrated);
+            setItems(deduped);
 
-            // 2. Background sync from API if enabled
-            if (USE_API && activeUserId) {
-                const autoBackup = await getSetting('autoBackup');
-                if (autoBackup !== 'false') {
-                    const response = await authFetch(`savingsGoals?userId=${activeUserId}`);
-                    if (response.ok) {
-                        const remoteData = await response.json();
-                        if (Array.isArray(remoteData) && remoteData.length > 0) {
-                            await saveSavingsGoalsBulk(remoteData);
-                            const merged = await getSavingsGoals();
-                            setGoals(merged);
+            const autoBackup = await getSetting('autoBackup');
+            if (API_URL && activeUserId && autoBackup !== 'false') {
+                const { ok, data: remoteData } = await authFetch<SavingsItem[]>(`savingsItems?userId=${activeUserId}`);
+                if (ok && Array.isArray(remoteData)) {
+                        const localMap = new Map(deduped.map(g => [g.id, g]));
+                        const remoteMap = new Map(remoteData.map(g => [g.id, g]));
+                        const remoteTitleMap = new Map(remoteData.map(g => [g.title.toLowerCase(), g]));
+
+                        const mergedMap = new Map<string, SavingsItem>();
+
+                        for (const remoteItem of remoteData) {
+                            mergedMap.set(remoteItem.id, remoteItem);
                         }
+
+                        for (const localItem of deduped) {
+                            if (remoteMap.has(localItem.id)) continue;
+                            if (remoteTitleMap.has(localItem.title.toLowerCase())) continue;
+                            mergedMap.set(localItem.id, localItem);
+                            await enqueueAndTrigger('savingsItems', 'create', localItem.id, localItem);
+                        }
+
+                        const merged = Array.from(mergedMap.values());
+                        await repos.savingsItems.upsertBulk(merged);
+                        setItems(merged);
                     }
                 }
-            }
+
+                processSyncQueue();
         } catch (error) {
-            console.error("Error fetching savings goals:", error);
+            console.error("Error fetching savings items:", error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeUserId, repos]);
 
-    const addGoal = async (goal: Omit<SavingsGoal, "id">) => {
+    useEffect(() => {
+        if (!activeUserId) return;
+        fetchItems();
+    }, [activeUserId, fetchItems]);
+
+    const addItem = async (item: Omit<SavingsItem, "id">) => {
         try {
-            const newGoal = { ...goal, id: Date.now().toString(), userId: activeUserId } as any;
+            const existing = items.find(g => g.title.toLowerCase() === item.title.toLowerCase());
+            if (existing) {
+                await updateItem(existing.id, item);
+                return;
+            }
 
-            // 1. Save locally first
-            await saveSavingsGoal(newGoal);
-            setGoals((prev) => [...prev, newGoal]);
+            const newItem = { ...item, id: generateUUID() } as SavingsItem;
 
-            // 2. Background sync to API
-            if (USE_API) {
-                const autoBackup = await getSetting('autoBackup');
-                if (autoBackup !== 'false') {
-                    authFetch(`savingsGoals`, {
-                        method: "POST",
-                        body: JSON.stringify({
-                            title: newGoal.title,
-                            targetAmount: newGoal.targetAmount,
-                            currentAmount: newGoal.currentAmount ?? 0,
-                            color: newGoal.color ?? null,
-                            userId: activeUserId,
-                        }),
-                    }).catch(err => console.error("Sync error:", err));
-                }
+            await repos.savingsItems.upsert(newItem);
+            setItems((prev) => [...prev, newItem]);
+
+            const autoBackup = await getSetting('autoBackup');
+            if (API_URL && autoBackup !== 'false') {
+                const syncData = { ...newItem, userId: activeUserId };
+                await enqueueAndTrigger('savingsItems', 'create', newItem.id, syncData);
             }
         } catch (error) {
-            console.error("Error adding savings goal:", error);
+            console.error("Error adding savings item:", error);
             throw error;
         }
     };
 
-    const updateGoal = async (id: string, updates: Partial<SavingsGoal>) => {
+    const updateItem = async (id: string, updates: Partial<SavingsItem>) => {
         try {
-            // 1. Update locally first
-            await updateSavingsGoalLocal(id, updates);
-            setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
+            const existing = await repos.savingsItems.getById(id);
+            if (existing) {
+                await repos.savingsItems.upsert({ ...existing, ...updates } as SavingsItem);
+            }
+            setItems((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
 
-            // 2. Background sync to API
-            if (USE_API) {
-                const autoBackup = await getSetting('autoBackup');
-                if (autoBackup !== 'false') {
-                    authFetch(`savingsGoals/${id}`, {
-                        method: "PUT",
-                        body: JSON.stringify({ ...updates, userId: activeUserId }),
-                    }).catch(err => console.error("Sync error:", err));
-                }
+            const autoBackup = await getSetting('autoBackup');
+            if (API_URL && autoBackup !== 'false') {
+                const syncData = { ...updates, userId: activeUserId };
+                await enqueueAndTrigger('savingsItems', 'update', id, syncData);
             }
         } catch (error) {
-            console.error("Error updating savings goal:", error);
+            console.error("Error updating savings item:", error);
         }
     };
 
-    const deleteGoal = async (id: string) => {
+    const deleteItem = async (id: string) => {
         try {
-            // 1. Delete locally first
-            await deleteSavingsGoalLocal(id);
-            setGoals((prev) => prev.filter((g) => g.id !== id));
+            await repos.savingsItems.deleteById(id);
+            setItems((prev) => prev.filter((g) => g.id !== id));
 
-            // 2. Background sync to API
-            if (USE_API) {
-                const autoBackup = await getSetting('autoBackup');
-                if (autoBackup !== 'false') {
-                    authFetch(`savingsGoals/${id}`, { method: "DELETE" }).catch(err => console.error("Sync error:", err));
-                }
+            const autoBackup = await getSetting('autoBackup');
+            if (API_URL && autoBackup !== 'false') {
+                await enqueueAndTrigger('savingsItems', 'delete', id);
             }
         } catch (error) {
-            console.error("Error deleting savings goal:", error);
+            console.error("Error deleting savings item:", error);
         }
     };
 
-    return { goals, loading, refetch: fetchGoals, addGoal, updateGoal, deleteGoal };
+    return { items, loading, refetch: fetchItems, addItem, updateItem, deleteItem };
 }

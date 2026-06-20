@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { initDb, initMasterDb, clearAllLocalData, setOnFatalError } from '../utils/db';
 
@@ -19,34 +19,32 @@ export const DbRecoveryProvider = ({ children }: { children: React.ReactNode }) 
     });
   }, []);
 
-  const triggerRecovery = () => {
+  const triggerRecovery = useCallback(() => {
     setIsRecovering(true);
-  };
+  }, []);
 
   useEffect(() => {
     if (isRecovering) {
       const performRecovery = async () => {
         try {
           console.warn("Self-Healing: Starting database recovery sequence...");
-          // 1. Wipe everything in AsyncStorage
           const AsyncStorage = require('@react-native-async-storage/async-storage').default;
           await AsyncStorage.clear();
-          
-          // 2. Re-init master (stubs)
+
           await initMasterDb();
-          // 3. Re-init user DB (stubs)
           await initDb();
           console.log("Self-Healing: Recovery successful.");
         } catch (e) {
           console.error("Self-Healing: Recovery sequence failed", e);
         } finally {
           setIsRecovering(false);
-          // Optional: Force a reload or just let React remount
         }
       };
       performRecovery();
     }
   }, [isRecovering]);
+
+  const value = useMemo(() => ({ triggerRecovery }), [triggerRecovery]);
 
   if (isRecovering) {
     return (
@@ -59,7 +57,7 @@ export const DbRecoveryProvider = ({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <DbRecoveryContext.Provider value={{ triggerRecovery }}>
+    <DbRecoveryContext.Provider value={value}>
       {children}
     </DbRecoveryContext.Provider>
   );

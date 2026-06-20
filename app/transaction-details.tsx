@@ -1,24 +1,18 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Image, Alert } from "react-native";
+import { View, ScrollView, Alert } from "react-native";
+import { Image } from "expo-image";
 import { Appbar, Text, Card, Chip, Button, Divider, useTheme, Portal, Dialog } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTransactions } from "../hooks/useTransactions";
-import { useCurrency } from "../context/CurrencyContext";
+import { useCurrencyActions } from "../context/CurrencyContext";
 import { Transaction } from "../types";
-
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: " Cash",
-  card: " Card",
-  bank_transfer: " Bank Transfer",
-  e_wallet: " E-Wallet",
-};
 
 export default function TransactionDetails() {
   const router = useRouter();
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { transactions, deleteTransaction } = useTransactions();
-  const { formatAmount } = useCurrency();
+  const { formatAmount } = useCurrencyActions();
 
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -51,8 +45,8 @@ export default function TransactionDetails() {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
         <Appbar.Content title="Transaction Details" />
-        <Appbar.Action icon="pencil" onPress={() => router.push(`/edit-transaction?id=${transaction.id}`)} />
-        <Appbar.Action icon="delete" onPress={() => setDeleteDialogVisible(true)} />
+        {/* <Appbar.Action icon="pencil" onPress={() => router.push(`/edit-transaction?id=${transaction.id}`)} />
+        <Appbar.Action icon="delete" onPress={() => setDeleteDialogVisible(true)} /> */}
       </Appbar.Header>
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -71,7 +65,7 @@ export default function TransactionDetails() {
           <Card.Content>
             <View style={{ marginBottom: 12 }}>
               <Text variant="labelSmall" style={{ color: "gray" }}>Category</Text>
-              <Text variant="titleMedium">{transaction.category?.name || "Unknown"}</Text>
+              <Text variant="titleMedium">{transaction.category?.name || "Others"}</Text>
             </View>
             <Divider style={{ marginVertical: 8 }} />
 
@@ -83,7 +77,7 @@ export default function TransactionDetails() {
 
             <View style={{ marginBottom: 12 }}>
               <Text variant="labelSmall" style={{ color: "gray" }}>Payment Method</Text>
-              <Text variant="titleMedium">{PAYMENT_METHOD_LABELS[transaction.paymentMethod || "cash"]}</Text>
+              <Text variant="titleMedium">{transaction.paymentMethod || "Cash"}</Text>
             </View>
             <Divider style={{ marginVertical: 8 }} />
 
@@ -133,29 +127,29 @@ export default function TransactionDetails() {
               <Image
                 source={{ uri: transaction.receiptUrl }}
                 style={{ width: "100%", height: 250, borderRadius: 8 }}
-                resizeMode="cover"
+                contentFit="cover"
               />
             </Card.Content>
           </Card>
         )}
 
-        <Button
+        {/* <Button
           mode="outlined"
           icon="pencil"
           onPress={() => router.push(`/edit-transaction?id=${transaction.id}`)}
           style={{ marginBottom: 8 }}
         >
           Edit Transaction
-        </Button>
+        </Button> */}
 
-        <Button
+        {/* <Button
           mode="outlined"
           icon="delete"
           textColor={theme.colors.error}
           onPress={() => setDeleteDialogVisible(true)}
         >
           Delete Transaction
-        </Button>
+        </Button> */}
       </ScrollView>
 
       <Portal>

@@ -1,109 +1,171 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getUserProfile, saveUserProfile, getSetting, USE_API } from "../utils/db";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from "react";
+import { API_URL } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
+import { useRepositories } from "./RepositoryContext";
 
 interface UserProfile {
-    isFirstRun: boolean;
     name: string;
+    isFirstRun: boolean;
     initialBalance: number;
+    isDarkMode: boolean;
+    language: string;
+    currency: string;
+    decimalPoints: number;
+    autoBackup: boolean;
 }
 
-interface UserProfileContextType {
+const DEFAULT_PROFILE: UserProfile = {
+    name: "",
+    isFirstRun: true,
+    initialBalance: 0,
+    isDarkMode: false,
+    language: "en",
+    currency: "PHP",
+    decimalPoints: 2,
+    autoBackup: true
+};
+
+interface UserProfileData {
     profile: UserProfile | null;
     isLoading: boolean;
-    completeSetup: (name: string) => Promise<void>;
+}
+
+interface UserProfileActions {
+    completeSetup: (name: string, balance: number) => Promise<void>;
+    updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+    resetProfileToDefaults: () => Promise<void>;
     refetch: () => Promise<void>;
 }
 
-const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
+const UserProfileDataContext = createContext<UserProfileData | undefined>(undefined);
+const UserProfileActionsContext = createContext<UserProfileActions | undefined>(undefined);
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
     const { activeUserId } = useAuth();
+    const repos = useRepositories();
+    const { profiles: profileRepo } = repos;
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        if (!activeUserId) return;
-        fetchProfile();
-    }, [activeUserId]);
+    const profileRef = useRef(profile);
+    useEffect(() => { profileRef.current = profile; }, [profile]);
 
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Local check first
-            const local = await getUserProfile();
-            if (local) {
-                setProfile(local);
-                return;
-            }
+            const local = await profileRepo.getById('default');
 
-            if (USE_API && activeUserId) {
-                const response = await authFetch(`userProfiles?userId=${activeUserId}`);
-                if (response.ok) {
-                    const cloudProfile = await response.json();
-                    if (cloudProfile && cloudProfile.name) {
-                        setProfile({
-                            name: cloudProfile.name,
-                            isFirstRun: false,
-                            initialBalance: cloudProfile.initialBalance || 0,
-                        });
-                        await saveUserProfile(cloudProfile.name, false, cloudProfile.initialBalance || 0);
-                        return;
-                    }
-                }
-                setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
+              if (API_URL && activeUserId) {
+                  const { ok, data: cloudProfile } = await authFetch(`userProfiles?userId=${activeUserId}`);
+
+                  if (ok && cloudProfile && cloudProfile.name) {
+                     const merged = { ...DEFAULT_PROFILE, ...cloudProfile };
+                     setProfile(merged);
+                     await profileRepo.upsert(merged as UserProfile);
+                     return;
+                 }
+             }
+
+            if (local) {
+                setProfile({ ...DEFAULT_PROFILE, ...local });
             } else {
-                setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
+                setProfile(DEFAULT_PROFILE);
             }
         } catch (e) {
             console.error("Error fetching profile:", e);
-            setProfile({ isFirstRun: true, name: "", initialBalance: 0 });
+            setProfile(DEFAULT_PROFILE);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [activeUserId, profileRepo]);
 
-    const updateProfile = async (name: string, isFirstRun: boolean, initialBalance: number) => {
-        await saveUserProfile(name, isFirstRun, initialBalance);
-        setProfile({ name, isFirstRun, initialBalance });
+    useEffect(() => {
+        if (!activeUserId) {
+            setIsLoading(false);
+            setProfile(null);
+            return;
+        }
+        fetchProfile();
+    }, [activeUserId, fetchProfile]);
 
-        if (USE_API && activeUserId) {
+    const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
+        const currentProfile = profileRef.current;
+        if (!currentProfile) return;
+        const newProfile = { ...currentProfile, ...updates };
+
+        await profileRepo.upsert(newProfile as UserProfile);
+        setProfile(newProfile);
+
+        if (API_URL && activeUserId && newProfile.autoBackup) {
             try {
-                const response = await authFetch(`userProfiles/${activeUserId}`, {
+                await authFetch(`userProfiles/${activeUserId}`, {
                     method: "PUT",
-                    body: JSON.stringify({ name, isFirstRun, initialBalance })
+                    body: JSON.stringify(newProfile)
                 });
-
-                if (!response.ok) {
-                    console.warn("Cloud profile sync failed with status:", response.status);
-                }
             } catch (e) {
                 console.error("Cloud profile sync error:", e);
             }
         }
-    };
+    }, [profileRepo, activeUserId]);
 
-    const completeSetup = async (name: string) => {
+    const resetProfileToDefaults = useCallback(async () => {
+        const currentProfile = profileRef.current;
+        if (!currentProfile) return;
+        await updateProfile({
+            ...DEFAULT_PROFILE,
+            name: currentProfile.name,
+            isFirstRun: false
+        });
+    }, [updateProfile]);
+
+    const completeSetup = useCallback(async (name: string, balance: number) => {
         try {
-            await updateProfile(name, false, 0);
+            await updateProfile({
+                name,
+                initialBalance: balance,
+                isFirstRun: false
+            });
         } catch (error) {
             console.error("Error completing setup:", error);
             throw error;
         }
-    };
+    }, [updateProfile]);
+
+    const dataValue = useMemo(() => ({ profile, isLoading }), [profile, isLoading]);
+
+    const actionsValue = useMemo(() => ({
+        completeSetup,
+        updateProfile,
+        resetProfileToDefaults,
+        refetch: fetchProfile,
+    }), [completeSetup, updateProfile, resetProfileToDefaults, fetchProfile]);
 
     return (
-        <UserProfileContext.Provider value={{ profile, isLoading, completeSetup, refetch: fetchProfile }}>
-            {children}
-        </UserProfileContext.Provider>
+        <UserProfileDataContext.Provider value={dataValue}>
+            <UserProfileActionsContext.Provider value={actionsValue}>
+                {children}
+            </UserProfileActionsContext.Provider>
+        </UserProfileDataContext.Provider>
     );
 }
 
-export function useUserProfile() {
-    const context = useContext(UserProfileContext);
+export function useUserProfileData(): UserProfileData {
+    const context = useContext(UserProfileDataContext);
     if (!context) {
-        throw new Error("useUserProfile must be used within a UserProfileProvider");
+        throw new Error("useUserProfileData must be used within a UserProfileProvider");
     }
     return context;
+}
+
+export function useUserProfileActions(): UserProfileActions {
+    const context = useContext(UserProfileActionsContext);
+    if (!context) {
+        throw new Error("useUserProfileActions must be used within a UserProfileProvider");
+    }
+    return context;
+}
+
+export function useUserProfile(): UserProfileData & UserProfileActions {
+    return { ...useUserProfileData(), ...useUserProfileActions() };
 }

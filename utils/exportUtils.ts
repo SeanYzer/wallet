@@ -1,13 +1,13 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Transaction } from "../types";
 import { Platform } from "react-native";
 
 export const exportToCSV = async (transactions: Transaction[]) => {
     const header = "Date,Type,Category,Amount,Payment Method,Establishment,Note\n";
     const rows = transactions.map(t => {
-        return `${new Date(t.date).toLocaleDateString()},${t.type},${t.category.name},${t.amount},${t.paymentMethod || ""},"${t.establishment || ""}","${t.note || ""}"`;
+        return `${new Date(t.date).toLocaleDateString()},${t.type},${t.category?.name || "Uncategorized"},${t.amount},${t.paymentMethod || ""},"${t.establishment || ""}","${t.note || ""}"`;
     }).join("\n");
 
     const csvContent = header + rows;
@@ -40,7 +40,7 @@ export const exportToPDF = async (transactions: Transaction[], formatAmount: (am
     <tr>
       <td>${new Date(t.date).toLocaleDateString()}</td>
       <td>${t.type}</td>
-      <td>${t.category.name}</td>
+      <td>${t.category?.name || "Uncategorized"}</td>
       <td>${formatAmount(t.amount)}</td>
       <td>${t.paymentMethod || ""}</td>
     </tr>

@@ -1,28 +1,34 @@
-import { View, Platform } from "react-native";
-import { Card, Text } from "react-native-paper";
+import { View, Platform, TouchableOpacity } from "react-native";
+import { Text, useTheme } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { Transaction } from "../types";
-import { useCurrency } from "../context/CurrencyContext";
-import { useUserProfile } from "../context/UserProfileContext";
-import { useTheme } from "react-native-paper";
+import { useCurrencyActions } from "../context/CurrencyContext";
+import { useUserProfileData } from "../context/UserProfileContext";
+import { useState } from "react";
+import { BalanceBreakdown } from "./BalanceBreakdown";
 
-export function SummaryCard({ transactions }: { transactions: Transaction[] }) {
+export function SummaryCard({ transactions = [], goals = [] }: any) {
   const theme = useTheme();
-  const { formatAmount } = useCurrency();
-  const { profile } = useUserProfile();
+  const { formatAmount } = useCurrencyActions();
+  const { profile } = useUserProfileData();
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
-  const initialBalance = profile?.initialBalance ?? 0;
+  const initialBalance = Number(profile?.initialBalance || 0);
 
   const income = transactions
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + (t.amount || 0), 0);
+    .filter((t: any) => t.type === "income" && t.title !== "Opening Balance")
+    .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
 
   const expense = transactions
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + (t.amount || 0), 0);
+    .filter((t: any) => t.type === "expense")
+    .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
 
   const balance = initialBalance + income - expense;
+
+  const reservedSavings = goals.reduce((sum: number, g: any) => sum + Number(g.currentAmount || g.balance || 0), 0);
+
+  const totalReserved = Number(reservedSavings || 0);
+  const availableBalance = balance - totalReserved;
 
   return (
     <View style={{ marginHorizontal: 16, marginBottom: 8 }}>
@@ -35,7 +41,7 @@ export function SummaryCard({ transactions }: { transactions: Transaction[] }) {
           padding: 24,
           elevation: 8,
           ...Platform.select({
-            web: { boxShadow: `0px 4px 12px ${theme.colors.primary}4D` }, // 4D = 0.3 opacity
+            web: { boxShadow: `0px 4px 12px ${theme.colors.primary}4D` },
             default: {
               shadowColor: theme.colors.primary,
               shadowOffset: { width: 0, height: 4 },
@@ -46,11 +52,20 @@ export function SummaryCard({ transactions }: { transactions: Transaction[] }) {
         }}
       >
         <Text variant="labelMedium" style={{ color: "#fff", opacity: 0.7, textAlign: "center", letterSpacing: 1, fontWeight: "600" }}>
-          TOTAL BALANCE
+          AVAILABLE TO SPEND
         </Text>
-        <Text variant="displayMedium" style={{ color: "#fff", fontWeight: "800", textAlign: "center", marginVertical: 12 }}>
-          {formatAmount(balance)}
+        <Text variant="displayMedium" style={{ color: "#fff", fontWeight: "800", textAlign: "center", marginVertical: 8 }}>
+          {formatAmount(availableBalance)}
         </Text>
+
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 12 }}>
+          <TouchableOpacity onPress={() => setShowBreakdown(true)} style={{ backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+            <Text variant="labelSmall" style={{ color: "#fff", opacity: 0.8 }}>Total: {formatAmount(balance)}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowBreakdown(true)} style={{ backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+            <Text variant="labelSmall" style={{ color: "#fff", opacity: 0.8 }}>Reserved: {formatAmount(totalReserved)}</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.1)", marginVertical: 16 }} />
 
@@ -76,6 +91,16 @@ export function SummaryCard({ transactions }: { transactions: Transaction[] }) {
           </View>
         </View>
       </LinearGradient>
+
+      <BalanceBreakdown
+        visible={showBreakdown}
+        onDismiss={() => setShowBreakdown(false)}
+        initialBalance={initialBalance}
+        income={income}
+        expense={expense}
+        goals={goals}
+        transactions={transactions}
+      />
     </View>
   );
 }

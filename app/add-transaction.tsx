@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Image, Platform, Alert, TouchableOpacity } from "react-native";
+import { View, ScrollView, Platform, Alert, TouchableOpacity } from "react-native";
+import { Image } from "expo-image";
 import {
   TextInput,
   Button,
@@ -12,6 +13,7 @@ import {
   IconButton,
   Appbar,
   Card,
+  HelperText,
 } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { authFetch } from "../utils/apiClient";
@@ -19,12 +21,13 @@ import * as ImagePicker from "expo-image-picker";
 import { Calendar } from "react-native-calendars";
 import { useTransactions } from "../hooks/useTransactions";
 import { Category, TransactionType, PaymentMethod } from "../types";
-import { useCategories } from "../context/CategoriesContext";
+import { useCategoriesData } from "../context/CategoriesContext";
+import { useCurrencyActions } from "../context/CurrencyContext";
 
 export default function AddTransaction() {
   const router = useRouter();
-  const { addTransaction } = useTransactions();
-  const { categories: availableCategories } = useCategories();
+  const { transactions, addTransaction } = useTransactions();
+  const { categories: availableCategories } = useCategoriesData();
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -36,6 +39,9 @@ export default function AddTransaction() {
   const [date, setDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { formatAmount } = useCurrencyActions();
 
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<{ id: string; name: string; type: string; icon: string }[]>([]);
   const [selectedMethodType, setSelectedMethodType] = useState<string>("cash");
@@ -46,9 +52,8 @@ export default function AddTransaction() {
 
   const fetchPaymentMethods = async () => {
     try {
-      const response = await authFetch(`paymentMethods`);
-      if (response.ok) {
-        const data = await response.json();
+      const { ok, data } = await authFetch(`paymentMethods`);
+      if (ok && data) {
         setAvailablePaymentMethods(data);
         if (data.length > 0) {
           setPaymentMethod(data[0].name);
@@ -97,17 +102,57 @@ export default function AddTransaction() {
     }
   };
 
-  const handleSubmit = async () => {
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert("Invalid Amount", "Please enter a valid amount greater than 0.");
-      return;
+  const validate = (): string | null => {
+    const next: Record<string, string> = {};
+    const trimmed = amount.trim();
+
+    if (!trimmed) {
+      next.amount = "Please enter an amount.";
+    } else {
+      const num = parseFloat(trimmed);
+      if (isNaN(num) || num <= 0) {
+        next.amount = "Please enter a valid amount greater than 0.";
+      } else if (num > 999999999.99) {
+        next.amount = "Amount must be less than 1 billion.";
+      }
     }
+
     if (!selectedCategory) {
-      Alert.alert("Category Required", "Please select a category.");
+      next.category = "Please select a category.";
+    }
+
+    if (note.length > 500) {
+      next.note = "Note must be under 500 characters.";
+    }
+
+    setErrors(next);
+    const firstKey = Object.keys(next)[0];
+    return firstKey || null;
+  };
+
+  const clearError = (field: string) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[field];
+        return copy;
+      });
+    }
+  };
+
+  const handleSubmit = async () => {
+    const firstErrorKey = validate();
+    if (firstErrorKey) {
+      const msgs: Record<string, string> = {
+        amount: "Please check the amount field.",
+        category: "Please select a category.",
+        note: "Please shorten your note.",
+      };
+      Alert.alert("Validation Error", msgs[firstErrorKey] || "Please fix the highlighted fields.");
       return;
     }
 
+    const numAmount = parseFloat(amount.trim());
     setLoading(true);
     try {
       await addTransaction({
@@ -115,16 +160,18 @@ export default function AddTransaction() {
         date: date.toISOString(),
         note: note,
         type,
-        category: selectedCategory,
+        category: selectedCategory ?? undefined,
         paymentMethod,
         establishment: establishment || undefined,
         receiptUrl: receiptImage || undefined,
+        updatedAt: Date.now(),
       });
-      setLoading(false);
+
       router.back();
     } catch (error) {
-      setLoading(false);
       Alert.alert("Error", "Failed to save transaction. Please check your connection.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -154,12 +201,23 @@ export default function AddTransaction() {
         <TextInput
           label="Amount"
           value={amount}
-          onChangeText={setAmount}
+          onChangeText={(val) => {
+            const cleaned = val
+              .replace(/[^0-9.]/g, "")
+              .replace(/(\..*)\./g, "$1")
+              .replace(/^0+(?=\d)/, "");
+            setAmount(cleaned);
+            clearError("amount");
+          }}
           keyboardType="numeric"
           mode="outlined"
+          error={!!errors.amount}
           left={<TextInput.Affix text="₱" />}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 4 }}
         />
+        <HelperText type="error" visible={!!errors.amount} style={{ marginBottom: 8 }}>
+          {errors.amount}
+        </HelperText>
 
         <TextInput
           label="Date"
@@ -171,14 +229,14 @@ export default function AddTransaction() {
         />
 
         <Text variant="labelLarge" style={{ marginBottom: 8 }}>Category</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
           {availableCategories
             .filter((cat: Category) => cat.type === type)
             .map((cat: Category) => (
               <Chip
                 key={cat.id}
                 selected={selectedCategory?.id === cat.id}
-                onPress={() => setSelectedCategory(cat)}
+                onPress={() => { setSelectedCategory(cat); clearError("category"); }}
                 mode="outlined"
                 selectedColor={selectedCategory?.id === cat.id ? "#6200ee" : undefined}
                 style={{ backgroundColor: selectedCategory?.id === cat.id ? "#e8def8" : "transparent" }}
@@ -186,9 +244,12 @@ export default function AddTransaction() {
                 {cat.name}
               </Chip>
             ))}
-        </View>
+         </View>
+         <HelperText type="error" visible={!!errors.category} style={{ marginBottom: 8 }}>
+           {errors.category}
+         </HelperText>
 
-        <TextInput
+         <TextInput
           label="Establishment / Location"
           value={establishment}
           onChangeText={setEstablishment}
@@ -199,59 +260,69 @@ export default function AddTransaction() {
 
         <Text variant="labelLarge" style={{ marginBottom: 8 }}>Payment Source</Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-          {["cash", "card", "bank", "e_wallet"].map((t) => (
-            <Chip
-              key={t}
-              selected={selectedMethodType === t}
-              onPress={() => {
-                setSelectedMethodType(t);
-                if (t === "cash") {
-                  setPaymentMethod("Cash");
-                } else {
-                  // Pre-select the first one of that type if available
-                  const firstOfColor = availablePaymentMethods.find(m => m.type === t);
-                  if (firstOfColor) setPaymentMethod(firstOfColor.name);
-                }
-              }}
-              mode="outlined"
-              style={{
-                backgroundColor: selectedMethodType === t ? theme.colors.primaryContainer : "transparent",
-                borderColor: selectedMethodType === t ? theme.colors.primary : theme.colors.outline
-              }}
-            >
-              {t.replace("_", " ").toUpperCase()}
-            </Chip>
-          ))}
+          {["cash", "card", "bank", "e_wallet"].map((t) => {
+            const isSelected = selectedMethodType.toLowerCase() === t.toLowerCase();
+            return (
+              <Chip
+                key={t}
+                selected={isSelected}
+                onPress={() => {
+                  setSelectedMethodType(t);
+                  // Find the first default method for this type
+                  const firstOfColor = availablePaymentMethods.find(m => m.type.toLowerCase() === t.toLowerCase());
+                  if (firstOfColor) {
+                    setPaymentMethod(firstOfColor.name);
+                  } else if (t === "cash") {
+                    setPaymentMethod("Cash");
+                  }
+                }}
+                mode="outlined"
+                style={{
+                  backgroundColor: isSelected ? theme.colors.primaryContainer : "transparent",
+                  borderColor: isSelected ? theme.colors.primary : theme.colors.outline
+                }}
+              >
+                {t.replace("_", " ").toUpperCase()}
+              </Chip>
+            );
+          })}
         </View>
 
-        {selectedMethodType !== "cash" && (
+        {selectedMethodType.toLowerCase() !== "cash" && (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: theme.colors.primaryContainer }}>
             {availablePaymentMethods
-              .filter(m => m.type === selectedMethodType)
-              .map((method) => (
-                <Chip
-                  key={method.id}
-                  icon={method.icon}
-                  selected={paymentMethod === method.name}
-                  onPress={() => setPaymentMethod(method.name)}
-                  mode="flat"
-                  selectedColor={theme.colors.primary}
-                  style={{ backgroundColor: paymentMethod === method.name ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
-                >
-                  {method.name}
-                </Chip>
-              ))}
+              .filter(m => m.type.toLowerCase() === selectedMethodType.toLowerCase())
+              .map((method) => {
+                const isMethodSelected = paymentMethod.toLowerCase() === method.name.toLowerCase();
+                return (
+                  <Chip
+                    key={method.id}
+                    icon={method.icon}
+                    selected={isMethodSelected}
+                    onPress={() => setPaymentMethod(method.name)}
+                    mode="flat"
+                    selectedColor={theme.colors.primary}
+                    style={{ backgroundColor: isMethodSelected ? theme.colors.primaryContainer : theme.colors.surfaceVariant }}
+                  >
+                    {method.name}
+                  </Chip>
+                );
+              })}
           </View>
         )}
 
         <TextInput
           label="Note (Optional)"
           value={note}
-          onChangeText={setNote}
+          onChangeText={(val) => { setNote(val); clearError("note"); }}
           mode="outlined"
           multiline
-          style={{ marginBottom: 16 }}
+          error={!!errors.note}
+          style={{ marginBottom: 4 }}
         />
+        <HelperText type="error" visible={!!errors.note} style={{ marginBottom: 8 }}>
+          {errors.note}
+        </HelperText>
 
         <Text variant="labelLarge" style={{ marginBottom: 8 }}>Receipt Image</Text>
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
@@ -268,7 +339,7 @@ export default function AddTransaction() {
             <Image
               source={{ uri: receiptImage }}
               style={{ width: "100%", height: 200, borderRadius: 8 }}
-              resizeMode="cover"
+              contentFit="cover"
             />
             <IconButton
               icon="close-circle"

@@ -3,10 +3,10 @@ import { Text, Card, useTheme, Appbar, IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { FinancialTip } from "../../components/FinancialTip";
-import { useAppTheme } from "../../context/ThemeContext";
+import { useThemeData } from "../../context/ThemeContext";
 
 export default function LearningScreen() {
-    const { theme } = useAppTheme();
+    const { theme } = useThemeData();
 
     const resources = [
         {
@@ -61,7 +61,7 @@ export default function LearningScreen() {
                         <Card
                             key={index}
                             style={{ marginBottom: 12, borderRadius: 16, backgroundColor: theme.colors.surface }}
-                            onPress={() => router.push({ pathname: "/learning-detail", params: { id: item.id } })}
+                            onPress={() => router.push({ pathname: "/(tabs)/learning-detail", params: { id: item.id } })}
                         >
                             <Card.Content style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: theme.colors.primaryContainer, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>

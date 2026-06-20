@@ -1,95 +1,325 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, useTheme as usePaperTheme } from 'react-native-paper';
-import { useRouter } from 'expo-router';
-import { useAuth } from '../context/AuthContext';
-import { addUser, saveUserProfile } from '../utils/db';
+import { Text, TextInput, Button, Card, HelperText } from 'react-native-paper';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useAuthData, useAuthActions } from '../context/AuthContext';
+import { useUserProfileData } from '../context/UserProfileContext';
+import { addUser, saveUserProfile, API_URL, initDb, getSetting, setSetting, getUsers } from '../utils/db';
+import * as Crypto from 'expo-crypto';
 import { LinearGradient } from 'expo-linear-gradient';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AuthScreen() {
     const router = useRouter();
-    const { login } = useAuth();
+    const { token } = useAuthData();
+    const { login } = useAuthActions();
+    const { profile } = useUserProfileData();
 
-    // UI state
+    useFocusEffect(
+        useCallback(() => {
+            if (token === 'offline_token' && profile?.name) {
+                setName(profile.name);
+            }
+        }, [token, profile])
+    );
+
     const [name, setName] = useState("");
     const [passcode, setPasscode] = useState("");
     const [loading, setLoading] = useState(false);
+    const [nameError, setNameError] = useState("");
+    const [pinError, setPinError] = useState("");
 
-    const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
-
-    const handleRegister = async () => {
-        if (!name.trim() || !passcode.trim()) {
-            Alert.alert("Error", "Username and PIN are required");
-            return;
+    const getDeviceId = async () => {
+        let deviceId = await AsyncStorage.getItem('localDeviceId');
+        if (!deviceId) {
+            const { generateUUID } = require('../utils/uuid');
+            deviceId = generateUUID();
+            await AsyncStorage.setItem('localDeviceId', deviceId!);
         }
-        setLoading(true);
+        return deviceId;
+    };
+
+    const showAlert = (title: string, message: string, buttons?: any[]) => {
+        if (Platform.OS === 'web') {
+            if (buttons && buttons.length > 0) {
+                const confirmMsg = confirm(`${title}\n\n${message}`);
+                if (confirmMsg) {
+                    buttons[0].onPress();
+                } else if (buttons.length > 1) {
+                    buttons[1].onPress();
+                }
+            } else {
+                alert(`${title}: ${message}`);
+            }
+        } else {
+            Alert.alert(title, message, buttons);
+        }
+    };
+
+    const createLocalAccount = async (username: string, pin: string): Promise<boolean> => {
+        const { generateUUID } = require('../utils/uuid');
+        const offlineId = generateUUID();
+        
+        const users = await getUsers();
+        const localDuplicate = users.find((u: any) => u.name.toLowerCase() === username.toLowerCase());
+
+        if (localDuplicate) {
+            showAlert("Username Taken", "This username is already registered on this device. Please use a different username or login instead.");
+            return false;
+        }
+
+        await addUser(offlineId, username, pin);
+        await saveUserProfile({ name: username, isFirstRun: true, initialBalance: 0 }, offlineId);
+        await initDb(offlineId);
+        await setSetting('autoBackup', 'false');
+        await login(offlineId, "offline_token");
+        return true;
+    };
+
+    const createCloudAccount = async (email: string, pin: string): Promise<boolean> => {
+        if (!API_URL) {
+            showAlert("Cloud Unavailable", "Cloud registration is not available. Please check your connection or create an offline-only account.");
+            return false;
+        }
+
         try {
-            const response = await fetch(`${API_URL}auth/register`, {
+            const response = await fetch(`${API_URL}/auth/register`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: name.trim(), passcode: passcode.trim(), initialBalance: 0 }),
+                body: JSON.stringify({ name: email.trim(), passcode: pin.trim(), initialBalance: 0 }),
             });
 
             const responseData = await response.json();
 
-            if (!response.ok) {
-                Alert.alert("Error", responseData.message || "Could not register account");
-                setLoading(false);
-                return;
-            }
-
-            await addUser(responseData.data.user.id, name.trim(), passcode.trim());
-            await saveUserProfile(name.trim(), true, 0, responseData.data.user.id);
-            await login(responseData.data.user.id, responseData.data.token);
-        } catch (e: any) {
-            console.error(e);
-            if (e.message && e.message.includes('Network')) {
-                Alert.alert("Connection Required", "Please ensure you have an active internet connection to communicate with the server.");
+            if (response.ok) {
+                await addUser(responseData.data.user.id, email.trim(), pin.trim());
+                await saveUserProfile({ name: email.trim(), isFirstRun: true, initialBalance: 0 }, responseData.data.user.id);
+                await initDb(responseData.data.user.id);
+                await setSetting('autoBackup', 'true');
+                await login(responseData.data.user.id, responseData.data.token);
+                return true;
             } else {
-                Alert.alert("Error", "Could not register account");
+                showAlert("Registration Error", responseData.message || "Email is not available.");
+                return false;
             }
-        } finally {
-            setLoading(false);
+        } catch (e: any) {
+            console.log("Cloud registration failed:", e.message);
+            
+            showAlert(
+                "Cloud Unreachable",
+                "We couldn't connect to our servers. Would you like to create a local-only account instead?",
+                [
+                    {
+                        text: "Create Offline Account",
+                        onPress: async () => {
+                            const success = await createLocalAccount(email.trim(), pin.trim());
+                            if (!success) {
+                                setLoading(false);
+                            }
+                        }
+                    },
+                    { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }
+                ]
+            );
+            return false;
         }
     };
 
-    const handleLogin = async () => {
-        if (!name.trim() || !passcode.trim()) {
-            Alert.alert("Error", "Username and PIN are required");
+    const handleRegisterClick = async () => {
+        setNameError("");
+        setPinError("");
+
+        if (!name.trim()) {
+            setNameError("Username or email is required");
             return;
         }
+
+        if (!passcode.trim()) {
+            setPinError("PIN is required");
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const isEmail = emailRegex.test(name.trim());
+
         setLoading(true);
+
+        if (isEmail) {
+            const success = await createCloudAccount(name.trim(), passcode.trim());
+            if (!success) {
+                setLoading(false);
+            }
+        } else {
+            showAlert(
+                "Create Account",
+                `You entered "${name.trim()}" which is not an email format.\n\nChoose account type:`,
+                [
+                    {
+                        text: "Cloud Account (Use Email)",
+                        onPress: () => {
+                            setNameError("Please enter a valid email for cloud registration");
+                            setLoading(false);
+                        }
+                    },
+                    {
+                        text: "Offline-Only Account",
+                        onPress: async () => {
+                            const success = await createLocalAccount(name.trim(), passcode.trim());
+                            setLoading(false);
+                        }
+                    },
+                    { text: "Cancel", style: "cancel", onPress: () => setLoading(false) }
+                ]
+            );
+        }
+    };
+
+    const handleLogin = async (force = false) => {
+        setNameError("");
+        setPinError("");
+
+        if (!name.trim()) {
+            setNameError("Email or username is required");
+            return;
+        }
+
+        if (!passcode.trim()) {
+            setPinError("PIN is required");
+            return;
+        }
+
+        setLoading(true);
+        const deviceId = await getDeviceId();
+
+        if (!API_URL) {
+            console.log("No API_URL configured, using local-only login");
+            await attemptLocalLogin();
+            setLoading(false);
+            return;
+        }
+
         try {
-            const response = await fetch(`${API_URL}auth/login`, {
+            const response = await fetch(`${API_URL}/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: name.trim(), passcode: passcode.trim() }),
+                body: JSON.stringify({ name: name.trim(), passcode: passcode.trim(), deviceId, force }),
             });
 
             const responseData = await response.json();
 
-            if (!response.ok) {
-                Alert.alert("Error", responseData.message || "Invalid credentials");
-                setLoading(false);
-                return;
-            }
+             if (response.ok) {
+                 const data = responseData.data;
 
-            await addUser(responseData.data.user.id, name.trim(), passcode.trim());
-            await saveUserProfile(name.trim(), false, 0, responseData.data.user.id);
-            await login(responseData.data.user.id, responseData.data.token);
-        } catch (e: any) {
-            console.error(e);
-            if (e.message && e.message.includes('Network')) {
-                Alert.alert("Connection Required", "Please ensure you have an active internet connection to communicate with the server.");
-            } else {
-                Alert.alert("Error", "Cloud login failed");
-            }
-        } finally {
-            setLoading(false);
-        }
+                 if (data.sessionConflict) {
+                     setLoading(false);
+                     showAlert(
+                         "Session Active",
+                         "This account is already logged in on another device. Logging in here will log you out of the other device. Proceed?",
+                         [
+                             { text: "Yes, Log In", onPress: () => handleLogin(true) },
+                             { text: "No", style: "cancel" }
+                         ]
+                     );
+                     return;
+                 }
+
+                 await addUser(data.user.id, name.trim(), passcode.trim());
+                 await saveUserProfile({ name: name.trim(), isFirstRun: false, initialBalance: 0 }, data.user.id);
+                 await login(data.user.id, data.token);
+              } else if (response.status === 401) {
+                  console.log("Cloud login returned 401 - checking local users...");
+                  
+                  const users = await getUsers();
+                  const localUser = users.find((u: any) => u.name.toLowerCase() === name.trim().toLowerCase());
+                  
+                  if (localUser) {
+                      console.log("Found local user, trying local login...");
+                      try {
+                          const hashedInput = await Crypto.digestStringAsync(
+                              Crypto.CryptoDigestAlgorithm.SHA256,
+                              passcode.trim()
+                          );
+                          if (localUser.passcode === hashedInput || localUser.passcode === passcode.trim()) {
+                              await login(localUser.id, "local_token");
+                          } else {
+                              showAlert(
+                                  "Login Failed",
+                                  "Invalid credentials. Please check your email/username and PIN."
+                              );
+                          }
+                      } catch (err) {
+                          showAlert("Login Failed", "Invalid credentials.");
+                      }
+                  } else {
+                      console.log("No local user found, offering to register offline...");
+                      showAlert(
+                          "Account Not Found",
+                          `No account found for "${name.trim()}". Would you like to create an offline-only account with these credentials?`,
+                          [
+                              {
+                                  text: "Create Offline Account",
+                                  onPress: async () => {
+                                      const success = await createLocalAccount(name.trim(), passcode.trim());
+                                      setLoading(false);
+                                  }
+                              },
+                              { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }
+                          ]
+                      );
+                      return;
+                  }
+              } else {
+                 console.log("Cloud login failed, trying local fallback...");
+                 await attemptLocalLogin();
+             }
+         } catch (e: any) {
+             console.error("Online login failed (network error), attempting local fallback:", e);
+             await attemptLocalLogin();
+         } finally {
+             setLoading(false);
+         }
     };
 
-    return (
+    const attemptLocalLogin = async () => {
+        const users = await getUsers();
+        const localUser = users.find((u: any) => u.name.toLowerCase() === name.trim().toLowerCase());
+
+        if (localUser) {
+            try {
+                const hashedInput = await Crypto.digestStringAsync(
+                    Crypto.CryptoDigestAlgorithm.SHA256,
+                    passcode.trim()
+                );
+
+                if (localUser.passcode === hashedInput || localUser.passcode === passcode.trim()) {
+                    await login(localUser.id, "local_token");
+                } else {
+                    showAlert("Error", "Invalid PIN");
+                }
+            } catch (err) {
+                showAlert("Error", "Authentication failed. Error: " + (err as Error).message);
+            }
+         } else {
+             console.log("No local user found in attemptLocalLogin, offering to register offline...");
+             showAlert(
+                 "Account Not Found",
+                 `No account found for "${name.trim()}". Would you like to create an offline-only account with these credentials?`,
+                 [
+                     {
+                         text: "Create Offline Account",
+                         onPress: async () => {
+                             const success = await createLocalAccount(name.trim(), passcode.trim());
+                             setLoading(false);
+                         }
+                     },
+                     { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }
+                 ]
+             );
+         }
+     };
+
+     return (
         <LinearGradient colors={["#1a237e", "#283593", "#3949ab"]} style={styles.gradient}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -98,36 +328,54 @@ export default function AuthScreen() {
                 <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
                     <View style={styles.container}>
                         <Text style={styles.appName}>WiseWallet</Text>
-                        <Text style={styles.tagline}>Welcome Back</Text>
+                        <Text style={styles.tagline}>{token === 'offline_token' ? 'Link Your Account' : 'Welcome Back'}</Text>
+                        {token === 'offline_token' && (
+                            <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 12, opacity: 0.8 }}>
+                                Register your local account to the cloud to enable sync.
+                            </Text>
+                        )}
 
                         <Card style={styles.card}>
                             <Card.Content>
                                 <TextInput
-                                    label="Username"
+                                    label="Email or Username"
                                     value={name}
-                                    onChangeText={setName}
+                                    onChangeText={(text) => { setName(text); setNameError(""); }}
                                     style={styles.input}
+                                    textColor="#1a237e"
                                     mode="outlined"
                                     outlineColor="#e0e0e0"
                                     activeOutlineColor="#3949ab"
+                                    error={!!nameError}
                                     autoCapitalize="none"
+                                    keyboardType="email-address"
+                                    placeholder="Enter email or username"
                                 />
+                                <HelperText type="error" visible={!!nameError}>
+                                    {nameError}
+                                </HelperText>
+
                                 <TextInput
                                     label="PIN (4-digits)"
                                     value={passcode}
-                                    onChangeText={setPasscode}
+                                    onChangeText={(text) => { setPasscode(text); setPinError(""); }}
                                     keyboardType="numeric"
                                     secureTextEntry
                                     style={styles.input}
+                                    textColor="#1a237e"
                                     mode="outlined"
                                     outlineColor="#e0e0e0"
                                     activeOutlineColor="#3949ab"
+                                    error={!!pinError}
                                 />
+                                <HelperText type="error" visible={!!pinError}>
+                                    {pinError}
+                                </HelperText>
 
                                 <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
                                     <Button
                                         mode="contained"
-                                        onPress={handleLogin}
+                                        onPress={() => handleLogin(false)}
                                         loading={loading}
                                         disabled={loading}
                                         style={[styles.createBtn, { flex: 1, marginTop: 0 }]}
@@ -136,7 +384,7 @@ export default function AuthScreen() {
                                     </Button>
                                     <Button
                                         mode="outlined"
-                                        onPress={handleRegister}
+                                        onPress={() => handleRegisterClick()}
                                         loading={loading}
                                         disabled={loading}
                                         style={[styles.createBtn, { flex: 1, marginTop: 0, backgroundColor: 'transparent', borderColor: '#3949ab' }]}
@@ -144,6 +392,21 @@ export default function AuthScreen() {
                                     >
                                         Register
                                     </Button>
+                                </View>
+
+                                <View style={styles.infoBox}>
+                                    <Text variant="bodySmall" style={{ color: '#666', textAlign: 'center' }}>
+                                        💡 Tips:
+                                    </Text>
+                                    <Text variant="bodySmall" style={{ color: '#888', textAlign: 'center', marginTop: 4 }}>
+                                        • Use email for cloud sync
+                                    </Text>
+                                    <Text variant="bodySmall" style={{ color: '#888', textAlign: 'center' }}>
+                                        • Use any username for offline-only
+                                    </Text>
+                                    <Text variant="bodySmall" style={{ color: '#888', textAlign: 'center' }}>
+                                        • Login auto-detects account type
+                                    </Text>
                                 </View>
                             </Card.Content>
                         </Card>
@@ -158,23 +421,45 @@ const styles = StyleSheet.create({
     gradient: { flex: 1 },
     scrollContainer: { flexGrow: 1, justifyContent: 'center' },
     container: { padding: 24 },
-    appName: { fontSize: 36, fontWeight: "bold", color: "#fff", textAlign: 'center', marginBottom: 8 },
-    tagline: { fontSize: 16, color: "rgba(255,255,255,0.7)", textAlign: 'center', marginBottom: 32 },
+    appName: {
+        fontSize: 42,
+        fontWeight: "bold",
+        color: "#fff",
+        textAlign: 'center',
+        marginBottom: 8,
+        letterSpacing: 1,
+        textShadowColor: 'rgba(0, 0, 0, 0.4)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 10
+    },
+    tagline: {
+        fontSize: 18,
+        color: "rgba(255,255,255,0.9)",
+        textAlign: 'center',
+        marginBottom: 24,
+        fontWeight: '500',
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3
+    },
     card: {
         backgroundColor: '#fff',
         borderRadius: 24,
         padding: 8,
         elevation: 8,
-        ...Platform.select({
-            web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)' },
-            default: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.2,
-                shadowRadius: 8
-            }
-        })
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8
+    },
+    infoBox: {
+        marginTop: 12,
+        marginBottom: 4,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: '#f5f5f5',
+        borderRadius: 8,
     },
     createBtn: { marginTop: 20, marginBottom: 8, borderRadius: 12, paddingVertical: 4, backgroundColor: '#3949ab' },
-    input: { marginBottom: 12, backgroundColor: '#fff' }
+    input: { marginBottom: 4, backgroundColor: '#fff' }
 });

@@ -1,32 +1,120 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Alert, Platform } from "react-native";
-import { Appbar, List, RadioButton, Text, Card, Switch, Divider, Button, Avatar, Portal, Dialog, TextInput, useTheme as usePaperTheme } from "react-native-paper";
+import { View, ScrollView, Alert, Platform, StyleSheet } from "react-native";
+import { Appbar, List, RadioButton, Text, Card, Switch, Divider, Button, Avatar, Portal, Dialog, TextInput, useTheme as usePaperTheme, IconButton, Badge } from "react-native-paper";
 import { useRouter } from "expo-router";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
-import { getSetting, setSetting, clearAllLocalData, getTransactions, getCategories, getUserProfile, exportData, importData, deleteUser } from "../../utils/db";
+import { useRepositories } from "../../context/RepositoryContext";
+import { getSetting, setSetting, clearAllLocalData, exportData, importData, deleteUser, mergeLWW } from "../../utils/db";
 import { useAuth } from "../../context/AuthContext";
 import { useCurrency, CURRENCIES, CurrencyCode } from "../../context/CurrencyContext";
 import { useAppTheme } from "../../context/ThemeContext";
 import { useUserProfile } from "../../context/UserProfileContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { usePasscode } from "../../context/PasscodeContext";
-import { useTransactionsContext } from "../../context/TransactionsContext";
-import { useCategories } from "../../context/CategoriesContext";
+import { useTransactionsActions } from "../../context/TransactionsContext";
+import { useCategoriesActions } from "../../context/CategoriesContext";
 import { authFetch } from "../../utils/apiClient";
+import { useSyncStatus } from "../../hooks/useSyncStatus";
+import { useNetwork } from "../../context/NetworkContext";
+
+function SyncStatusCard() {
+  const { isOnline, checkConnectivity, isChecking } = useNetwork();
+  const { pending, lastSyncedAt, hasFailed, refresh: retryAll } = useSyncStatus();
+  const paperTheme = usePaperTheme();
+
+  const getStatusColor = () => {
+    if (isChecking) return { icon: "cloud-sync", text: "Checking...", color: paperTheme.colors.primary };
+    if (!isOnline) return { icon: "cloud-off", text: "Offline", color: paperTheme.colors.error };
+    if (pending > 0) return { icon: "upload", text: `${pending} pending`, color: paperTheme.colors.tertiary };
+    return { icon: "cloud-check", text: "All synced", color: paperTheme.colors.secondary };
+  };
+
+  const status = getStatusColor();
+
+  const formatLastSync = () => {
+    if (!lastSyncedAt) return "Never";
+    const date = new Date(lastSyncedAt);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + date.toLocaleDateString();
+  };
+
+  return (
+    <View style={[
+      styles.syncCard,
+      {
+        backgroundColor: !isOnline
+          ? paperTheme.colors.errorContainer
+          : pending > 0
+          ? paperTheme.colors.tertiaryContainer
+          : paperTheme.colors.secondaryContainer
+      }
+    ]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+        <IconButton
+          icon={status.icon}
+          iconColor={status.color}
+          size={24}
+          style={{ margin: 0 }}
+        />
+        <View>
+          <Text variant="titleSmall" style={{ color: status.color, fontWeight: '600' }}>
+            {status.text}
+          </Text>
+          <Text variant="bodySmall" style={{ color: paperTheme.colors.onSurfaceVariant }}>
+            Last sync: {formatLastSync()}
+          </Text>
+        </View>
+      </View>
+      {pending > 0 && isOnline && (
+        <Button
+          mode="text"
+          compact
+          icon="sync"
+          onPress={retryAll}
+          loading={isChecking}
+        >
+          Retry
+        </Button>
+      )}
+      {!isOnline && (
+        <Button
+          mode="text"
+          compact
+          icon="refresh"
+          onPress={() => checkConnectivity()}
+          loading={isChecking}
+        >
+          Check
+        </Button>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  syncCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+  }
+});
 
 export default function SettingsScreen() {
   const router = useRouter();
   const paperTheme = usePaperTheme();
   const { currency, setCurrency, decimalPlaces, setDecimalPlaces } = useCurrency();
   const { theme, isDarkMode, toggleTheme } = useAppTheme();
-  const { profile, refetch: refetchProfile } = useUserProfile();
+  const { profile, updateProfile, resetProfileToDefaults, refetch: refetchProfile } = useUserProfile();
   const { language, setLanguage, t } = useLanguage();
   const { isPasscodeEnabled, setIsPasscodeEnabled, passcode, setPasscode, setIsUnlocked } = usePasscode();
   const { activeUserId, logout } = useAuth();
-  const { refetch: refetchTx } = useTransactionsContext();
-  const { refetch: refetchCats } = useCategories();
+  const { refetch: refetchTx } = useTransactionsActions();
+  const { refetch: refetchCats } = useCategoriesActions();
+  const repos = useRepositories();
 
   const handleLogout = async () => {
     await logout();
@@ -35,44 +123,264 @@ export default function SettingsScreen() {
 
   const handleTogglePasscode = (enabled: boolean) => {
     if (enabled) {
-      // In a real app, we'd show a modal to set the code
-      setPasscode("1234");
-      setIsPasscodeEnabled(true);
-      setIsUnlocked(false);
+      setShowPinSetup(true);
     } else {
       setIsPasscodeEnabled(false);
       setPasscode(null);
     }
   };
 
-  const [autoBackup, setAutoBackup] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [showPinPrompt, setShowPinPrompt] = useState(false);
-  const [pinInput, setPinInput] = useState("");
-
-  useEffect(() => {
-    getSetting('autoBackup').then(val => {
-      setAutoBackup(val !== 'false');
-    });
-  }, []);
-
-  const handleToggleAutoBackup = async (val: boolean) => {
-    setAutoBackup(val);
-    await setSetting('autoBackup', val.toString());
+  const confirmPinSetup = () => {
+    if (pinSetupInput.length !== 4 || !/^\d{4}$/.test(pinSetupInput)) {
+      Alert.alert("Invalid PIN", "Please enter a 4-digit PIN.");
+      return;
+    }
+    setPasscode(pinSetupInput);
+    setIsPasscodeEnabled(true);
+    setIsUnlocked(false);
+    setShowPinSetup(false);
+    setPinSetupInput("");
   };
 
-  const handleManualBackup = async () => {
+  const autoBackup = profile?.autoBackup ?? true;
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showPinPrompt, setShowPinPrompt] = useState(false);
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [pinSetupInput, setPinSetupInput] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showBackupDialog, setShowBackupDialog] = useState(false);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+
+   const setAutoBackup = async (value: boolean) => {
+     await updateProfile({ autoBackup: value });
+     await setSetting('autoBackup', value.toString());
+   };
+
+   const handleToggleAutoBackup = async (val: boolean) => {
+     if (val) {
+       setShowBackupDialog(true);
+     } else {
+       setAutoBackup(false);
+     }
+   };
+
+   const proceedWithBackupEnable = async () => {
+     setIsSyncing(true);
+     setShowBackupDialog(false);
+     try {
+      const [txResult, catResult, profResult] = await Promise.all([
+          authFetch(`transactions?userId=${activeUserId}`),
+          authFetch(`categories?userId=${activeUserId}`),
+          authFetch(`userProfiles?userId=${activeUserId}`)
+        ]);
+        const txs = txResult.data || [];
+        const cats = catResult.data || [];
+        const profs = profResult.data || [];
+
+       const hasCloudData = (Array.isArray(txs) && txs.length > 0) ||
+         (Array.isArray(cats) && cats.length > 0) ||
+         (Array.isArray(profs) && profs.length > 0);
+
+        if (hasCloudData) {
+          setShowConflictDialog(true);
+        } else {
+          setAutoBackup(true);
+        }
+     } catch (e) {
+       console.error("Conflict check failed:", e);
+       alert("Failed to check for server conflicts. Please check your connection.");
+     } finally {
+       setIsSyncing(false);
+     }
+   };
+
+   const handleMergeLWW = async () => {
+     setIsSyncing(true);
+     setShowConflictDialog(false);
+
+     try {
+       console.log("[MergeLWW] Starting Last-Write-Wins merge...");
+
+        const localTxs = await repos.transactions.getAll();
+        const localCats = await repos.categories.getAll();
+        const localDues = await repos.dues.getAll();
+        const localSavings = await repos.savingsItems.getAll();
+        const [localProfile] = await repos.profiles.getAll();
+
+       const [txResult, catResult, dueResult, savResult, profResult] = await Promise.all([
+          authFetch(`transactions?userId=${activeUserId}`),
+          authFetch(`categories?userId=${activeUserId}`),
+          authFetch(`dues?userId=${activeUserId}`),
+          authFetch(`savingsItems?userId=${activeUserId}`),
+          authFetch(`userProfiles?userId=${activeUserId}`)
+        ]);
+
+        const remoteTxs = Array.isArray(txResult.data) ? txResult.data : [];
+        const remoteCats = Array.isArray(catResult.data) ? catResult.data : [];
+        const remoteDues = Array.isArray(dueResult.data) ? dueResult.data : [];
+        const remoteSavings = Array.isArray(savResult.data) ? savResult.data : [];
+        const remoteProfiles = Array.isArray(profResult.data) ? profResult.data : [];
+       const remoteProfile = remoteProfiles[0] || null;
+
+       const mergedTxs = mergeLWW(localTxs, remoteTxs);
+       const mergedCats = mergeLWW(localCats, remoteCats);
+       const mergedDues = mergeLWW(localDues, remoteDues);
+       const mergedSavings = mergeLWW(localSavings, remoteSavings);
+
+       console.log("[MergeLWW] Merged:", {
+         transactions: mergedTxs.length,
+         categories: mergedCats.length,
+         dues: mergedDues.length,
+         savingsItems: mergedSavings.length
+       });
+
+        await repos.transactions.upsertBulk(mergedTxs);
+        await repos.categories.upsertBulk(mergedCats);
+        await repos.dues.upsertBulk(mergedDues);
+        await repos.savingsItems.upsertBulk(mergedSavings);
+
+       if (localProfile && remoteProfile) {
+         const localTs = (localProfile as any).updatedAt || 0;
+         const remoteTs = (remoteProfile as any).updatedAt || 0;
+         if (remoteTs > localTs) {
+            await repos.profiles.upsert(remoteProfile as any);
+         }
+       }
+
+       await setAutoBackup(true);
+
+       console.log("[MergeLWW] Uploading merged data to cloud...");
+
+       if (localProfile || remoteProfile) {
+         const mergedProfile = remoteProfile && ((remoteProfile as any).updatedAt || 0) > ((localProfile as any)?.updatedAt || 0)
+           ? remoteProfile
+           : localProfile;
+
+          if (mergedProfile) {
+            const { data: profExisting } = await authFetch(`userProfiles?userId=${activeUserId}`);
+
+            if (Array.isArray(profExisting) && profExisting.length > 0) {
+              await authFetch(`userProfiles/${profExisting[0].id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...mergedProfile, userId: activeUserId })
+              }).catch(() => {});
+            } else {
+              await authFetch(`userProfiles`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...mergedProfile, userId: activeUserId })
+              }).catch(() => {});
+            }
+          }
+       }
+
+        for (const c of mergedCats) {
+          const { data: existing } = await authFetch(`categories?id=${c.id}`);
+
+          if (Array.isArray(existing) && existing.length > 0) {
+            await authFetch(`categories/${c.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...c, userId: activeUserId })
+            }).catch(() => {});
+          } else {
+            await authFetch(`categories`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...c, userId: activeUserId })
+            }).catch(() => {});
+          }
+        }
+
+        for (const d of mergedDues) {
+          const { data: existing } = await authFetch(`dues?id=${d.id}`);
+
+          if (Array.isArray(existing) && existing.length > 0) {
+            await authFetch(`dues/${d.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...d, userId: activeUserId })
+            }).catch(() => {});
+          } else {
+            await authFetch(`dues`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...d, userId: activeUserId })
+            }).catch(() => {});
+          }
+        }
+
+       for (const s of mergedSavings) {
+          const { data: existing } = await authFetch(`savingsItems?id=${s.id}`);
+
+          if (Array.isArray(existing) && existing.length > 0) {
+            await authFetch(`savingsItems/${s.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...s, userId: activeUserId })
+            }).catch(() => {});
+          } else {
+            await authFetch(`savingsItems`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...s, userId: activeUserId })
+            }).catch(() => {});
+          }
+        }
+
+        for (const t of mergedTxs) {
+          const { data: existing } = await authFetch(`transactions?id=${t.id}`);
+
+          const txData = {
+            ...t,
+            categoryId: t.category?.id ? String(t.category.id) : (t as any).categoryId,
+            userId: activeUserId
+          };
+
+          if (Array.isArray(existing) && existing.length > 0) {
+            await authFetch(`transactions/${t.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(txData)
+            }).catch(() => {});
+          } else {
+            await authFetch(`transactions`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(txData)
+            }).catch(() => {});
+          }
+        }
+
+       await Promise.all([
+         refetchTx(),
+         refetchCats(),
+         refetchProfile()
+       ]);
+
+       alert("Merge completed! Data has been synchronized using Last-Write-Wins.");
+       console.log("[MergeLWW] Merge completed successfully");
+
+     } catch (e) {
+       console.error("[MergeLWW] Merge failed:", e);
+       alert("Merge failed. Please check your connection and try again.");
+     } finally {
+       setIsSyncing(false);
+     }
+   };
+
+   const handleManualBackup = async () => {
     setIsSyncing(true);
     try {
-      const txs = await getTransactions();
-      const cats = await getCategories();
-      const profile = await getUserProfile();
+       const txs = await repos.transactions.getAll();
+       const cats = await repos.categories.getAll();
+       const [profile] = await repos.profiles.getAll();
 
 
       if (profile) {
-        // Find existing profile on API to get its ID for PATCH, or POST if none
-        const check = await authFetch(`userProfiles?userId=${activeUserId}`);
-        const existing = await check.json();
+        const { data: existing } = await authFetch(`userProfiles?userId=${activeUserId}`);
 
         const method = (existing && existing.length > 0) ? "PATCH" : "POST";
         const url = (existing && existing.length > 0)
@@ -97,7 +405,7 @@ export default function SettingsScreen() {
         await authFetch(`transactions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...t, categoryId: String(t.category.id), userId: activeUserId })
+          body: JSON.stringify({ ...t, categoryId: t.category?.id ? String(t.category.id) : (t as any).categoryId, userId: activeUserId })
         }).catch(() => { });
       }
 
@@ -111,37 +419,39 @@ export default function SettingsScreen() {
   };
 
   const handleClearData = async () => {
-    if (pinInput === (passcode || "1234")) {
+    if (pinInput === passcode) {
       setIsSyncing(true);
       try {
         if (activeUserId) {
           console.log("Syncing Clear Data to cloud for user:", activeUserId);
-          // 1. Fetch user data from cloud
-          const [txRes, catRes, profRes] = await Promise.all([
+          // 1. Fetch user data from cloud (Except Profile/User)
+          const [txResult, catResult, dueResult, savResult] = await Promise.all([
             authFetch(`transactions?userId=${activeUserId}`),
             authFetch(`categories?userId=${activeUserId}`),
-            authFetch(`userProfiles?userId=${activeUserId}`)
+            authFetch(`dues?userId=${activeUserId}`),
+            authFetch(`savingsItems?userId=${activeUserId}`)
           ]);
 
-          const [txs, cats, profs] = await Promise.all([
-            txRes.json(),
-            catRes.json(),
-            profRes.json()
-          ]);
+          const txs = txResult.data || [];
+          const cats = catResult.data || [];
+          const dues = dueResult.data || [];
+          const savs = savResult.data || [];
 
           // 2. Delete all from cloud
           const deletePromises = [
             ...(Array.isArray(txs) ? txs.map(t => authFetch(`transactions/${t.id}`, { method: "DELETE" })) : []),
             ...(Array.isArray(cats) ? cats.map(c => authFetch(`categories/${c.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(profs) ? profs.map(p => authFetch(`userProfiles/${p.id}`, { method: "DELETE" })) : [])
+            ...(Array.isArray(dues) ? dues.map(d => authFetch(`dues/${d.id}`, { method: "DELETE" })) : []),
+            ...(Array.isArray(savs) ? savs.map(s => authFetch(`savingsItems/${s.id}`, { method: "DELETE" })) : [])
           ];
 
           await Promise.all(deletePromises);
-          console.log("Cloud data cleared successfully");
+          console.log("Cloud transactional data cleared successfully");
         }
 
         // 3. Clear local
         await clearAllLocalData();
+        await resetProfileToDefaults();
         setShowPinPrompt(false);
         setPinInput("");
 
@@ -199,68 +509,31 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "Are you sure? This will remove your account from this device and attempt to clear your cloud data. This action is permanent.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            if (activeUserId) {
-              setIsSyncing(true);
-              try {
-                // 1. Fetch user data from cloud to get IDs
-                const [txRes, catRes, profRes] = await Promise.all([
-                  authFetch(`transactions?userId=${activeUserId}`),
-                  authFetch(`categories?userId=${activeUserId}`),
-                  authFetch(`userProfiles?userId=${activeUserId}`)
-                ]);
+    setShowDeleteDialog(true);
+  };
 
-                const [txs, cats, profs] = await Promise.all([
-                  txRes.json(),
-                  catRes.json(),
-                  profRes.json()
-                ]);
-
-                // 2. Delete all from cloud
-                const deletePromises = [
-                  ...(Array.isArray(txs) ? txs.map(t => authFetch(`transactions/${t.id}`, { method: "DELETE" })) : []),
-                  ...(Array.isArray(cats) ? cats.map(c => authFetch(`categories/${c.id}`, { method: "DELETE" })) : []),
-                  ...(Array.isArray(profs) ? profs.map(p => authFetch(`userProfiles/${p.id}`, { method: "DELETE" })) : []),
-                  // Also delete from /users if applicable
-                  authFetch(`users/${activeUserId}`, { method: "DELETE" }).catch(() => { })
-                ];
-
-                await Promise.all(deletePromises);
-                console.log("Cloud account data cleared successfully");
-
-                // 3. Clear local tables (except master)
-                await clearAllLocalData();
-
-                // 4. Remove from master.db
-                await deleteUser(activeUserId);
-
-                // 5. Logout and redirect
-                await logout();
-                router.replace("/auth");
-                alert("Account and all associated data deleted successfully.");
-              } catch (e) {
-                console.error("Delete account sync failed:", e);
-                alert("Failed to fully clear cloud data. Account was deleted locally.");
-                await clearAllLocalData();
-                await deleteUser(activeUserId);
-                await logout();
-                router.replace("/auth");
-              } finally {
-                setIsSyncing(false);
-              }
-            }
-          }
-        }
-      ]
-    );
+  const executeDelete = async () => {
+    if (activeUserId) {
+      setIsSyncing(true);
+      try {
+        await authFetch(`auth/account`, { method: "DELETE" });
+        await clearAllLocalData();
+        await deleteUser(activeUserId);
+        await logout();
+        router.replace("/auth");
+        alert("Account and all associated data deleted successfully.");
+      } catch (e) {
+        console.error("Delete account sync failed:", e);
+        alert("Failed to fully clear cloud data. Account was deleted locally.");
+        await clearAllLocalData();
+        await deleteUser(activeUserId);
+        await logout();
+        router.replace("/auth");
+      } finally {
+        setIsSyncing(false);
+        setShowDeleteDialog(false);
+      }
+    }
   };
 
   const performRestore = async () => {
@@ -269,27 +542,27 @@ export default function SettingsScreen() {
       console.log("[Restore] Starting cloud restore for user:", activeUserId);
 
       // Fetch all to catch legacy data (missing userId)
-      const [txRes, catRes, profRes] = await Promise.all([
+      const [txResult, catResult, profResult] = await Promise.all([
         authFetch(`transactions`),
         authFetch(`categories`),
         authFetch(`userProfiles`)
       ]);
 
       console.log("[Restore] Network status:", {
-        txs: txRes.status,
-        cats: catRes.status,
-        profs: profRes.status
+        txs: txResult.status,
+        cats: catResult.status,
+        profs: profResult.status
       });
 
-      if (!txRes.ok || !catRes.ok || !profRes.ok) {
+      if (!txResult.ok || !catResult.ok || !profResult.ok) {
         console.error("[Restore] Cloud restore network error.");
         alert("Could not connect to the cloud API. Please check your connection.");
         return;
       }
 
-      const allTxs = await txRes.json();
-      const allCats = await catRes.json();
-      const allProfs = await profRes.json();
+      const allTxs = txResult.data || [];
+      const allCats = catResult.data || [];
+      const allProfs = profResult.data || [];
 
       console.log("[Restore] Raw data received:", {
         txs: Array.isArray(allTxs) ? allTxs.length : "error",
@@ -380,12 +653,12 @@ export default function SettingsScreen() {
                 label={profile?.name?.substring(0, 2).toUpperCase() || "US"}
                 style={{ backgroundColor: paperTheme.colors.primary }}
               />
-              <View style={{ marginLeft: 16 }}>
-                <Text variant="titleMedium">{profile?.name || "Wise User"}</Text>
-                <Text variant="bodySmall" style={{ color: paperTheme.colors.outline }}>
-                  Local Profile (Offline)
-                </Text>
-              </View>
+               <View style={{ marginLeft: 16 }}>
+                 <Text variant="titleMedium">{profile?.name || "Wise User"}</Text>
+                 <Text variant="bodySmall" style={{ color: paperTheme.colors.outline }}>
+                   {autoBackup ? "Cloud Sync Enabled" : "Local Profile (Offline)"}
+                 </Text>
+               </View>
             </View>
           </Card.Content>
         </Card>
@@ -459,6 +732,8 @@ export default function SettingsScreen() {
           <Card.Content>
             <Text variant="titleMedium" style={{ marginBottom: 16 }}>Data Management</Text>
 
+            <SyncStatusCard />
+
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <List.Icon icon="cloud-sync" color={paperTheme.colors.onSurfaceVariant} />
@@ -525,9 +800,59 @@ export default function SettingsScreen() {
             </View>
           </Card.Content>
         </Card>
+
+        <Card style={{ marginTop: 16 }}>
+          <Card.Content>
+            <Button mode="text" icon="help-circle-outline" onPress={() => router.push("/help")}>
+              Help & FAQ
+            </Button>
+          </Card.Content>
+        </Card>
       </ScrollView>
 
       <Portal>
+        <Dialog visible={showDeleteDialog} onDismiss={() => setShowDeleteDialog(false)}>
+          <Dialog.Title>Delete Account</Dialog.Title>
+          <Dialog.Content>
+            <Text style={{ color: paperTheme.colors.error }}>WARNING: This action is permanent and cannot be undone.</Text>
+            <Text style={{ marginTop: 8 }}>All your data in the cloud and on this device will be PERMANENTLY deleted. We recommend downloading a JSON backup first.</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button onPress={executeDelete} textColor={paperTheme.colors.error} loading={isSyncing} disabled={isSyncing}>Delete Permanently</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={showBackupDialog} onDismiss={() => setShowBackupDialog(false)}>
+          <Dialog.Title>Enable Auto-save</Dialog.Title>
+          <Dialog.Content>
+            <Text>Enabling Auto-save may overwrite your data during synchronization. Do you want to check for data on the server first?</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowBackupDialog(false)}>Cancel</Button>
+            <Button onPress={proceedWithBackupEnable} loading={isSyncing} disabled={isSyncing}>Proceed</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={showConflictDialog} onDismiss={() => setShowConflictDialog(false)}>
+          <Dialog.Title>Sync Conflict</Dialog.Title>
+          <Dialog.Content>
+            <Text>We found data for your account on the server. How would you like to resolve this?</Text>
+          </Dialog.Content>
+           <Dialog.Actions style={{ flexDirection: 'column' }}>
+              <Button mode="contained" onPress={handleMergeLWW} loading={isSyncing} disabled={isSyncing} style={{ width: '100%', marginBottom: 8 }}>
+                Merge (Last Write Wins)
+              </Button>
+              <Button mode="outlined" onPress={() => { setShowConflictDialog(false); setAutoBackup(true); handleManualBackup(); }} style={{ width: '100%', marginBottom: 8 }}>
+                Keep Local Only
+              </Button>
+              <Button mode="outlined" onPress={() => { setShowConflictDialog(false); setAutoBackup(true); performRestore(); }} style={{ width: '100%', marginBottom: 8 }}>
+                Keep Cloud Only
+              </Button>
+              <Button onPress={() => setShowConflictDialog(false)}>Cancel</Button>
+            </Dialog.Actions>
+         </Dialog>
+
         <Dialog visible={showPinPrompt} onDismiss={() => setShowPinPrompt(false)}>
           <Dialog.Title>Enter PIN to Clear Data</Dialog.Title>
           <Dialog.Content>
@@ -544,6 +869,25 @@ export default function SettingsScreen() {
           <Dialog.Actions>
             <Button onPress={() => setShowPinPrompt(false)}>Cancel</Button>
             <Button onPress={handleClearData} textColor={paperTheme.colors.error}>Clear Data</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={showPinSetup} onDismiss={() => { setShowPinSetup(false); setPinSetupInput(""); }}>
+          <Dialog.Title>Set Passcode</Dialog.Title>
+          <Dialog.Content>
+            <Text style={{ marginBottom: 16 }}>Enter a 4-digit PIN to secure the app on startup.</Text>
+            <TextInput
+              label="New PIN"
+              value={pinSetupInput}
+              onChangeText={setPinSetupInput}
+              secureTextEntry
+              keyboardType="numeric"
+              maxLength={4}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => { setShowPinSetup(false); setPinSetupInput(""); }}>Cancel</Button>
+            <Button onPress={confirmPinSetup}>Set Passcode</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

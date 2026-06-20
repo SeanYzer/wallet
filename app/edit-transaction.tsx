@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Alert, Image, Platform, TouchableOpacity } from "react-native";
+import { View, ScrollView, Alert, Platform, TouchableOpacity } from "react-native";
+import { Image } from "expo-image";
 import { Appbar, TextInput, Button, SegmentedButtons, Text, Chip, IconButton, useTheme, Card, Portal, Modal } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -8,15 +9,15 @@ import { useTransactions } from "../hooks/useTransactions";
 import { TransactionType, PaymentMethod, Transaction, Category } from "../types";
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: "1", name: "Food", type: "expense" },
-  { id: "2", name: "Bills", type: "expense" },
-  { id: "3", name: "Transport", type: "expense" },
-  { id: "4", name: "Shopping", type: "expense" },
-  { id: "5", name: "Entertainment", type: "expense" },
-  { id: "6", name: "Salary", type: "income" },
-  { id: "7", name: "Freelance", type: "income" },
-  { id: "8", name: "Others", type: "expense" },
-  { id: "9", name: "Others", type: "income" },
+  { id: "1", name: "Food", type: "expense", updatedAt: 0 },
+  { id: "2", name: "Bills", type: "expense", updatedAt: 0 },
+  { id: "3", name: "Transport", type: "expense", updatedAt: 0 },
+  { id: "4", name: "Shopping", type: "expense", updatedAt: 0 },
+  { id: "5", name: "Entertainment", type: "expense", updatedAt: 0 },
+  { id: "6", name: "Salary", type: "income", updatedAt: 0 },
+  { id: "7", name: "Freelance", type: "income", updatedAt: 0 },
+  { id: "8", name: "Others", type: "expense", updatedAt: 0 },
+  { id: "9", name: "Others", type: "income", updatedAt: 0 },
 ];
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
@@ -238,7 +239,7 @@ export default function EditTransaction() {
 
         {receiptImage && (
           <View style={{ position: "relative", marginBottom: 16 }}>
-            <Image source={{ uri: receiptImage }} style={{ width: "100%", height: 200, borderRadius: 8 }} resizeMode="cover" />
+            <Image source={{ uri: receiptImage }} style={{ width: "100%", height: 200, borderRadius: 8 }} contentFit="cover" />
             <IconButton icon="close-circle" size={24} iconColor="red" style={{ position: "absolute", top: 0, right: 0 }} onPress={() => setReceiptImage(null)} />
           </View>
         )}

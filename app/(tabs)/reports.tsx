@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { View, ScrollView, Dimensions } from "react-native";
 import { Appbar, Text, Card, useTheme, Button, Menu, Divider, IconButton } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -21,10 +21,10 @@ export default function ReportsScreen() {
   useFocusEffect(
     useCallback(() => {
       refetch();
-    }, [])
+    }, [refetch])
   );
 
-  const getFilteredData = () => {
+  const filteredTransactions = useMemo(() => {
     const now = new Date();
     let start: Date, end: Date;
 
@@ -49,9 +49,7 @@ export default function ReportsScreen() {
       const d = new Date(t.date);
       return isWithinInterval(d, { start, end });
     });
-  };
-
-  const filteredTransactions = getFilteredData();
+  }, [transactions, period]);
   const income = filteredTransactions.filter(t => t.type === "income").reduce((sum, t) => sum + (t.amount || 0), 0);
   const expense = filteredTransactions.filter(t => t.type === "expense").reduce((sum, t) => sum + (t.amount || 0), 0);
 
@@ -59,15 +57,15 @@ export default function ReportsScreen() {
     {
       name: "Income",
       population: income,
-      color: "#4CAF50",
-      legendFontColor: "#7F7F7F",
+      color: theme.colors.primary,
+      legendFontColor: theme.colors.onSurfaceVariant,
       legendFontSize: 12
     },
     {
       name: "Expense",
       population: expense,
-      color: "#F44336",
-      legendFontColor: "#7F7F7F",
+      color: theme.colors.error,
+      legendFontColor: theme.colors.onSurfaceVariant,
       legendFontSize: 12
     }
   ];
@@ -76,17 +74,20 @@ export default function ReportsScreen() {
   const categoryDataMap = filteredTransactions
     .filter(t => t.type === "expense")
     .reduce((acc: any, t) => {
-      const cat = t.category.name;
+      const cat = t.category?.name || "Uncategorized";
       acc[cat] = (acc[cat] || 0) + t.amount;
       return acc;
     }, {});
 
-  const COLORS = ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40"];
+  const CATEGORY_COLORS = [
+    theme.colors.primary, theme.colors.error, theme.colors.tertiary,
+    theme.colors.secondary, theme.colors.onSurfaceVariant, theme.colors.outline,
+  ];
   const categoryPieData = Object.keys(categoryDataMap).map((cat, i) => ({
     name: cat,
     population: categoryDataMap[cat],
-    color: COLORS[i % COLORS.length],
-    legendFontColor: "#7F7F7F",
+    color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+    legendFontColor: theme.colors.onSurfaceVariant,
     legendFontSize: 11
   }));
 
@@ -117,16 +118,16 @@ export default function ReportsScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 16 }}>
-          <Card style={{ flex: 1, marginRight: 8, backgroundColor: "#E8F5E9" }}>
+          <Card style={{ flex: 1, marginRight: 8, backgroundColor: theme.colors.primaryContainer }}>
             <Card.Content>
-              <Text variant="labelSmall" style={{ color: "#2E7D32" }}>Total Income</Text>
-              <Text variant="titleLarge" style={{ color: "#2E7D32", fontWeight: "700" }}>{formatAmount(income)}</Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onPrimaryContainer }}>Total Income</Text>
+              <Text variant="titleLarge" style={{ color: theme.colors.onPrimaryContainer, fontWeight: "700" }}>{formatAmount(income)}</Text>
             </Card.Content>
           </Card>
-          <Card style={{ flex: 1, marginLeft: 8, backgroundColor: "#FFEBEE" }}>
+          <Card style={{ flex: 1, marginLeft: 8, backgroundColor: theme.colors.errorContainer }}>
             <Card.Content>
-              <Text variant="labelSmall" style={{ color: "#C62828" }}>Total Expense</Text>
-              <Text variant="titleLarge" style={{ color: "#C62828", fontWeight: "700" }}>{formatAmount(expense)}</Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onErrorContainer }}>Total Expense</Text>
+              <Text variant="titleLarge" style={{ color: theme.colors.onErrorContainer, fontWeight: "700" }}>{formatAmount(expense)}</Text>
             </Card.Content>
           </Card>
         </View>
@@ -136,7 +137,7 @@ export default function ReportsScreen() {
             <Text variant="titleMedium" style={{ marginBottom: 16, fontWeight: "700" }}>Income vs Expense</Text>
             {income === 0 && expense === 0 ? (
                 <View style={{ height: 200, justifyContent: "center", alignItems: "center" }}>
-                    <Text variant="bodyMedium" style={{ color: "gray" }}>No data for this period</Text>
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No data for this period</Text>
                 </View>
             ) : (
                 <PieChart
@@ -180,7 +181,7 @@ export default function ReportsScreen() {
         <Card style={{ marginBottom: 16 }}>
           <Card.Content>
             <Text variant="titleMedium" style={{ marginBottom: 12, fontWeight: "700" }}>Export Data</Text>
-            <Text variant="bodySmall" style={{ color: "gray", marginBottom: 16 }}>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 16 }}>
               Download your transaction history for the selected period.
             </Text>
             <View style={{ flexDirection: "row", gap: 12 }}>
