@@ -160,7 +160,7 @@ export default function AddTransaction() {
         date: date.toISOString(),
         note: note,
         type,
-        category: selectedCategory,
+        category: selectedCategory ?? undefined,
         paymentMethod,
         establishment: establishment || undefined,
         receiptUrl: receiptImage || undefined,
