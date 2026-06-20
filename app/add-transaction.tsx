@@ -13,6 +13,7 @@ import {
   IconButton,
   Appbar,
   Card,
+  HelperText,
 } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { authFetch } from "../utils/apiClient";
@@ -38,6 +39,7 @@ export default function AddTransaction() {
   const [date, setDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { formatAmount } = useCurrencyActions();
 
@@ -100,17 +102,57 @@ export default function AddTransaction() {
     }
   };
 
-  const handleSubmit = async () => {
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert("Invalid Amount", "Please enter a valid amount greater than 0.");
-      return;
+  const validate = (): string | null => {
+    const next: Record<string, string> = {};
+    const trimmed = amount.trim();
+
+    if (!trimmed) {
+      next.amount = "Please enter an amount.";
+    } else {
+      const num = parseFloat(trimmed);
+      if (isNaN(num) || num <= 0) {
+        next.amount = "Please enter a valid amount greater than 0.";
+      } else if (num > 999999999.99) {
+        next.amount = "Amount must be less than 1 billion.";
+      }
     }
+
     if (!selectedCategory) {
-      Alert.alert("Category Required", "Please select a category.");
+      next.category = "Please select a category.";
+    }
+
+    if (note.length > 500) {
+      next.note = "Note must be under 500 characters.";
+    }
+
+    setErrors(next);
+    const firstKey = Object.keys(next)[0];
+    return firstKey || null;
+  };
+
+  const clearError = (field: string) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[field];
+        return copy;
+      });
+    }
+  };
+
+  const handleSubmit = async () => {
+    const firstErrorKey = validate();
+    if (firstErrorKey) {
+      const msgs: Record<string, string> = {
+        amount: "Please check the amount field.",
+        category: "Please select a category.",
+        note: "Please shorten your note.",
+      };
+      Alert.alert("Validation Error", msgs[firstErrorKey] || "Please fix the highlighted fields.");
       return;
     }
 
+    const numAmount = parseFloat(amount.trim());
     setLoading(true);
     try {
       await addTransaction({
@@ -159,12 +201,23 @@ export default function AddTransaction() {
         <TextInput
           label="Amount"
           value={amount}
-          onChangeText={setAmount}
+          onChangeText={(val) => {
+            const cleaned = val
+              .replace(/[^0-9.]/g, "")
+              .replace(/(\..*)\./g, "$1")
+              .replace(/^0+(?=\d)/, "");
+            setAmount(cleaned);
+            clearError("amount");
+          }}
           keyboardType="numeric"
           mode="outlined"
+          error={!!errors.amount}
           left={<TextInput.Affix text="₱" />}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 4 }}
         />
+        <HelperText type="error" visible={!!errors.amount} style={{ marginBottom: 8 }}>
+          {errors.amount}
+        </HelperText>
 
         <TextInput
           label="Date"
@@ -176,14 +229,14 @@ export default function AddTransaction() {
         />
 
         <Text variant="labelLarge" style={{ marginBottom: 8 }}>Category</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
           {availableCategories
             .filter((cat: Category) => cat.type === type)
             .map((cat: Category) => (
               <Chip
                 key={cat.id}
                 selected={selectedCategory?.id === cat.id}
-                onPress={() => setSelectedCategory(cat)}
+                onPress={() => { setSelectedCategory(cat); clearError("category"); }}
                 mode="outlined"
                 selectedColor={selectedCategory?.id === cat.id ? "#6200ee" : undefined}
                 style={{ backgroundColor: selectedCategory?.id === cat.id ? "#e8def8" : "transparent" }}
@@ -192,6 +245,9 @@ export default function AddTransaction() {
               </Chip>
             ))}
          </View>
+         <HelperText type="error" visible={!!errors.category} style={{ marginBottom: 8 }}>
+           {errors.category}
+         </HelperText>
 
          <TextInput
           label="Establishment / Location"
@@ -258,11 +314,15 @@ export default function AddTransaction() {
         <TextInput
           label="Note (Optional)"
           value={note}
-          onChangeText={setNote}
+          onChangeText={(val) => { setNote(val); clearError("note"); }}
           mode="outlined"
           multiline
-          style={{ marginBottom: 16 }}
+          error={!!errors.note}
+          style={{ marginBottom: 4 }}
         />
+        <HelperText type="error" visible={!!errors.note} style={{ marginBottom: 8 }}>
+          {errors.note}
+        </HelperText>
 
         <Text variant="labelLarge" style={{ marginBottom: 8 }}>Receipt Image</Text>
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
