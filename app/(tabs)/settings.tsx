@@ -112,7 +112,7 @@ export default function SettingsScreen() {
   const { theme, isDarkMode, toggleTheme } = useAppTheme();
   const { profile, updateProfile, resetProfileToDefaults, refetch: refetchProfile } = useUserProfile();
   const { language, setLanguage, t } = useLanguage();
-  const { isPasscodeEnabled, setIsPasscodeEnabled, passcode, setPasscode, setIsUnlocked } = usePasscode();
+  const { isPasscodeEnabled, setIsPasscodeEnabled, setPasscode, setIsUnlocked } = usePasscode();
   const { activeUserId, logout, login } = useAuth();
   const { refetch: refetchTx } = useTransactionsActions();
   const { refetch: refetchCats } = useCategoriesActions();
@@ -538,61 +538,77 @@ export default function SettingsScreen() {
   };
 
   const handleClearData = async () => {
-    if (pinInput === passcode) {
-      setIsSyncing(true);
-      try {
-        if (activeUserId) {
-          console.log("Syncing Clear Data to cloud for user:", activeUserId);
-          // 1. Fetch user data from cloud (Except Profile/User)
-          const [txResult, catResult, dueResult, savResult] = await Promise.all([
-            authFetch(`transactions?userId=${activeUserId}`),
-            authFetch(`categories?userId=${activeUserId}`),
-            authFetch(`dues?userId=${activeUserId}`),
-            authFetch(`savingsItems?userId=${activeUserId}`)
-          ]);
+    if (!pinInput.trim()) return;
 
-          const txs = txResult.data || [];
-          const cats = catResult.data || [];
-          const dues = dueResult.data || [];
-          const savs = savResult.data || [];
+    setIsSyncing(true);
+    try {
+      const verifyRes = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profile?.name || "",
+          passcode: pinInput.trim(),
+          force: true,
+        }),
+      });
 
-          // 2. Delete all from cloud
-          const deletePromises = [
-            ...(Array.isArray(txs) ? txs.map(t => authFetch(`transactions/${t.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(cats) ? cats.map(c => authFetch(`categories/${c.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(dues) ? dues.map(d => authFetch(`dues/${d.id}`, { method: "DELETE" })) : []),
-            ...(Array.isArray(savs) ? savs.map(s => authFetch(`savingsItems/${s.id}`, { method: "DELETE" })) : [])
-          ];
+      if (!verifyRes.ok) {
+        alert("Incorrect PIN. Please try again.");
+        setIsSyncing(false);
+        return;
+      }
+    } catch (e) {
+      alert("Cannot verify PIN. Check your connection.");
+      setIsSyncing(false);
+      return;
+    }
 
-          await Promise.all(deletePromises);
-          console.log("Cloud transactional data cleared successfully");
-        }
-
-        // 3. Clear local
-        await clearAllLocalData();
-        await resetProfileToDefaults();
-        setShowPinPrompt(false);
-        setPinInput("");
-
-        // 4. Refresh UI
-        await Promise.all([
-          refetchTx(),
-          refetchCats(),
-          refetchProfile()
+    try {
+      if (activeUserId) {
+        console.log("Syncing Clear Data to cloud for user:", activeUserId);
+        const [txResult, catResult, dueResult, savResult] = await Promise.all([
+          authFetch(`transactions?userId=${activeUserId}`),
+          authFetch(`categories?userId=${activeUserId}`),
+          authFetch(`dues?userId=${activeUserId}`),
+          authFetch(`savingsItems?userId=${activeUserId}`)
         ]);
 
-        alert("All local and cloud data has been cleared.");
-        router.replace("/");
-      } catch (e) {
-        console.error("Clear data sync failed:", e);
-        alert("Cleared local data, but cloud sync failed. Check your connection.");
-        await clearAllLocalData();
-        router.replace("/");
-      } finally {
-        setIsSyncing(false);
+        const txs = txResult.data || [];
+        const cats = catResult.data || [];
+        const dues = dueResult.data || [];
+        const savs = savResult.data || [];
+
+        const deletePromises = [
+          ...(Array.isArray(txs) ? txs.map(t => authFetch(`transactions/${t.id}`, { method: "DELETE" })) : []),
+          ...(Array.isArray(cats) ? cats.map(c => authFetch(`categories/${c.id}`, { method: "DELETE" })) : []),
+          ...(Array.isArray(dues) ? dues.map(d => authFetch(`dues/${d.id}`, { method: "DELETE" })) : []),
+          ...(Array.isArray(savs) ? savs.map(s => authFetch(`savingsItems/${s.id}`, { method: "DELETE" })) : [])
+        ];
+
+        await Promise.all(deletePromises);
+        console.log("Cloud transactional data cleared successfully");
       }
-    } else {
-      alert("Incorrect PIN");
+
+      await clearAllLocalData();
+      await resetProfileToDefaults();
+      setShowPinPrompt(false);
+      setPinInput("");
+
+      await Promise.all([
+        refetchTx(),
+        refetchCats(),
+        refetchProfile()
+      ]);
+
+      alert("All local and cloud data has been cleared.");
+      router.replace("/");
+    } catch (e) {
+      console.error("Clear data sync failed:", e);
+      alert("Cleared local data, but cloud sync failed. Check your connection.");
+      await clearAllLocalData();
+      router.replace("/");
+    } finally {
+      setIsSyncing(false);
     }
   };
 
