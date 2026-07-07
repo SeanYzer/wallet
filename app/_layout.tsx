@@ -112,7 +112,8 @@ function MainLayout() {
 
   useEffect(() => {
     if (authLoading || profileLoading || !navigationState?.key) return;
-    
+    if (activeUserId && !profile) return;
+
     const inAuthGroup = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
 
@@ -133,7 +134,7 @@ function MainLayout() {
         setTimeout(() => router.replace('/'), 0);
       }
     }
-  }, [activeUserId, authLoading, profileLoading, profile?.isFirstRun, segments, navigationState?.key, router]);
+  }, [activeUserId, authLoading, profileLoading, profile, segments, navigationState?.key, router]);
 
   if (isPasscodeEnabled && !isUnlocked) {
       return <PasscodeScreen />;
