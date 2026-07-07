@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, HelperText } from 'react-native-paper';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Text, TextInput, Button, Card, HelperText, Dialog, Portal, useTheme } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuthData, useAuthActions } from '../context/AuthContext';
 import { useUserProfileData } from '../context/UserProfileContext';
@@ -30,6 +30,17 @@ export default function AuthScreen() {
     const [nameError, setNameError] = useState("");
     const [pinError, setPinError] = useState("");
 
+    const [dialog, setDialog] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        buttons?: { text: string; onPress?: () => void; style?: "cancel" }[];
+    }>({ visible: false, title: "", message: "" });
+
+    const showAlert = (title: string, message: string, buttons?: any[]) => {
+        setDialog({ visible: true, title, message, buttons });
+    };
+
     const getDeviceId = async () => {
         let deviceId = await AsyncStorage.getItem('localDeviceId');
         if (!deviceId) {
@@ -38,23 +49,6 @@ export default function AuthScreen() {
             await AsyncStorage.setItem('localDeviceId', deviceId!);
         }
         return deviceId;
-    };
-
-    const showAlert = (title: string, message: string, buttons?: any[]) => {
-        if (Platform.OS === 'web') {
-            if (buttons && buttons.length > 0) {
-                const confirmMsg = confirm(`${title}\n\n${message}`);
-                if (confirmMsg) {
-                    buttons[0].onPress();
-                } else if (buttons.length > 1) {
-                    buttons[1].onPress();
-                }
-            } else {
-                alert(`${title}: ${message}`);
-            }
-        } else {
-            Alert.alert(title, message, buttons);
-        }
     };
 
     const createLocalAccount = async (username: string, pin: string): Promise<boolean> => {
@@ -252,21 +246,8 @@ export default function AuthScreen() {
                           showAlert("Login Failed", "Invalid credentials.");
                       }
                   } else {
-                      console.log("No local user found, offering to register offline...");
-                      showAlert(
-                          "Account Not Found",
-                          `No account found for "${name.trim()}". Would you like to create an offline-only account with these credentials?`,
-                          [
-                              {
-                                  text: "Create Offline Account",
-                                  onPress: async () => {
-                                      const success = await createLocalAccount(name.trim(), passcode.trim());
-                                      setLoading(false);
-                                  }
-                              },
-                              { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }
-                          ]
-                      );
+                      console.log("No local user found, server returned 401");
+                      showAlert("Login Failed", "Invalid user name and PIN.");
                       return;
                   }
               } else {
@@ -320,6 +301,40 @@ export default function AuthScreen() {
      };
 
      return (
+        <>
+        <Portal>
+            <Dialog visible={dialog.visible} onDismiss={() => setDialog({ ...dialog, visible: false })}>
+                <Dialog.Icon icon="alert-circle-outline" />
+                <Dialog.Title style={{ textAlign: 'center' }}>{dialog.title}</Dialog.Title>
+                <Dialog.Content>
+                    <Text variant="bodyMedium" style={{ textAlign: 'center', lineHeight: 22 }}>
+                        {dialog.message}
+                    </Text>
+                </Dialog.Content>
+                <Dialog.Actions style={{ justifyContent: 'center' }}>
+                    {dialog.buttons && dialog.buttons.length > 0 ? (
+                        dialog.buttons.map((btn, i) => (
+                            <Button
+                                key={i}
+                                mode={btn.style === "cancel" ? "text" : "contained"}
+                                onPress={() => {
+                                    setDialog({ ...dialog, visible: false });
+                                    btn.onPress?.();
+                                }}
+                                style={{ marginHorizontal: 4 }}
+                                textColor={btn.style === "cancel" ? undefined : undefined}
+                            >
+                                {btn.text}
+                            </Button>
+                        ))
+                    ) : (
+                        <Button mode="contained" onPress={() => setDialog({ ...dialog, visible: false })}>
+                            OK
+                        </Button>
+                    )}
+                </Dialog.Actions>
+            </Dialog>
+        </Portal>
         <LinearGradient colors={["#1a237e", "#283593", "#3949ab"]} style={styles.gradient}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -414,6 +429,7 @@ export default function AuthScreen() {
                 </ScrollView>
             </KeyboardAvoidingView>
         </LinearGradient>
+        </>
     );
 }
 
