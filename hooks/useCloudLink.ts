@@ -15,7 +15,7 @@ export function useCloudLink() {
                 setTimeout(() => reject(new Error('Timeout')), 2000)
             );
             const response = await Promise.race([
-                fetch(`${API_URL}/paymentMethods`), 
+                fetch(`${API_URL}/system/health`), 
                 timeout
             ]) as Response;
             return response.ok;

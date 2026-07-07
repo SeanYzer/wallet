@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import { API_URL } from "../utils/db";
 import { processSyncQueue, triggerSyncProcessing } from "../utils/syncProcessor";
 
@@ -80,16 +81,19 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     }
   }, [isChecking, isOnline, wasOffline]);
 
+  const appStateRef = useRef(AppState.currentState);
+
   useEffect(() => {
     checkConnectivity();
-  }, [checkConnectivity]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkConnectivity();
-    }, 30000);
+    const sub = AppState.addEventListener("change", (nextState: AppStateStatus) => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === "active") {
+        checkConnectivity();
+      }
+      appStateRef.current = nextState;
+    });
 
-    return () => clearInterval(interval);
+    return () => sub.remove();
   }, [checkConnectivity]);
 
   const dataValue = useMemo(() => ({

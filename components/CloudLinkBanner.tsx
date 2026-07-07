@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, Platform, AppState, AppStateStatus } from 'react-native';
 import { Text, IconButton } from 'react-native-paper';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthData } from '../context/AuthContext';
@@ -7,10 +7,11 @@ import { API_URL } from '../utils/db';
 import { useRouter } from 'expo-router';
 
 export function CloudLinkBanner() {
-    const { token, activeUserId } = useAuthData();
-    const [isOnline, setIsOnline] = useState(true);
+    const { token } = useAuthData();
+    const [isOnline, setIsOnline] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
     const router = useRouter();
+    const appStateRef = useRef(AppState.currentState);
 
     const checkConnection = async () => {
         if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
@@ -19,7 +20,7 @@ export function CloudLinkBanner() {
                 setTimeout(() => reject(new Error('Timeout')), 2000)
             );
             const response = await Promise.race([
-                fetch(`${API_URL}/paymentMethods`), 
+                fetch(`${API_URL}/system/health`), 
                 timeout
             ]) as Response;
             return response.ok;
@@ -29,17 +30,27 @@ export function CloudLinkBanner() {
     };
 
     useEffect(() => {
-        const interval = setInterval(async () => {
-            if (token === 'offline_token') {
-                const online = await checkConnection();
-                setIsOnline(online);
-                setIsVisible(online);
-            } else {
-                setIsVisible(false);
-            }
-        }, 5000);
+        if (token !== 'offline_token') {
+            setIsVisible(false);
+            return;
+        }
 
-        return () => clearInterval(interval);
+        checkConnection().then((online) => {
+            setIsOnline(online);
+            setIsVisible(online);
+        });
+
+        const sub = AppState.addEventListener("change", (nextState: AppStateStatus) => {
+            if (appStateRef.current.match(/inactive|background/) && nextState === "active") {
+                checkConnection().then((online) => {
+                    setIsOnline(online);
+                    setIsVisible(online);
+                });
+            }
+            appStateRef.current = nextState;
+        });
+
+        return () => sub.remove();
     }, [token]);
 
     if (!isVisible) return null;
