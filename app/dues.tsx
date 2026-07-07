@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { View, Alert } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Appbar, Text, Card, FAB, Portal, Modal, TextInput, Button, Checkbox, useTheme, Chip, IconButton, SegmentedButtons } from "react-native-paper";
@@ -11,6 +11,7 @@ import { useCategoriesData } from "../context/CategoriesContext";
 import { Due, DueFrequency } from "../types";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import EmptyState from "../components/EmptyState";
+import { scheduleDueNotifications } from "../utils/notifications";
 
 const FREQUENCY_LABELS: Record<DueFrequency, string> = {
   once: "Once",
@@ -49,6 +50,12 @@ export default function DuesScreen() {
       refetch();
     }, [refetch])
   );
+
+  useEffect(() => {
+    if (dues.length > 0) {
+      scheduleDueNotifications(dues);
+    }
+  }, [dues]);
 
   const now = useMemo(() => new Date(), []);
   const startOfWeek = useMemo(() => {

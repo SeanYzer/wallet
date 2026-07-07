@@ -15,7 +15,7 @@ interface NetworkActions {
 const NetworkDataContext = createContext<NetworkData | undefined>(undefined);
 const NetworkActionsContext = createContext<NetworkActions | undefined>(undefined);
 
-const PING_ENDPOINT = "/paymentMethods";
+const PING_ENDPOINT = "/system/health";
 const PING_TIMEOUT = 3000;
 
 async function checkConnection(): Promise<boolean> {

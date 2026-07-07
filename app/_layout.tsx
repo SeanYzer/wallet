@@ -18,6 +18,8 @@ import { RepositoryProvider } from "../context/RepositoryContext";
 import ProviderComposer from "../components/ProviderComposer";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL, hardResetLocalData } from "../utils/db";
+import { requestNotificationPermissions, scheduleDueNotifications } from "../utils/notifications";
+import { useRepositories } from "../context/RepositoryContext";
 
 function OfflineIndicator() {
   const { isOnline, checkConnectivity, isChecking } = useNetwork();
@@ -168,6 +170,7 @@ export function AuthLoader({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [dbLoading, setDbLoading] = useState(false);
   const [dbInitializedFor, setDbInitializedFor] = useState<string | null>(null);
+  const repos = useRepositories();
 
   // 1. Handle DB Initialization
   useEffect(() => {
@@ -188,6 +191,17 @@ export function AuthLoader({ children }: { children: React.ReactNode }) {
         setDbInitializedFor(null);
     }
   }, [activeUserId, isLoading, dbInitializedFor]);
+
+  useEffect(() => {
+    if (!activeUserId) return;
+    requestNotificationPermissions().then((granted) => {
+      if (granted) {
+        repos.dues.getAll().then((dues) => {
+          scheduleDueNotifications(dues);
+        });
+      }
+    });
+  }, [activeUserId, repos]);
 
   // 2. Handle Navigation handled in MainLayout to avoid race-condition with Stack registration 
   

@@ -256,8 +256,21 @@ export default function Dashboard() {
             <Text variant="labelSmall" style={{ color: theme.colors.outline, letterSpacing: 1 }}>HELLO,</Text>
             <Text variant="titleLarge" style={{ fontWeight: "700" }}>{profile?.name || "User"}</Text>
           </View>
-          <View style={{ flexDirection: "row" }}>
-            <IconButton icon="bell-outline" size={24} onPress={() => router.push("/subscriptions")} />
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View>
+              <IconButton icon="bell-outline" size={24} onPress={() => router.push("/dues")} />
+              {dues.filter((d) => !d.completed).length > 0 && (
+                <View style={{
+                  position: "absolute", top: 4, right: 4,
+                  backgroundColor: theme.colors.error, borderRadius: 10,
+                  width: 18, height: 18, justifyContent: "center", alignItems: "center",
+                }}>
+                  <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>
+                    {dues.filter((d) => !d.completed).length}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </View>
