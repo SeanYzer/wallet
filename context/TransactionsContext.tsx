@@ -78,8 +78,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             const localData = (await txRepo.getAll()).map(addCategoryFallback);
             setTransactions(localData);
 
-            const autoBackup = await getSetting('autoBackup');
-            if (API_URL && activeUserId && autoBackup !== 'false') {
+            if (API_URL && activeUserId) {
                 const { ok, data: remoteData } = await authFetch<Transaction[]>(`transactions?userId=${activeUserId}`);
                 if (ok && Array.isArray(remoteData)) {
                     const localMap = new Map(localData.map(tx => [tx.id, tx]));

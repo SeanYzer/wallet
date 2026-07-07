@@ -47,8 +47,7 @@ export function useSavings() {
             const deduped = titleDeduplicate(migrated);
             setItems(deduped);
 
-            const autoBackup = await getSetting('autoBackup');
-            if (API_URL && activeUserId && autoBackup !== 'false') {
+            if (API_URL && activeUserId) {
                 const { ok, data: remoteData } = await authFetch<SavingsItem[]>(`savingsItems?userId=${activeUserId}`);
                 if (ok && Array.isArray(remoteData)) {
                         const localMap = new Map(deduped.map(g => [g.id, g]));

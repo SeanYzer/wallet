@@ -33,8 +33,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
       const localData = await catRepo.getAll();
       setCategories(localData);
 
-      const autoBackup = await getSetting('autoBackup');
-      if (API_URL && activeUserId && autoBackup !== 'false') {
+      if (API_URL && activeUserId) {
         const { ok, data } = await authFetch("categories");
 
         if (ok && Array.isArray(data)) {

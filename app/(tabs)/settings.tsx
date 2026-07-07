@@ -6,7 +6,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
 import { useRepositories } from "../../context/RepositoryContext";
-import { getSetting, setSetting, clearAllLocalData, exportData, importData, deleteUser, mergeLWW } from "../../utils/db";
+import { getSetting, setSetting, clearAllLocalData, exportData, importData, deleteUser, mergeLWW, API_URL, addUser, saveUserProfile, initDb } from "../../utils/db";
 import { useAuth } from "../../context/AuthContext";
 import { useCurrency, CURRENCIES, CurrencyCode } from "../../context/CurrencyContext";
 import { useAppTheme } from "../../context/ThemeContext";
@@ -21,10 +21,11 @@ import { useNetwork } from "../../context/NetworkContext";
 
 function SyncStatusCard() {
   const { isOnline, checkConnectivity, isChecking } = useNetwork();
-  const { pending, lastSyncedAt, hasFailed, refresh: retryAll } = useSyncStatus();
+  const { pending, lastSyncedAt, hasFailed, refresh: retryAll, backupDisabled } = useSyncStatus();
   const paperTheme = usePaperTheme();
 
   const getStatusColor = () => {
+    if (backupDisabled) return { icon: "cloud-off-outline", text: "Backup Disabled", color: paperTheme.colors.error };
     if (isChecking) return { icon: "cloud-sync", text: "Checking...", color: paperTheme.colors.primary };
     if (!isOnline) return { icon: "cloud-off", text: "Offline", color: paperTheme.colors.error };
     if (pending > 0) return { icon: "upload", text: `${pending} pending`, color: paperTheme.colors.tertiary };
@@ -43,7 +44,9 @@ function SyncStatusCard() {
     <View style={[
       styles.syncCard,
       {
-        backgroundColor: !isOnline
+        backgroundColor: backupDisabled
+          ? paperTheme.colors.errorContainer
+          : !isOnline
           ? paperTheme.colors.errorContainer
           : pending > 0
           ? paperTheme.colors.tertiaryContainer
@@ -66,7 +69,7 @@ function SyncStatusCard() {
           </Text>
         </View>
       </View>
-      {pending > 0 && isOnline && (
+      {backupDisabled ? null : pending > 0 && isOnline ? (
         <Button
           mode="text"
           compact
@@ -76,8 +79,7 @@ function SyncStatusCard() {
         >
           Retry
         </Button>
-      )}
-      {!isOnline && (
+      ) : !isOnline ? (
         <Button
           mode="text"
           compact
@@ -87,7 +89,7 @@ function SyncStatusCard() {
         >
           Check
         </Button>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -111,7 +113,7 @@ export default function SettingsScreen() {
   const { profile, updateProfile, resetProfileToDefaults, refetch: refetchProfile } = useUserProfile();
   const { language, setLanguage, t } = useLanguage();
   const { isPasscodeEnabled, setIsPasscodeEnabled, passcode, setPasscode, setIsUnlocked } = usePasscode();
-  const { activeUserId, logout } = useAuth();
+  const { activeUserId, logout, login } = useAuth();
   const { refetch: refetchTx } = useTransactionsActions();
   const { refetch: refetchCats } = useCategoriesActions();
   const repos = useRepositories();
@@ -142,13 +144,17 @@ export default function SettingsScreen() {
     setPinSetupInput("");
   };
 
-  const autoBackup = profile?.autoBackup ?? true;
+   const autoBackup = profile?.autoBackup ?? true;
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [pinSetupInput, setPinSetupInput] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showBackupDialog, setShowBackupDialog] = useState(false);
+  const [showPinVerificationDialog, setShowPinVerificationDialog] = useState(false);
+  const [pinVerificationInput, setPinVerificationInput] = useState("");
+  const [verificationError, setVerificationError] = useState("");
+  const [showNewAccountDialog, setShowNewAccountDialog] = useState(false);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [pinInput, setPinInput] = useState("");
 
@@ -159,39 +165,152 @@ export default function SettingsScreen() {
 
    const handleToggleAutoBackup = async (val: boolean) => {
      if (val) {
-       setShowBackupDialog(true);
+       setVerificationError("");
+       setPinVerificationInput("");
+       setShowPinVerificationDialog(true);
      } else {
        setAutoBackup(false);
      }
    };
 
+   const verifyPinForSync = async () => {
+     if (!pinVerificationInput.trim()) {
+       setVerificationError("PIN is required");
+       return;
+     }
+     setIsSyncing(true);
+     setVerificationError("");
+     try {
+       const response = await fetch(`${API_URL}/auth/login`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({
+           name: profile?.name || "",
+           passcode: pinVerificationInput.trim(),
+           force: true
+         }),
+       });
+
+       if (response.ok) {
+         setShowPinVerificationDialog(false);
+         setPinVerificationInput("");
+         const data = (await response.json()).data;
+         await login(data.user.id, data.token);
+         await setSetting('autoBackup', 'true');
+         await proceedWithBackupEnable();
+       } else {
+         setShowPinVerificationDialog(false);
+         setPinVerificationInput("");
+         setShowNewAccountDialog(true);
+       }
+     } catch (e) {
+       console.error("PIN verification failed:", e);
+       setVerificationError("Cannot reach server. Check your connection.");
+     } finally {
+       setIsSyncing(false);
+     }
+   };
+
    const proceedWithBackupEnable = async () => {
      setIsSyncing(true);
-     setShowBackupDialog(false);
      try {
-      const [txResult, catResult, profResult] = await Promise.all([
-          authFetch(`transactions?userId=${activeUserId}`),
-          authFetch(`categories?userId=${activeUserId}`),
-          authFetch(`userProfiles?userId=${activeUserId}`)
-        ]);
-        const txs = txResult.data || [];
-        const cats = catResult.data || [];
-        const profs = profResult.data || [];
+       const [txResult, catResult, profResult] = await Promise.all([
+           authFetch(`transactions?userId=${activeUserId}`),
+           authFetch(`categories?userId=${activeUserId}`),
+           authFetch(`userProfiles?userId=${activeUserId}`)
+         ]);
+         const txs = txResult.data || [];
+         const cats = catResult.data || [];
+         const profs = profResult.data || [];
 
-       const hasCloudData = (Array.isArray(txs) && txs.length > 0) ||
-         (Array.isArray(cats) && cats.length > 0) ||
-         (Array.isArray(profs) && profs.length > 0);
+        const hasCloudData = (Array.isArray(txs) && txs.length > 0) ||
+          (Array.isArray(cats) && cats.length > 0) ||
+          (Array.isArray(profs) && profs.length > 0);
 
-        if (hasCloudData) {
-          setShowConflictDialog(true);
-        } else {
-          setAutoBackup(true);
-        }
+         if (hasCloudData) {
+           setShowConflictDialog(true);
+         } else {
+           setAutoBackup(true);
+         }
      } catch (e) {
        console.error("Conflict check failed:", e);
        alert("Failed to check for server conflicts. Please check your connection.");
      } finally {
        setIsSyncing(false);
+     }
+   };
+
+   const createNewAccountAndMigrate = async () => {
+     setIsSyncing(true);
+     setShowNewAccountDialog(false);
+     try {
+       const response = await fetch(`${API_URL}/auth/register`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ name: profile?.name || "", passcode: pinVerificationInput, initialBalance: 0 }),
+       });
+
+       if (!response.ok) {
+         alert("Failed to create cloud account. Please try again.");
+         setIsSyncing(false);
+         return;
+       }
+
+       const data = (await response.json()).data;
+       const newUserId = data.user.id;
+       const newToken = data.token;
+
+       const localTxs = await repos.transactions.getAll();
+       const localCats = await repos.categories.getAll();
+       const localDues = await repos.dues.getAll();
+       const localSavings = await repos.savingsItems.getAll();
+       const [localProfile] = await repos.profiles.getAll();
+
+       await Promise.all([
+         ...localTxs.map(t => authFetch(`transactions`, {
+           method: "POST",
+           body: JSON.stringify({ ...t, categoryId: t.category?.id ? String(t.category.id) : null, userId: newUserId })
+         }).catch(() => {})),
+         ...localCats.map(c => authFetch(`categories`, {
+           method: "POST",
+           body: JSON.stringify({ ...c, userId: newUserId })
+         }).catch(() => {})),
+         ...localDues.map(d => authFetch(`dues`, {
+           method: "POST",
+           body: JSON.stringify({ ...d, userId: newUserId })
+         }).catch(() => {})),
+         ...localSavings.map(s => authFetch(`savingsItems`, {
+           method: "POST",
+           body: JSON.stringify({ ...s, userId: newUserId })
+         }).catch(() => {})),
+       ]);
+
+       if (localProfile) {
+         await authFetch(`userProfiles`, {
+           method: "POST",
+           body: JSON.stringify({ ...localProfile, userId: newUserId })
+         }).catch(() => {});
+       }
+
+       await logout();
+       await addUser(newUserId, profile?.name || "", pinVerificationInput);
+       await saveUserProfile({ name: profile?.name || "", isFirstRun: false, initialBalance: 0 }, newUserId);
+       await initDb(newUserId);
+       await setSetting('autoBackup', 'true');
+       await login(newUserId, newToken);
+
+       alert("New cloud account created and data migrated successfully!");
+       await Promise.all([
+         refetchTx(),
+         refetchCats(),
+         refetchProfile()
+       ]);
+     } catch (e) {
+       console.error("Account creation failed:", e);
+       alert("Failed to create cloud account. Please check your connection and try again.");
+     } finally {
+       setIsSyncing(false);
+       setPinVerificationInput("");
      }
    };
 
@@ -663,6 +782,24 @@ export default function SettingsScreen() {
           </Card.Content>
         </Card>
 
+        {!autoBackup && (
+          <Card style={{ marginBottom: 16, backgroundColor: paperTheme.colors.errorContainer }}>
+            <Card.Content>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <List.Icon icon="cloud-off-outline" color={paperTheme.colors.onErrorContainer} />
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                  <Text variant="titleSmall" style={{ color: paperTheme.colors.onErrorContainer, fontWeight: "600" }}>
+                    Local Mode (Backup Disabled)
+                  </Text>
+                  <Text variant="bodySmall" style={{ color: paperTheme.colors.onErrorContainer, opacity: 0.8 }}>
+                    Your data is only stored on this device. Enable Auto-Backup to sync across devices and prevent data loss.
+                  </Text>
+                </View>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
         {/* General Settings */}
         <Card style={{ marginBottom: 16 }}>
           <Card.Content>
@@ -820,6 +957,47 @@ export default function SettingsScreen() {
           <Dialog.Actions>
             <Button onPress={() => setShowDeleteDialog(false)}>Cancel</Button>
             <Button onPress={executeDelete} textColor={paperTheme.colors.error} loading={isSyncing} disabled={isSyncing}>Delete Permanently</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={showPinVerificationDialog} onDismiss={() => setShowPinVerificationDialog(false)}>
+          <Dialog.Title>Verify Account PIN</Dialog.Title>
+          <Dialog.Content>
+            <Text style={{ marginBottom: 16 }}>
+              To enable cloud sync, please enter the PIN for "{profile?.name || "your account"}".
+            </Text>
+            <TextInput
+              label="Current PIN"
+              value={pinVerificationInput}
+              onChangeText={(t) => { setPinVerificationInput(t); setVerificationError(""); }}
+              secureTextEntry
+              keyboardType="numeric"
+              maxLength={4}
+              error={!!verificationError}
+            />
+            {verificationError ? (
+              <Text style={{ color: paperTheme.colors.error, marginTop: 4 }}>{verificationError}</Text>
+            ) : null}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => { setShowPinVerificationDialog(false); setPinVerificationInput(""); setVerificationError(""); }}>Cancel</Button>
+            <Button onPress={verifyPinForSync} loading={isSyncing} disabled={isSyncing}>Verify & Sync</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={showNewAccountDialog} onDismiss={() => setShowNewAccountDialog(false)}>
+          <Dialog.Title>PIN Doesn't Match</Dialog.Title>
+          <Dialog.Content>
+            <Text style={{ marginBottom: 16 }}>
+              The PIN you entered doesn't match the cloud account. Would you like to create a new cloud account with this PIN and migrate all your local data to it?
+            </Text>
+            <Text variant="bodySmall" style={{ color: paperTheme.colors.outline }}>
+              Your existing cloud data won't be affected. This will create a separate account.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowNewAccountDialog(false)}>Cancel</Button>
+            <Button onPress={createNewAccountAndMigrate} loading={isSyncing} disabled={isSyncing}>Create New & Migrate</Button>
           </Dialog.Actions>
         </Dialog>
 

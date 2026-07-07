@@ -17,6 +17,7 @@ export interface SyncStatus extends QueueStats {
   hasFailed: boolean;
   hasPending: boolean;
   items: SyncQueueItem[];
+  backupDisabled: boolean;
 }
 
 export function useSyncStatus() {
@@ -29,13 +30,14 @@ export function useSyncStatus() {
     hasFailed: false,
     hasPending: false,
     items: [],
+    backupDisabled: false,
   });
 
   const refresh = useCallback(async () => {
     const autoBackup = await getSetting('autoBackup');
     const isAutoBackupEnabled = autoBackup !== 'false';
 
-    if (!API_URL || !isAutoBackupEnabled) {
+    if (!API_URL) {
       setStatus({
         total: 0,
         failed: 0,
@@ -45,6 +47,23 @@ export function useSyncStatus() {
         hasFailed: false,
         hasPending: false,
         items: [],
+        backupDisabled: false,
+      });
+      return;
+    }
+
+    if (!isAutoBackupEnabled) {
+      const lastSynced = await getLastSyncedAt();
+      setStatus({
+        total: 0,
+        failed: 0,
+        pending: 0,
+        lastSyncedAt: lastSynced,
+        isSyncing: false,
+        hasFailed: false,
+        hasPending: false,
+        items: [],
+        backupDisabled: true,
       });
       return;
     }
@@ -64,6 +83,7 @@ export function useSyncStatus() {
       hasFailed: stats.failed > 0,
       hasPending: stats.pending > 0,
       items,
+      backupDisabled: false,
     });
   }, []);
 

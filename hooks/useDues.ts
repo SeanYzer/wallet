@@ -39,8 +39,7 @@ export function useDues() {
       const migrated = localData.map(migrateDue);
       setDues(migrated);
 
-      const autoBackup = await getSetting('autoBackup');
-      if (API_URL && activeUserId && autoBackup !== 'false') {
+      if (API_URL && activeUserId) {
         const { ok, data: remoteData } = await authFetch(`dues`);
         if (ok && Array.isArray(remoteData)) {
             await repos.dues.upsertBulk(remoteData);

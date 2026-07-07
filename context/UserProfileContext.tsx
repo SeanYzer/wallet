@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from "react";
-import { API_URL } from "../utils/db";
+import { API_URL, setSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
 import { useAuth } from "./AuthContext";
 import { useRepositories } from "./RepositoryContext";
@@ -59,12 +59,13 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
               if (API_URL && activeUserId) {
                   const { ok, data: cloudProfile } = await authFetch(`userProfiles?userId=${activeUserId}`);
 
-                  if (ok && cloudProfile && cloudProfile.name) {
-                     const merged = { ...DEFAULT_PROFILE, ...cloudProfile };
-                     setProfile(merged);
-                     await profileRepo.upsert(merged as UserProfile);
-                     return;
-                 }
+                   if (ok && cloudProfile && cloudProfile.name) {
+                      const merged = { ...DEFAULT_PROFILE, ...cloudProfile };
+                      setProfile(merged);
+                      await profileRepo.upsert(merged as UserProfile);
+                      await setSetting('autoBackup', String(merged.autoBackup));
+                      return;
+                  }
              }
 
             if (local) {
@@ -97,7 +98,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         await profileRepo.upsert(newProfile as UserProfile);
         setProfile(newProfile);
 
-        if (API_URL && activeUserId && newProfile.autoBackup) {
+        if (API_URL && activeUserId) {
             try {
                 await authFetch(`userProfiles/${activeUserId}`, {
                     method: "PUT",
