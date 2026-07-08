@@ -1,12 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import EmptyState from "../components/EmptyState";
-import { View, ScrollView, Alert } from "react-native";
-import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, IconButton, useTheme } from "react-native-paper";
+import { View, ScrollView } from "react-native";
+import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, IconButton, Dialog, useTheme } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSavings } from "../hooks/useSavings";
 import { useCurrencyActions } from "../context/CurrencyContext";
-import { useTransactionsActions } from "../hooks/useTransactions";
+import { useTransactions, useTransactionsActions } from "../hooks/useTransactions";
 import { useCategoriesData } from "../context/CategoriesContext";
+import { useUserProfile } from "../context/UserProfileContext";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 export default function SavingsScreen() {
@@ -16,6 +17,16 @@ export default function SavingsScreen() {
     const { formatAmount } = useCurrencyActions();
     const { addTransaction } = useTransactionsActions();
     const { categories } = useCategoriesData();
+    const { transactions } = useTransactions();
+    const { profile } = useUserProfile();
+
+    const totalReserved = useMemo(() => items.reduce((sum, g) => sum + g.balance, 0), [items]);
+    const availableBalance = useMemo(() => {
+        const initialBalance = Number(profile?.initialBalance || 0);
+        const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+        const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+        return initialBalance + totalIncome - totalExpense - totalReserved;
+    }, [profile, transactions, totalReserved]);
 
     const [modalVisible, setModalVisible] = useState(false);
     const [transferInModalVisible, setTransferInModalVisible] = useState(false);
@@ -24,6 +35,7 @@ export default function SavingsScreen() {
     const [title, setTitle] = useState("");
     const [balance, setBalance] = useState("");
     const [transferAmount, setTransferAmount] = useState("");
+    const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
     useFocusEffect(
         useCallback(() => {
@@ -58,6 +70,11 @@ export default function SavingsScreen() {
 
         const item = items.find(g => g.id === selectedItemId);
         if (!item) return;
+
+        if (numAmount > availableBalance) {
+            Alert.alert("Insufficient Balance", `You only have ${formatAmount(availableBalance)} available to allocate.`);
+            return;
+        }
 
         try {
             await updateItem(selectedItemId, {
@@ -121,40 +138,35 @@ export default function SavingsScreen() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        const item = items.find(g => g.id === id);
-        if (!item) return;
-
-        Alert.alert(
-             "Delete Allocation",
-            `The remaining balance of ${formatAmount(item.balance)} will be transferred back to your main funds.`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete & Transfer",
-                    style: "destructive",
-                    onPress: async () => {
-                        if (item.balance > 0) {
-                            let savingsCat = categories.find(c => c.name === "Savings" && c.type === "income");
-                            if (!savingsCat) savingsCat = categories.find(c => c.id === "9") || categories[0];
-
-                            await addTransaction({
-                                title: `Return from ${item.title}`,
-                                amount: item.balance,
-                                type: "income",
-                                date: new Date().toISOString(),
-                                category: savingsCat,
-                                updatedAt: Date.now(),
-                            });
-                        }
-                        await deleteItem(id);
-                    }
-                }
-            ]
-        );
+    const handleDelete = (id: string) => {
+        setDeleteTarget(id);
     };
 
-    const totalSaved = items.reduce((sum, g) => sum + g.balance, 0);
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        const id = deleteTarget;
+        const item = items.find(g => g.id === id);
+        setDeleteTarget(null);
+        if (!item) return;
+
+        try {
+            if (item.balance > 0) {
+                let savingsCat = categories.find(c => c.name === "Savings" && c.type === "income");
+                if (!savingsCat) savingsCat = categories[0];
+                await addTransaction({
+                    title: `Return from ${item.title}`,
+                    amount: item.balance,
+                    type: "income",
+                    date: new Date().toISOString(),
+                    category: savingsCat,
+                    updatedAt: Date.now(),
+                });
+            }
+        } catch (e) {
+            console.error("Failed to create return transaction, deleting anyway:", e);
+        }
+        await deleteItem(id);
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
@@ -170,7 +182,7 @@ export default function SavingsScreen() {
                              TOTAL ALLOCATED
                         </Text>
                         <Text variant="headlineMedium" style={{ fontWeight: "800", textAlign: "center", color: theme.colors.onPrimaryContainer }}>
-                            {formatAmount(totalSaved)}
+                            {formatAmount(totalReserved)}
                         </Text>
                     </Card>
                 )}
@@ -215,9 +227,12 @@ export default function SavingsScreen() {
 
             <Portal>
                 <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 }}>
-                     <Text variant="titleLarge" style={{ marginBottom: 16 }}>New Allocation</Text>
+                     <Text variant="titleLarge" style={{ marginBottom: 16, color: theme.colors.onSurface }}>New Allocation</Text>
                     <TextInput label="Name" value={title} onChangeText={setTitle} mode="outlined" style={{ marginBottom: 12 }} placeholder="e.g. Education Fund" />
                     <TextInput label="Initial Balance" value={balance} onChangeText={(t) => setBalance(t.replace(/[^0-9.]/g, ""))} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
+                    <Text variant="bodySmall" style={{ color: "gray", marginBottom: 12 }}>
+                        Allocating money sets it aside — it decreases your Available to Spend but does not change your Total Balance.
+                    </Text>
                     <Button mode="contained" onPress={handleAddItem}>Create</Button>
                 </Modal>
 
@@ -234,6 +249,24 @@ export default function SavingsScreen() {
                     <TextInput label="Amount" value={transferAmount} onChangeText={(t) => setTransferAmount(t.replace(/[^0-9.]/g, ""))} keyboardType="numeric" mode="outlined" style={{ marginBottom: 16 }} left={<TextInput.Affix text="₱" />} />
                     <Button mode="contained" onPress={handleTransferOut} disabled={!transferAmount}>Confirm</Button>
                 </Modal>
+
+                <Dialog visible={!!deleteTarget} onDismiss={() => setDeleteTarget(null)}>
+                    <Dialog.Icon icon="alert-outline" />
+                    <Dialog.Title style={{ textAlign: "center" }}>Delete Allocation</Dialog.Title>
+                    <Dialog.Content>
+                        <Text variant="bodyMedium" style={{ textAlign: "center" }}>
+                            {deleteTarget
+                                ? `The remaining balance of ${formatAmount(items.find(g => g.id === deleteTarget)?.balance || 0)} will be transferred back to your main funds.`
+                                : ""}
+                        </Text>
+                    </Dialog.Content>
+                    <Dialog.Actions style={{ justifyContent: "center" }}>
+                        <Button onPress={() => setDeleteTarget(null)}>Cancel</Button>
+                        <Button mode="contained" buttonColor={theme.colors.error} onPress={confirmDelete}>
+                            Delete & Transfer
+                        </Button>
+                    </Dialog.Actions>
+                </Dialog>
             </Portal>
 
             <FAB
