@@ -6,7 +6,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
 import { useRepositories } from "../../context/RepositoryContext";
-import { getSetting, setSetting, clearAllLocalData, exportData, importData, deleteUser, mergeLWW, API_URL, addUser, saveUserProfile, initDb } from "../../utils/db";
+import { getSetting, setSetting, clearAllLocalData, exportData, importData, deleteUser, mergeLWW, API_URL, addUser, saveUserProfile, initDb, getUsers } from "../../utils/db";
 import { useAuth } from "../../context/AuthContext";
 import { useCurrency, CURRENCIES, CurrencyCode } from "../../context/CurrencyContext";
 import { useAppTheme } from "../../context/ThemeContext";
@@ -18,6 +18,7 @@ import { useCategoriesActions } from "../../context/CategoriesContext";
 import { authFetch } from "../../utils/apiClient";
 import { useSyncStatus } from "../../hooks/useSyncStatus";
 import { useNetwork } from "../../context/NetworkContext";
+import * as Crypto from 'expo-crypto';
 
 function SyncStatusCard() {
   const { isOnline, checkConnectivity, isChecking } = useNetwork();
@@ -541,6 +542,8 @@ export default function SettingsScreen() {
     if (!pinInput.trim()) return;
 
     setIsSyncing(true);
+
+    let pinVerified = false;
     try {
       const verifyRes = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
@@ -551,14 +554,29 @@ export default function SettingsScreen() {
           force: true,
         }),
       });
-
-      if (!verifyRes.ok) {
-        alert("Incorrect PIN. Please try again.");
-        setIsSyncing(false);
-        return;
-      }
+      pinVerified = verifyRes.ok;
     } catch (e) {
-      alert("Cannot verify PIN. Check your connection.");
+      // server unreachable — fall through to local verify
+    }
+
+    if (!pinVerified && activeUserId) {
+      try {
+        const users = await getUsers();
+        const user = users.find((u: any) => u.id === activeUserId);
+        if (user) {
+          const inputHash = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256,
+            pinInput.trim()
+          );
+          pinVerified = user.passcode === inputHash;
+        }
+      } catch (e) {
+        // local verify failed too
+      }
+    }
+
+    if (!pinVerified) {
+      alert("Incorrect PIN. Please try again.");
       setIsSyncing(false);
       return;
     }

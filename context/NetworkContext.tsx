@@ -40,10 +40,10 @@ async function checkConnection(): Promise<boolean> {
 }
 
 export function NetworkProvider({ children }: { children: ReactNode }) {
+  const isOnlineRef = useRef(true);
   const [isOnline, setIsOnline] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
-  const [wasOffline, setWasOffline] = useState(false);
 
   const checkConnectivity = useCallback(async (): Promise<boolean> => {
     if (isChecking) return isOnline;
@@ -51,9 +51,10 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     setIsChecking(true);
     try {
       const online = await checkConnection();
-      const wasPreviouslyOffline = !isOnline;
+      const wasPreviouslyOffline = !isOnlineRef.current;
 
-      if (online !== isOnline) {
+      if (online !== isOnlineRef.current) {
+        isOnlineRef.current = online;
         setIsOnline(online);
 
         if (online && wasPreviouslyOffline) {
@@ -63,23 +64,17 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (!online) {
-        setWasOffline(true);
-      } else if (wasOffline && online) {
-        setWasOffline(false);
-      }
-
       setLastCheckedAt(Date.now());
       return online;
     } catch (e) {
       console.error("[Network] Connectivity check error:", e);
+      isOnlineRef.current = false;
       setIsOnline(false);
-      setWasOffline(true);
       return false;
     } finally {
       setIsChecking(false);
     }
-  }, [isChecking, isOnline, wasOffline]);
+  }, [isChecking]);
 
   const appStateRef = useRef(AppState.currentState);
 

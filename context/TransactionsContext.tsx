@@ -31,6 +31,11 @@ const sanitizeTransaction = (t: Transaction): Transaction => {
     const withTimestamp = { ...t, updatedAt: t.updatedAt || Date.now() };
     if ((withTimestamp as any).note === undefined) (withTimestamp as any).note = null;
     if ((withTimestamp as any).receiptUrl === undefined) (withTimestamp as any).receiptUrl = null;
+    if ((withTimestamp as any).paymentMethod === undefined) (withTimestamp as any).paymentMethod = "";
+    if ((withTimestamp as any).establishment === undefined) (withTimestamp as any).establishment = "";
+    if ((withTimestamp as any).category === undefined) (withTimestamp as any).category = {
+        id: 'uncategorized', name: 'Others', type: t.type || 'expense', updatedAt: 0,
+    };
     return withTimestamp as Transaction;
 };
 
@@ -92,7 +97,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
                     for (const localTx of localData) {
                         if (!remoteMap.has(localTx.id)) {
-                            const uploaded = await uploadReceiptIfNeeded(localTx);
+                            const uploaded = await uploadReceiptIfNeeded(sanitizeTransaction(localTx));
                             mergedMap.set(localTx.id, uploaded);
                             await enqueueAndTrigger('transactions', 'create', localTx.id, {
                                 ...uploaded,
@@ -122,12 +127,12 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
     const addTransaction = useCallback(async (transaction: Omit<Transaction, "id">) => {
         try {
-            const newTransaction: Transaction = {
+            const newTransaction: Transaction = sanitizeTransaction({
                 ...transaction,
                 id: generateUUID()
-            };
+            });
 
-            await txRepo.upsert(sanitizeTransaction(newTransaction));
+            await txRepo.upsert(newTransaction);
             setTransactions((prev) => [...prev, newTransaction]);
 
             const autoBackup = await getSetting('autoBackup');

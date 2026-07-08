@@ -91,6 +91,12 @@ async function processSingleItem(item: SyncQueueItem): Promise<SyncResult> {
       return { success: true };
     } else if (apiResult.status === 401) {
       return { success: false, error: 'Unauthorized - session expired' };
+    } else if (apiResult.status === 404) {
+      console.warn(`[Sync] Endpoint ${endpoint} returned 404 — server may not support ${item.entity}. Dequeuing.`);
+      return { success: true };
+    } else if (apiResult.status === 400) {
+      console.warn(`[Sync] ${item.entity} ${item.operation} rejected by server (400): ${apiResult.error}. Dequeuing.`);
+      return { success: true };
     } else {
       return {
         success: false,

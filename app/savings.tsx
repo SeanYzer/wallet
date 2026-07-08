@@ -7,6 +7,7 @@ import { useSavings } from "../hooks/useSavings";
 import { useCurrencyActions } from "../context/CurrencyContext";
 import { useTransactions, useTransactionsActions } from "../hooks/useTransactions";
 import { useCategoriesData } from "../context/CategoriesContext";
+import { GLOBAL_CATEGORIES } from "../utils/db";
 import { useUserProfile } from "../context/UserProfileContext";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
@@ -82,7 +83,7 @@ export default function SavingsScreen() {
             });
 
             let savingsCat = categories.find(c => c.name === "Savings" && c.type === "expense");
-            if (!savingsCat) savingsCat = categories.find(c => c.id === "8") || categories[0];
+            if (!savingsCat) savingsCat = GLOBAL_CATEGORIES.find(c => c.name === "Others" && c.type === "expense");
 
             await addTransaction({
                 title: `Transfer to ${item.title}`,
@@ -119,7 +120,7 @@ export default function SavingsScreen() {
             });
 
             let savingsCat = categories.find(c => c.name === "Savings" && c.type === "income");
-            if (!savingsCat) savingsCat = categories.find(c => c.id === "9") || categories[0];
+            if (!savingsCat) savingsCat = GLOBAL_CATEGORIES.find(c => c.name === "Others" && c.type === "income");
 
             await addTransaction({
                 title: `Transfer from ${item.title}`,
@@ -152,7 +153,7 @@ export default function SavingsScreen() {
         try {
             if (item.balance > 0) {
                 let savingsCat = categories.find(c => c.name === "Savings" && c.type === "income");
-                if (!savingsCat) savingsCat = categories[0];
+                if (!savingsCat) savingsCat = GLOBAL_CATEGORIES.find(c => c.name === "Others" && c.type === "income");
                 await addTransaction({
                     title: `Return from ${item.title}`,
                     amount: item.balance,
