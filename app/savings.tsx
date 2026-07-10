@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import EmptyState from "../components/EmptyState";
-import { View, ScrollView } from "react-native";
+import { View, ScrollView, Alert } from "react-native";
 import { Appbar, Text, FAB, Portal, Modal, TextInput, Button, Card, IconButton, Dialog, useTheme } from "react-native-paper";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSavings } from "../hooks/useSavings";
@@ -48,6 +48,11 @@ export default function SavingsScreen() {
         const numBalance = parseFloat(balance);
         if (!title || isNaN(numBalance) || numBalance <= 0) {
             Alert.alert("Invalid Input", "Please provide a title and amount.");
+            return;
+        }
+
+        if (numBalance > availableBalance) {
+            Alert.alert("Insufficient Balance", `You only have ${formatAmount(availableBalance)} available to allocate.`);
             return;
         }
 
