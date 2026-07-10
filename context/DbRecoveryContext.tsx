@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { initDb, initMasterDb, clearAllLocalData, setOnFatalError } from '../utils/db';
+import { initDb, initMasterDb, setOnFatalError } from '../utils/db';
 
 const DbRecoveryContext = createContext<{
   triggerRecovery: () => void;
@@ -33,7 +33,7 @@ export const DbRecoveryProvider = ({ children }: { children: React.ReactNode }) 
 
           await initMasterDb();
           await initDb();
-          console.log("Self-Healing: Recovery successful.");
+          console.info("Self-Healing: Recovery successful.");
         } catch (e) {
           console.error("Self-Healing: Recovery sequence failed", e);
         } finally {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Platform, Alert, TouchableOpacity } from "react-native";
+import { View, ScrollView, Alert } from "react-native";
 import { Image } from "expo-image";
 import {
   TextInput,
@@ -21,12 +21,10 @@ import * as ImagePicker from "expo-image-picker";
 import { Calendar } from "react-native-calendars";
 import { useTransactions } from "../hooks/useTransactions";
 import { Category, TransactionType, PaymentMethod } from "../types";
-import { useCategoriesData } from "../context/CategoriesContext";
-import { useCurrencyActions } from "../context/CurrencyContext";
 
 export default function AddTransaction() {
   const router = useRouter();
-  const { transactions, addTransaction } = useTransactions();
+  const { addTransaction } = useTransactions();
   const { categories: availableCategories } = useCategoriesData();
 
   const [amount, setAmount] = useState("");
@@ -40,8 +38,6 @@ export default function AddTransaction() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const { formatAmount } = useCurrencyActions();
 
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<{ id: string; name: string; type: string; icon: string }[]>([]);
   const [selectedMethodType, setSelectedMethodType] = useState<string>("cash");
@@ -61,13 +57,6 @@ export default function AddTransaction() {
       }
     } catch (error) {
       console.error("Error fetching payment methods:", error);
-    }
-  };
-
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowCalendar(false);
-    if (selectedDate) {
-      setDate(selectedDate);
     }
   };
 
@@ -168,8 +157,8 @@ export default function AddTransaction() {
       });
 
       router.back();
-    } catch (error) {
-      Alert.alert("Error", "Failed to save transaction. Please check your connection.");
+    } catch (e) {
+      console.warn("Failed to save transaction:", e);
     } finally {
       setLoading(false);
     }

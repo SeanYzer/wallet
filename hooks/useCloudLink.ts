@@ -1,11 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Alert, Platform } from 'react-native';
-import { useAuthData, useAuthActions } from '../context/AuthContext';
-import { API_URL, getSetting, setSetting } from '../utils/db';
+import { Alert } from 'react-native';
+import { useAuthData } from '../context/AuthContext';
+import { API_URL } from '../utils/db';
 
 export function useCloudLink() {
     const { token, activeUserId } = useAuthData();
-    const { login } = useAuthActions();
     const [isChecking, setIsChecking] = useState(false);
 
     const checkConnection = async () => {
@@ -19,7 +18,7 @@ export function useCloudLink() {
                 timeout
             ]) as Response;
             return response.ok;
-        } catch (e) {
+        } catch {
             return false;
         }
     };

@@ -1,5 +1,5 @@
-import { View, ScrollView, TouchableOpacity } from "react-native";
-import { Text, Card, useTheme, Appbar, IconButton } from "react-native-paper";
+import { View, ScrollView } from "react-native";
+import { Text, Card, Appbar, IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { FinancialTip } from "../../components/FinancialTip";
@@ -65,7 +65,7 @@ export default function LearningScreen() {
                         >
                             <Card.Content style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: theme.colors.primaryContainer, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
-                                    <MaterialCommunityIcons name={item.icon as any} size={24} color={theme.colors.primary} />
+                                    <MaterialCommunityIcons name={item.icon as string} size={24} color={theme.colors.primary} />
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text variant="bodyLarge" style={{ fontWeight: '700' }}>{item.title}</Text>

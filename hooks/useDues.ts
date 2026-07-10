@@ -3,12 +3,12 @@ import { Due } from "../types";
 import { useAuthData } from "../context/AuthContext";
 import { API_URL, getSetting } from "../utils/db";
 import { authFetch } from "../utils/apiClient";
-import { enqueueAndTrigger, triggerSyncProcessing, processSyncQueue } from "../utils/syncProcessor";
+import { enqueueAndTrigger, processSyncQueue } from "../utils/syncProcessor";
 import { useRepositories } from "../context/RepositoryContext";
 import { generateUUID } from "../utils/uuid";
 import { nowTimestamp } from "../utils/storage";
 
-function migrateDue(item: any): Due {
+function migrateDue(item: Record<string, unknown>): Due {
   if (item.isRecurring !== undefined && item.frequency === undefined) {
     return {
       id: item.id,

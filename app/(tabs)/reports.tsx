@@ -1,18 +1,18 @@
 import { useState, useCallback, useMemo } from "react";
 import { View, ScrollView, Dimensions } from "react-native";
-import { Appbar, Text, Card, useTheme, Button, Menu, Divider, IconButton } from "react-native-paper";
-import { useRouter, useFocusEffect } from "expo-router";
-import { BarChart, PieChart } from "react-native-chart-kit";
+import { Appbar, Text, Card, useTheme, Button, Menu } from "react-native-paper";
+import { useFocusEffect } from "expo-router";
+import { PieChart } from "react-native-chart-kit";
 import { useTransactions } from "../../hooks/useTransactions";
 import { useCurrency } from "../../context/CurrencyContext";
 import { PaymentMethodChart } from "../../components/PaymentMethodChart";
 import { exportToCSV, exportToPDF } from "../../utils/exportUtils";
-import { isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from "date-fns";
+import { isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 
 export default function ReportsScreen() {
   const theme = useTheme();
   const { transactions = [], refetch } = useTransactions();
-  const { formatAmount, currency } = useCurrency();
+  const { formatAmount } = useCurrency();
   const screenWidth = Dimensions.get("window").width;
 
   const [period, setPeriod] = useState<"weekly" | "monthly" | "annually" | "all">("monthly");
@@ -73,7 +73,7 @@ export default function ReportsScreen() {
   // Group by category for Category Pie Chart
   const categoryDataMap = filteredTransactions
     .filter(t => t.type === "expense")
-    .reduce((acc: any, t) => {
+    .reduce((acc: Record<string, number>, t) => {
       const cat = t.category?.name || "Uncategorized";
       acc[cat] = (acc[cat] || 0) + t.amount;
       return acc;

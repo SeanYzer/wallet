@@ -7,7 +7,7 @@ import { useUserProfileData } from "../context/UserProfileContext";
 import { useState } from "react";
 import { BalanceBreakdown } from "./BalanceBreakdown";
 
-export function SummaryCard({ transactions = [], goals = [] }: any) {
+export function SummaryCard({ transactions = [], goals = [] }: { transactions?: Record<string, unknown>[]; goals?: Record<string, unknown>[] }) {
   const theme = useTheme();
   const { formatAmount } = useCurrencyActions();
   const { profile } = useUserProfileData();
@@ -16,16 +16,16 @@ export function SummaryCard({ transactions = [], goals = [] }: any) {
   const initialBalance = Number(profile?.initialBalance || 0);
 
   const income = transactions
-    .filter((t: any) => t.type === "income" && t.title !== "Opening Balance")
-    .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
+    .filter((t: Record<string, unknown>) => t.type === "income" && t.title !== "Opening Balance")
+    .reduce((sum: number, t: Record<string, unknown>) => sum + Number(t.amount || 0), 0);
 
   const expense = transactions
-    .filter((t: any) => t.type === "expense")
-    .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
+    .filter((t: Record<string, unknown>) => t.type === "expense")
+    .reduce((sum: number, t: Record<string, unknown>) => sum + Number(t.amount || 0), 0);
 
   const balance = initialBalance + income - expense;
 
-  const reservedSavings = goals.reduce((sum: number, g: any) => sum + Number(g.currentAmount || g.balance || 0), 0);
+  const reservedSavings = goals.reduce((sum: number, g: Record<string, unknown>) => sum + Number(g.currentAmount || g.balance || 0), 0);
 
   const totalReserved = Number(reservedSavings || 0);
   const availableBalance = balance - totalReserved;

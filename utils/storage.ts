@@ -6,7 +6,7 @@ export function nowTimestamp(): number {
   return Date.now();
 }
 
-export function ensureTimestamp<T extends TimestampedEntity>(entity: T | any): T {
+export function ensureTimestamp<T extends TimestampedEntity>(entity: T | Record<string, unknown>): T {
   if (!entity) return entity;
   if (typeof entity.updatedAt !== 'number' || entity.updatedAt <= 0) {
     return { ...entity, updatedAt: nowTimestamp() };
@@ -14,11 +14,11 @@ export function ensureTimestamp<T extends TimestampedEntity>(entity: T | any): T
   return entity;
 }
 
-export function ensureAllTimestamps<T extends TimestampedEntity>(entities: (T | any)[]): T[] {
+export function ensureAllTimestamps<T extends TimestampedEntity>(entities: (T | Record<string, unknown>)[]): T[] {
   return entities.map(e => ensureTimestamp(e));
 }
 
-export function getUpdatedAt(item: any): number {
+export function getUpdatedAt(item: Record<string, unknown>): number {
   if (typeof item.updatedAt === 'number' && item.updatedAt > 0) {
     return item.updatedAt;
   }
@@ -48,7 +48,7 @@ export async function setItem<T>(key: string, value: T): Promise<void> {
   }
 }
 
-export function deduplicate<T extends { id: any }>(items: T[]): T[] {
+export function deduplicate<T extends { id: string | number }>(items: T[]): T[] {
   const seen = new Set();
   return items.filter(item => {
     const id = String(item.id);

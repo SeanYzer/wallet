@@ -8,7 +8,7 @@ import { useRepositories } from "../context/RepositoryContext";
 import { generateUUID } from "../utils/uuid";
 import { nowTimestamp } from "../utils/storage";
 
-function migrateSavingsItem(item: any): SavingsItem {
+function migrateSavingsItem(item: Record<string, unknown>): SavingsItem {
   if (item.targetAmount !== undefined && item.balance === undefined) {
     return {
       id: item.id,
@@ -50,7 +50,6 @@ export function useSavings() {
             if (API_URL && activeUserId) {
                 const { ok, data: remoteData } = await authFetch<SavingsItem[]>(`savingsItems?userId=${activeUserId}`);
                 if (ok && Array.isArray(remoteData)) {
-                        const localMap = new Map(deduped.map(g => [g.id, g]));
                         const remoteMap = new Map(remoteData.map(g => [g.id, g]));
                         const remoteTitleMap = new Map(remoteData.map(g => [g.title.toLowerCase(), g]));
 

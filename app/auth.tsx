@@ -1,19 +1,18 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, HelperText, Dialog, Portal, useTheme } from 'react-native-paper';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { Text, TextInput, Button, Card, HelperText, Dialog, Portal } from 'react-native-paper';
+import { useFocusEffect } from 'expo-router';
 import { useAuthData, useAuthActions } from '../context/AuthContext';
 import { useUserProfileData } from '../context/UserProfileContext';
-import { addUser, saveUserProfile, API_URL, initDb, getSetting, setSetting, getUsers } from '../utils/db';
+import { addUser, saveUserProfile, API_URL, initDb, setSetting, getUsers } from '../utils/db';
 import * as Crypto from 'expo-crypto';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AuthScreen() {
-    const router = useRouter();
-    const { token } = useAuthData();
     const { login } = useAuthActions();
+    const { token } = useAuthData();
     const { profile } = useUserProfileData();
 
     useFocusEffect(
@@ -37,7 +36,7 @@ export default function AuthScreen() {
         buttons?: { text: string; onPress?: () => void; style?: "cancel" }[];
     }>({ visible: false, title: "", message: "" });
 
-    const showAlert = (title: string, message: string, buttons?: any[]) => {
+    const showAlert = (title: string, message: string, buttons?: { text: string; onPress?: () => void; style?: "cancel" }[]) => {
         setDialog({ visible: true, title, message, buttons });
     };
 
@@ -56,7 +55,7 @@ export default function AuthScreen() {
         const offlineId = generateUUID();
         
         const users = await getUsers();
-        const localDuplicate = users.find((u: any) => u.name.toLowerCase() === username.toLowerCase());
+        const localDuplicate = users.find((u: Record<string, string>) => u.name.toLowerCase() === username.toLowerCase());
 
         if (localDuplicate) {
             showAlert("Username Taken", "This username is already registered on this device. Please use a different username or login instead.");
@@ -97,8 +96,8 @@ export default function AuthScreen() {
                 showAlert("Registration Error", responseData.message || "Email is not available.");
                 return false;
             }
-        } catch (e: any) {
-            console.log("Cloud registration failed:", e.message);
+        } catch (_e: unknown) {
+            console.warn("Cloud registration failed:", (_e as Error).message);
             
             showAlert(
                 "Cloud Unreachable",
@@ -159,8 +158,8 @@ export default function AuthScreen() {
                     {
                         text: "Offline-Only Account",
                         onPress: async () => {
-                            const success = await createLocalAccount(name.trim(), passcode.trim());
-                            setLoading(false);
+                         const _success = await createLocalAccount(name.trim(), passcode.trim());
+                         setLoading(false);
                         }
                     },
                     { text: "Cancel", style: "cancel", onPress: () => setLoading(false) }
@@ -187,7 +186,7 @@ export default function AuthScreen() {
         const deviceId = await getDeviceId();
 
         if (!API_URL) {
-            console.log("No API_URL configured, using local-only login");
+            console.info("No API_URL configured, using local-only login");
             await attemptLocalLogin();
             setLoading(false);
             return;
@@ -222,13 +221,13 @@ export default function AuthScreen() {
                  await saveUserProfile({ name: name.trim(), isFirstRun: false, initialBalance: 0 }, data.user.id);
                  await login(data.user.id, data.token);
               } else if (response.status === 401) {
-                  console.log("Cloud login returned 401 - checking local users...");
+                  console.info("Cloud login returned 401 - checking local users...");
                   
                   const users = await getUsers();
-                  const localUser = users.find((u: any) => u.name.toLowerCase() === name.trim().toLowerCase());
+                   const localUser = users.find((u: Record<string, string>) => u.name.toLowerCase() === name.trim().toLowerCase());
                   
                   if (localUser) {
-                      console.log("Found local user, trying local login...");
+                      console.info("Found local user, trying local login...");
                       try {
                           const hashedInput = await Crypto.digestStringAsync(
                               Crypto.CryptoDigestAlgorithm.SHA256,
@@ -242,20 +241,20 @@ export default function AuthScreen() {
                                   "Invalid credentials. Please check your email/username and PIN."
                               );
                           }
-                      } catch (err) {
-                          showAlert("Login Failed", "Invalid credentials.");
+                       } catch {
+                           showAlert("Login Failed", "Invalid credentials.");
                       }
                   } else {
-                      console.log("No local user found, server returned 401");
+                      console.info("No local user found, server returned 401");
                       showAlert("Login Failed", "Invalid user name and PIN.");
                       return;
                   }
               } else {
-                 console.log("Cloud login failed, trying local fallback...");
+                 console.info("Cloud login failed, trying local fallback...");
                  await attemptLocalLogin();
              }
-         } catch (e: any) {
-             console.error("Online login failed (network error), attempting local fallback:", e);
+         } catch (_e: unknown) {
+             console.error("Online login failed (network error), attempting local fallback:", _e);
              await attemptLocalLogin();
          } finally {
              setLoading(false);
@@ -264,7 +263,7 @@ export default function AuthScreen() {
 
     const attemptLocalLogin = async () => {
         const users = await getUsers();
-        const localUser = users.find((u: any) => u.name.toLowerCase() === name.trim().toLowerCase());
+        const localUser = users.find((u: Record<string, string>) => u.name.toLowerCase() === name.trim().toLowerCase());
 
         if (localUser) {
             try {
@@ -282,7 +281,7 @@ export default function AuthScreen() {
                 showAlert("Error", "Authentication failed. Error: " + (err as Error).message);
             }
          } else {
-             console.log("No local user found in attemptLocalLogin, offering to register offline...");
+             console.info("No local user found in attemptLocalLogin, offering to register offline...");
              showAlert(
                  "Account Not Found",
                  `No account found for "${name.trim()}". Would you like to create an offline-only account with these credentials?`,
@@ -290,8 +289,8 @@ export default function AuthScreen() {
                      {
                          text: "Create Offline Account",
                          onPress: async () => {
-                             const success = await createLocalAccount(name.trim(), passcode.trim());
-                             setLoading(false);
+                        const _success = await createLocalAccount(name.trim(), passcode.trim());
+                        setLoading(false);
                          }
                      },
                      { text: "Try Again", style: "cancel", onPress: () => setLoading(false) }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Animated, StyleSheet, ViewStyle } from "react-native";
+import { View, Animated, ViewStyle } from "react-native";
 import { useTheme } from "react-native-paper";
 
 interface SkeletonProps {
@@ -34,7 +34,7 @@ export const SkeletonLoader = ({ width = "100%", height = 20, borderRadius = 4, 
     <Animated.View
       style={[
         {
-          width: width as any,
+          width: width as string | number,
           height,
           borderRadius,
           backgroundColor: theme.colors.surfaceVariant,

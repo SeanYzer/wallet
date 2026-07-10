@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import { Card, Text, IconButton, useTheme } from "react-native-paper";
+import { Card, Text, IconButton } from "react-native-paper";
 import { useState, useEffect } from "react";
 
 const TIPS = [
@@ -16,7 +16,6 @@ const TIPS = [
 ];
 
 export function FinancialTip() {
-  const theme = useTheme();
   const [tipIndex, setTipIndex] = useState(0);
 
   useEffect(() => {

@@ -12,7 +12,7 @@ export abstract class BaseAsyncStorageRepository<T extends { id: string }> imple
 
   protected ensureTimestamps(items: T[]): T[] {
     if (items.length > 0 && 'updatedAt' in items[0]) {
-      return ensureAllTimestamps(items as any) as unknown as T[];
+      return ensureAllTimestamps(items as unknown as TimestampedEntity[]) as unknown as T[];
     }
     return items;
   }

@@ -2,7 +2,7 @@ import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-rout
 import { useEffect, useState } from "react";
 import { View, Text, Platform, StyleSheet } from "react-native";
 import { initMasterDb, initDb } from "../utils/db";
-import { PaperProvider, Banner, IconButton } from "react-native-paper";
+import { PaperProvider, Banner } from "react-native-paper";
 import { ThemeProvider, useThemeData } from "../context/ThemeContext";
 import { CurrencyProvider } from "../context/CurrencyContext";
 import { TransactionsProvider } from "../context/TransactionsContext";
@@ -22,7 +22,7 @@ import { requestNotificationPermissions, scheduleDueNotifications } from "../uti
 import { useRepositories } from "../context/RepositoryContext";
 
 function OfflineIndicator() {
-  const { isOnline, checkConnectivity, isChecking } = useNetwork();
+  const { isOnline, checkConnectivity } = useNetwork();
   const [showBanner, setShowBanner] = useState(true);
 
   useEffect(() => {
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
 
 function SystemResetManager() {
   const router = useRouter();
-  const { logout } = useAuthActions();
+  const { logout: _logout } = useAuthActions();
 
   useEffect(() => {
     const checkReset = async () => {
@@ -117,20 +117,20 @@ function MainLayout() {
     const inAuthGroup = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
 
-    console.log(`[Nav] State -> User: ${activeUserId}, FirstRun: ${profile?.isFirstRun}, Path: /${segments.join('/')}`);
+    console.info(`[Nav] State -> User: ${activeUserId}, FirstRun: ${profile?.isFirstRun}, Path: /${segments.join('/')}`);
     
     if (!activeUserId && !inAuthGroup) {
       // 1. Not logged in -> Go to Auth
-      console.log("[Nav] Redirecting to Auth");
+      console.info("[Nav] Redirecting to Auth");
       setTimeout(() => router.replace('/auth'), 0);
     } else if (activeUserId) {
       if (profile?.isFirstRun && !inOnboarding) {
         // 2. Logged in but first run -> Go to Onboarding
-        console.log("[Nav] Redirecting to Onboarding");
+        console.info("[Nav] Redirecting to Onboarding");
         setTimeout(() => router.replace('/onboarding'), 0);
       } else if (!profile?.isFirstRun && (inAuthGroup || inOnboarding)) {
         // 3. Logged in and setup done -> Go to Home
-        console.log("[Nav] Redirecting to Dashboard");
+        console.info("[Nav] Redirecting to Dashboard");
         setTimeout(() => router.replace('/'), 0);
       }
     }
@@ -167,8 +167,8 @@ function MainLayout() {
 
 export function AuthLoader({ children }: { children: React.ReactNode }) {
   const { activeUserId, isLoading } = useAuthData();
-  const segments = useSegments();
-  const router = useRouter();
+  const _segments = useSegments();
+  const _router = useRouter();
   const [dbLoading, setDbLoading] = useState(false);
   const [dbInitializedFor, setDbInitializedFor] = useState<string | null>(null);
   const repos = useRepositories();
@@ -184,7 +184,7 @@ export function AuthLoader({ children }: { children: React.ReactNode }) {
             setDbInitializedFor(activeUserId);
             setDbLoading(false);
           })
-          .catch((e: any) => {
+          .catch((e: unknown) => {
             console.error("User DB Init Error", e);
             setDbLoading(false);
           });
@@ -227,7 +227,7 @@ export default function RootLayout() {
   useEffect(() => {
     initMasterDb()
       .then(() => setDbReady(true))
-      .catch((e: any) => console.error("DB init Error", e));
+      .catch((e: unknown) => console.error("DB init Error", e));
   }, []);
 
   if (!dbReady) {

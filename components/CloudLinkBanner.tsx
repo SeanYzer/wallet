@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform, AppState, AppStateStatus } from 'react-native';
-import { Text, IconButton } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthData } from '../context/AuthContext';
 import { API_URL } from '../utils/db';
@@ -8,7 +8,6 @@ import { useRouter } from 'expo-router';
 
 export function CloudLinkBanner() {
     const { token } = useAuthData();
-    const [isOnline, setIsOnline] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
     const router = useRouter();
     const appStateRef = useRef(AppState.currentState);
@@ -24,7 +23,7 @@ export function CloudLinkBanner() {
                 timeout
             ]) as Response;
             return response.ok;
-        } catch (e) {
+        } catch {
             return false;
         }
     };
@@ -36,14 +35,12 @@ export function CloudLinkBanner() {
         }
 
         checkConnection().then((online) => {
-            setIsOnline(online);
             setIsVisible(online);
         });
 
         const sub = AppState.addEventListener("change", (nextState: AppStateStatus) => {
             if (appStateRef.current.match(/inactive|background/) && nextState === "active") {
                 checkConnection().then((online) => {
-                    setIsOnline(online);
                     setIsVisible(online);
                 });
             }

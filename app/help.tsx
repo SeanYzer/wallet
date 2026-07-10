@@ -105,7 +105,7 @@ function Section({ icon, title, children }: { icon: string; title: string; child
     <Card style={{ marginBottom: 16, borderRadius: 12 }}>
       <Card.Content>
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-          <MaterialCommunityIcons name={icon as any} size={22} color={theme.colors.primary} />
+          <MaterialCommunityIcons name={icon as string} size={22} color={theme.colors.primary} />
           <Text variant="titleMedium" style={{ fontWeight: "700", marginLeft: 8 }}>{title}</Text>
         </View>
         <Divider style={{ marginBottom: 12 }} />

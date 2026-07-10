@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Alert } from "react-native";
+import { View, ScrollView } from "react-native";
 import { Image } from "expo-image";
 import { Appbar, Text, Card, Chip, Button, Divider, useTheme, Portal, Dialog } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";

@@ -13,14 +13,14 @@ const clearAuthStorage = async () => {
     await AsyncStorage.removeItem('activeUserId');
 };
 
-export interface ApiResult<T = any> {
+export interface ApiResult<T = unknown> {
   ok: boolean;
   status: number;
   data?: T;
   error?: string;
 }
 
-export async function authFetch<T = any>(
+export async function authFetch<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResult<T>> {
@@ -54,7 +54,7 @@ export async function authFetch<T = any>(
       }
     }
 
-    let body: any;
+    let body: Record<string, unknown>;
     try {
       body = await response.json();
     } catch {
@@ -74,7 +74,7 @@ export async function authFetch<T = any>(
       data: unwrapped,
       error: !response.ok ? (body?.error ?? `HTTP ${response.status}`) : undefined,
     };
-  } catch (e: any) {
-    return { ok: false, status: 0, error: e.message };
+  } catch (e: unknown) {
+    return { ok: false, status: 0, error: e instanceof Error ? e.message : String(e) };
   }
 }

@@ -7,7 +7,7 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import EmptyState from "./EmptyState";
 import { FlashList } from "@shopify/flash-list";
 
-const PAYMENT_ICONS: Record<string, any> = {
+const PAYMENT_ICONS: Record<string, string> = {
   cash: "cash",
   card: "credit-card",
   bank_transfer: "bank",

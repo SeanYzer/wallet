@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { View, Animated, Easing } from "react-native";
-import Svg, { Path, Rect, Circle, G, Mask } from "react-native-svg";
+import Svg, { Path, Rect, Circle, Mask } from "react-native-svg";
 import { Text } from "react-native-paper";
 
 interface PiggyBankProps {

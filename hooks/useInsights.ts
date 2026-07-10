@@ -12,7 +12,7 @@ export interface Insight {
 }
 
 export function useInsights() {
-  const { transactions } = useTransactionsData();
+  const { transactions: _transactions } = useTransactionsData();
   const { items: savingsItems } = useSavings();
   const { dues } = useDues();
   const { formatAmount } = useCurrencyActions();

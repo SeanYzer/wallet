@@ -33,7 +33,7 @@ async function checkConnection(): Promise<boolean> {
     });
     clearTimeout(timeoutId);
     return response.ok || response.status === 200 || response.status === 404 || response.status === 405;
-  } catch (e) {
+  } catch {
     clearTimeout(timeoutId);
     return false;
   }
@@ -58,7 +58,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
         setIsOnline(online);
 
         if (online && wasPreviouslyOffline) {
-          console.log("[Network] Back online - triggering sync queue processing");
+          console.info("[Network] Back online - triggering sync queue processing");
           triggerSyncProcessing(100);
           await processSyncQueue();
         }
@@ -66,15 +66,15 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 
       setLastCheckedAt(Date.now());
       return online;
-    } catch (e) {
-      console.error("[Network] Connectivity check error:", e);
+    } catch (_e) {
+      console.error("[Network] Connectivity check error:", _e);
       isOnlineRef.current = false;
       setIsOnline(false);
       return false;
     } finally {
       setIsChecking(false);
     }
-  }, [isChecking]);
+  }, [isChecking, isOnline]);
 
   const appStateRef = useRef(AppState.currentState);
 

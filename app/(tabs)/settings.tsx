@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { View, ScrollView, Alert, Platform, StyleSheet } from "react-native";
-import { Appbar, List, RadioButton, Text, Card, Switch, Divider, Button, Avatar, Portal, Dialog, TextInput, useTheme as usePaperTheme, IconButton, Badge } from "react-native-paper";
+import { Appbar, List, RadioButton, Text, Card, Switch, Divider, Button, Avatar, Portal, Dialog, TextInput, useTheme as usePaperTheme, IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
 import { useRepositories } from "../../context/RepositoryContext";
-import { getSetting, setSetting, clearAllLocalData, exportData, importData, deleteUser, mergeLWW, API_URL, addUser, saveUserProfile, initDb, getUsers } from "../../utils/db";
+import { setSetting, clearAllLocalData, exportData, importData, deleteUser, mergeLWW, API_URL, addUser, saveUserProfile, initDb, getUsers } from "../../utils/db";
 import { useAuth } from "../../context/AuthContext";
 import { useCurrency, CURRENCIES, CurrencyCode } from "../../context/CurrencyContext";
 import { useAppTheme } from "../../context/ThemeContext";
@@ -22,7 +22,7 @@ import * as Crypto from 'expo-crypto';
 
 function SyncStatusCard({ autoBackup }: { autoBackup: boolean }) {
   const { isOnline, checkConnectivity, isChecking } = useNetwork();
-  const { pending, lastSyncedAt, hasFailed, refresh: retryAll } = useSyncStatus();
+  const { pending, lastSyncedAt, refresh: retryAll } = useSyncStatus();
   const paperTheme = usePaperTheme();
 
   const getStatusColor = () => {
@@ -110,7 +110,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const paperTheme = usePaperTheme();
   const { currency, setCurrency, decimalPlaces, setDecimalPlaces } = useCurrency();
-  const { theme, isDarkMode, toggleTheme } = useAppTheme();
+  const { isDarkMode, toggleTheme } = useAppTheme();
   const { profile, updateProfile, resetProfileToDefaults, refetch: refetchProfile } = useUserProfile();
   const { language, setLanguage, t } = useLanguage();
   const { isPasscodeEnabled, setIsPasscodeEnabled, setPasscode, setIsUnlocked } = usePasscode();
@@ -320,7 +320,7 @@ export default function SettingsScreen() {
      setShowConflictDialog(false);
 
      try {
-       console.log("[MergeLWW] Starting Last-Write-Wins merge...");
+        console.info("[MergeLWW] Starting Last-Write-Wins merge...");
 
         const localTxs = await repos.transactions.getAll();
         const localCats = await repos.categories.getAll();
@@ -348,7 +348,7 @@ export default function SettingsScreen() {
        const mergedDues = mergeLWW(localDues, remoteDues);
        const mergedSavings = mergeLWW(localSavings, remoteSavings);
 
-       console.log("[MergeLWW] Merged:", {
+       console.info("[MergeLWW] Merged:", {
          transactions: mergedTxs.length,
          categories: mergedCats.length,
          dues: mergedDues.length,
@@ -361,19 +361,19 @@ export default function SettingsScreen() {
         await repos.savingsItems.upsertBulk(mergedSavings);
 
        if (localProfile && remoteProfile) {
-         const localTs = (localProfile as any).updatedAt || 0;
-         const remoteTs = (remoteProfile as any).updatedAt || 0;
+         const localTs = (localProfile as Record<string, unknown>).updatedAt || 0;
+         const remoteTs = (remoteProfile as Record<string, unknown>).updatedAt || 0;
          if (remoteTs > localTs) {
-            await repos.profiles.upsert(remoteProfile as any);
+            await repos.profiles.upsert(remoteProfile as UserProfile);
          }
        }
 
        await setAutoBackup(true);
 
-       console.log("[MergeLWW] Uploading merged data to cloud...");
+       console.info("[MergeLWW] Uploading merged data to cloud...");
 
        if (localProfile || remoteProfile) {
-         const mergedProfile = remoteProfile && ((remoteProfile as any).updatedAt || 0) > ((localProfile as any)?.updatedAt || 0)
+         const mergedProfile = remoteProfile && ((remoteProfile as Record<string, unknown>).updatedAt || 0) > ((localProfile as Record<string, unknown>)?.updatedAt || 0)
            ? remoteProfile
            : localProfile;
 
@@ -455,7 +455,7 @@ export default function SettingsScreen() {
 
           const txData = {
             ...t,
-            categoryId: t.category?.id ? String(t.category.id) : (t as any).categoryId,
+            categoryId: t.category?.id ? String(t.category.id) : (t as Record<string, unknown>).categoryId as string | null,
             userId: activeUserId
           };
 
@@ -481,7 +481,7 @@ export default function SettingsScreen() {
        ]);
 
        alert("Merge completed! Data has been synchronized using Last-Write-Wins.");
-       console.log("[MergeLWW] Merge completed successfully");
+       console.info("[MergeLWW] Merge completed successfully");
 
      } catch (e) {
        console.error("[MergeLWW] Merge failed:", e);
@@ -521,11 +521,11 @@ export default function SettingsScreen() {
         }).catch(() => { });
       }
       for (const t of txs) {
-        console.log("Transaction", t);
+        console.info("Transaction", t);
         await authFetch(`transactions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...t, categoryId: t.category?.id ? String(t.category.id) : (t as any).categoryId, userId: activeUserId })
+          body: JSON.stringify({ ...t, categoryId: t.category?.id ? String(t.category.id) : (t as Record<string, unknown>).categoryId as string | null, userId: activeUserId })
         }).catch(() => { });
       }
 
@@ -555,14 +555,14 @@ export default function SettingsScreen() {
         }),
       });
       pinVerified = verifyRes.ok;
-    } catch (e) {
+    } catch {
       // server unreachable — fall through to local verify
     }
 
     if (!pinVerified && activeUserId) {
       try {
         const users = await getUsers();
-        const user = users.find((u: any) => u.id === activeUserId);
+        const user = users.find((u: Record<string, string>) => u.id === activeUserId);
         if (user) {
           const inputHash = await Crypto.digestStringAsync(
             Crypto.CryptoDigestAlgorithm.SHA256,
@@ -570,7 +570,7 @@ export default function SettingsScreen() {
           );
           pinVerified = user.passcode === inputHash;
         }
-      } catch (e) {
+      } catch {
         // local verify failed too
       }
     }
@@ -583,7 +583,7 @@ export default function SettingsScreen() {
 
     try {
       if (activeUserId) {
-        console.log("Syncing Clear Data to cloud for user:", activeUserId);
+         console.info("Syncing Clear Data to cloud for user:", activeUserId);
         const [txResult, catResult, dueResult, savResult] = await Promise.all([
           authFetch(`transactions?userId=${activeUserId}`),
           authFetch(`categories?userId=${activeUserId}`),
@@ -604,7 +604,7 @@ export default function SettingsScreen() {
         ];
 
         await Promise.all(deletePromises);
-        console.log("Cloud transactional data cleared successfully");
+         console.info("Cloud transactional data cleared successfully");
       }
 
       await clearAllLocalData();
@@ -633,9 +633,8 @@ export default function SettingsScreen() {
   const handleExportJSON = async () => {
     try {
       const json = await exportData();
-      const fsAny = FileSystem as any;
-      const fileUri = `${fsAny.documentDirectory}WiseWallet_Backup_${Date.now()}.json`;
-      const encoding = fsAny.EncodingType ? fsAny.EncodingType.UTF8 : 'utf8';
+      const fileUri = `${FileSystem.documentDirectory}WiseWallet_Backup_${Date.now()}.json`;
+      const encoding = FileSystem.EncodingType ? FileSystem.EncodingType.UTF8 : 'utf8';
       await FileSystem.writeAsStringAsync(fileUri, json, { encoding });
       await Sharing.shareAsync(fileUri);
     } catch (e) {
@@ -649,8 +648,7 @@ export default function SettingsScreen() {
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const fileUri = result.assets[0].uri;
-        const fsAny = FileSystem as any;
-        const encoding = fsAny.EncodingType ? fsAny.EncodingType.UTF8 : 'utf8';
+        const encoding = FileSystem.EncodingType ? FileSystem.EncodingType.UTF8 : 'utf8';
         const jsonString = await FileSystem.readAsStringAsync(fileUri, { encoding });
         await importData(jsonString);
         alert("Import successful! Data has been restored. Please restart the app or switch accounts to see the changes.");
@@ -692,7 +690,7 @@ export default function SettingsScreen() {
   const performRestore = async () => {
     setIsSyncing(true);
     try {
-      console.log("[Restore] Starting cloud restore for user:", activeUserId);
+      console.info("[Restore] Starting cloud restore for user:", activeUserId);
 
       // Fetch all to catch legacy data (missing userId)
       const [txResult, catResult, profResult] = await Promise.all([
@@ -701,7 +699,7 @@ export default function SettingsScreen() {
         authFetch(`userProfiles`)
       ]);
 
-      console.log("[Restore] Network status:", {
+       console.info("[Restore] Network status:", {
         txs: txResult.status,
         cats: catResult.status,
         profs: profResult.status
@@ -717,18 +715,18 @@ export default function SettingsScreen() {
       const allCats = catResult.data || [];
       const allProfs = profResult.data || [];
 
-      console.log("[Restore] Raw data received:", {
+       console.info("[Restore] Raw data received:", {
         txs: Array.isArray(allTxs) ? allTxs.length : "error",
         cats: Array.isArray(allCats) ? allCats.length : "error",
         profs: Array.isArray(allProfs) ? allProfs.length : "error"
       });
 
       // Filter strictly for this user as requested
-      const remoteTxs = Array.isArray(allTxs) ? allTxs.filter((t: any) => String(t.userId) === String(activeUserId)) : [];
-      const remoteCats = Array.isArray(allCats) ? allCats.filter((c: any) => String(c.userId) === String(activeUserId)) : [];
-      const remoteProf = Array.isArray(allProfs) ? allProfs.find((p: any) => String(p.userId) === String(activeUserId)) : null;
+      const remoteTxs = Array.isArray(allTxs) ? allTxs.filter((t: Record<string, unknown>) => String(t.userId) === String(activeUserId)) : [];
+      const remoteCats = Array.isArray(allCats) ? allCats.filter((c: Record<string, unknown>) => String(c.userId) === String(activeUserId)) : [];
+      const remoteProf = Array.isArray(allProfs) ? allProfs.find((p: Record<string, unknown>) => String(p.userId) === String(activeUserId)) : null;
 
-      console.log("[Restore] Filtered data:", {
+       console.info("[Restore] Filtered data:", {
         txs: remoteTxs.length,
         cats: remoteCats.length,
         profFound: !!remoteProf
@@ -748,7 +746,7 @@ export default function SettingsScreen() {
       // On Web, AsyncStorage can sometimes be slightly asynchronous even after resolving.
       // A small delay ensures the contexts read the freshly imported data.
       if (Platform.OS === 'web') {
-        console.log("[Restore] Web platform detected, applying settling delay...");
+         console.info("[Restore] Web platform detected, applying settling delay...");
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 
@@ -768,7 +766,7 @@ export default function SettingsScreen() {
   };
 
   const handleRestoreFromCloud = () => {
-    console.log("[Restore] Button clicked. Platform:", Platform.OS);
+     console.info("[Restore] Button clicked. Platform:", Platform.OS);
     if (Platform.OS === 'web') {
       const confirm = window.confirm("This will overwrite all your local data with the data from your cloud backup. Are you sure?");
       if (confirm) {

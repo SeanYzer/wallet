@@ -1,10 +1,9 @@
-import { View, Dimensions } from "react-native";
-import { Card, Text, useTheme } from "react-native-paper";
+import { Dimensions } from "react-native";
+import { Card, Text } from "react-native-paper";
 import { PieChart } from "react-native-chart-kit";
 import { Transaction } from "../types";
 
 export function ChartCard({ transactions }: { transactions: Transaction[] }) {
-  const theme = useTheme();
   const screenWidth = Dimensions.get("window").width;
 
   const expenses = transactions.filter((t) => t.type === "expense");

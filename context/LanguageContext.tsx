@@ -63,7 +63,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   languageRef.current = language;
 
   const t = useCallback((key: string) => {
-    return (translations[languageRef.current] as any)[key] || key;
+    return (translations[languageRef.current] as Record<string, string>)[key] || key;
   }, []);
 
   const setLanguage = useCallback((lang: Language) => {
