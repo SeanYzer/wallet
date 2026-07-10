@@ -27,7 +27,7 @@ export const exportToCSV = async (transactions: Transaction[]) => {
     const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
     try {
-        await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType ? FileSystem.EncodingType.UTF8 : "utf8" as any });
+        await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType ? FileSystem.EncodingType.UTF8 : "utf8" as unknown as FileSystem.EncodingType });
         await Sharing.shareAsync(fileUri);
     } catch (error) {
         console.error("Error exporting to CSV:", error);

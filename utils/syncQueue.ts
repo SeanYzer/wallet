@@ -8,7 +8,7 @@ export interface SyncQueueItem {
   entity: SyncEntity;
   operation: SyncOperation;
   entityId?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   timestamp: number;
   retryCount: number;
   lastError?: string;
@@ -53,7 +53,7 @@ export async function enqueueSync(
   entity: SyncEntity,
   operation: SyncOperation,
   entityId?: string,
-  data?: any
+  data?: Record<string, unknown>
 ): Promise<void> {
   const queue = await getSyncQueue();
   const itemId = generateQueueItemId(entity, operation, entityId);

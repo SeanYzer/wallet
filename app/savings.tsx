@@ -14,7 +14,7 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 export default function SavingsScreen() {
     const router = useRouter();
     const theme = useTheme();
-    const { items, loading, addItem, updateItem, deleteItem, refetch } = useSavings();
+    const { items, addItem, updateItem, deleteItem, refetch } = useSavings();
     const { formatAmount } = useCurrencyActions();
     const { addTransaction } = useTransactionsActions();
     const { categories } = useCategoriesData();
@@ -65,7 +65,7 @@ export default function SavingsScreen() {
             setModalVisible(false);
             setTitle("");
             setBalance("");
-        } catch (error) {
+        } catch {
             Alert.alert("Error", "Failed to add savings item.");
         }
     };
@@ -102,7 +102,7 @@ export default function SavingsScreen() {
             setTransferInModalVisible(false);
             setTransferAmount("");
             setSelectedItemId(null);
-        } catch (error) {
+        } catch {
             Alert.alert("Error", "Failed to transfer funds.");
         }
     };
@@ -139,7 +139,7 @@ export default function SavingsScreen() {
             setTransferOutModalVisible(false);
             setTransferAmount("");
             setSelectedItemId(null);
-        } catch (error) {
+        } catch {
             Alert.alert("Error", "Failed to transfer funds.");
         }
     };
@@ -202,7 +202,7 @@ export default function SavingsScreen() {
                                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                                     <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
                                         <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: theme.colors.surfaceVariant, justifyContent: "center", alignItems: "center", marginRight: 12 }}>
-                                            <MaterialCommunityIcons name={item.icon || "piggy-bank-outline" as any} size={24} color={theme.colors.primary} />
+                                            <MaterialCommunityIcons name={item.icon || "piggy-bank-outline" as string} size={24} color={theme.colors.primary} />
                                         </View>
                                         <View>
                                             <Text variant="titleMedium" style={{ fontWeight: "700" }}>{item.title}</Text>

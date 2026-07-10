@@ -1,5 +1,5 @@
-import { View, Dimensions } from "react-native";
-import { Card, Text, useTheme } from "react-native-paper";
+import { Dimensions } from "react-native";
+import { Card, Text } from "react-native-paper";
 import { PieChart } from "react-native-chart-kit";
 import { Transaction } from "../types";
 
@@ -10,15 +10,7 @@ const PAYMENT_COLORS: Record<string, string> = {
   e_wallet: "#FF9800",
 };
 
-const PAYMENT_LABELS: Record<string, string> = {
-  cash: "Cash",
-  card: "Card",
-  bank_transfer: "Bank",
-  e_wallet: "E-Wallet",
-};
-
 export function PaymentMethodChart({ transactions }: { transactions: Transaction[] }) {
-  const theme = useTheme();
   const screenWidth = Dimensions.get("window").width;
 
   const expenses = transactions.filter((t) => t.type === "expense");

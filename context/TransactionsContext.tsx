@@ -28,12 +28,12 @@ const TransactionsDataContext = createContext<TransactionsData | undefined>(unde
 const TransactionsActionsContext = createContext<TransactionsActions | undefined>(undefined);
 
 const sanitizeTransaction = (t: Transaction): Transaction => {
-    const withTimestamp = { ...t, updatedAt: t.updatedAt || Date.now() };
-    if ((withTimestamp as any).note === undefined) (withTimestamp as any).note = null;
-    if ((withTimestamp as any).receiptUrl === undefined) (withTimestamp as any).receiptUrl = null;
-    if ((withTimestamp as any).paymentMethod === undefined) (withTimestamp as any).paymentMethod = "";
-    if ((withTimestamp as any).establishment === undefined) (withTimestamp as any).establishment = "";
-    if ((withTimestamp as any).category === undefined) (withTimestamp as any).category = {
+    const withTimestamp = { ...t, updatedAt: t.updatedAt || Date.now() } as Record<string, unknown>;
+    if (withTimestamp.note === undefined) withTimestamp.note = null;
+    if (withTimestamp.receiptUrl === undefined) withTimestamp.receiptUrl = null;
+    if (withTimestamp.paymentMethod === undefined) withTimestamp.paymentMethod = "";
+    if (withTimestamp.establishment === undefined) withTimestamp.establishment = "";
+    if (withTimestamp.category === undefined) withTimestamp.category = {
         id: 'uncategorized', name: 'Others', type: t.type || 'expense', updatedAt: 0,
     };
     return withTimestamp as Transaction;
@@ -46,7 +46,7 @@ const addCategoryFallback = (t: Transaction): Transaction => ({
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
     const { activeUserId } = useAuth();
-    const { profile } = useUserProfile();
+    const { profile: _profile } = useUserProfile();
     const { transactions: txRepo } = useRepositories();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
@@ -86,9 +86,6 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             if (API_URL && activeUserId) {
                 const { ok, data: remoteData } = await authFetch<Transaction[]>(`transactions?userId=${activeUserId}`);
                 if (ok && Array.isArray(remoteData)) {
-                    const localMap = new Map(localData.map(tx => [tx.id, tx]));
-                    const remoteMap = new Map(remoteData.map(tx => [tx.id, tx]));
-
                     const mergedMap = new Map<string, Transaction>();
 
                     for (const remoteTx of remoteData) {

@@ -103,10 +103,10 @@ async function processSingleItem(item: SyncQueueItem): Promise<SyncResult> {
         error: apiResult.error || `HTTP ${apiResult.status}`,
       };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
-      error: error.message || 'Network error',
+      error: (error instanceof Error ? error.message : 'Network error'),
     };
   }
 }
@@ -164,7 +164,7 @@ export async function enqueueAndTrigger(
   entity: SyncEntity,
   operation: SyncOperation,
   entityId?: string,
-  data?: any
+  data?: Record<string, unknown>
 ): Promise<void> {
   if (!API_URL) return;
 
@@ -174,7 +174,7 @@ export async function enqueueAndTrigger(
   const existingItem = existingQueue.find(i => i.id === itemId);
 
   if (existingItem && existingItem.retryCount > 0 && existingItem.lastError) {
-    console.log(`[Sync] Retrying previously failed item: ${itemId}`);
+    console.info(`[Sync] Retrying previously failed item: ${itemId}`);
   }
 
   await enqueueSync(entity, operation, entityId, data);

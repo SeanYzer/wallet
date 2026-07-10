@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Alert, Platform } from "react-native";
-import { API_URL } from "../utils/db";
 import { setAuthFailureCallback } from "../utils/apiClient";
 import { setCachedUserId } from "../utils/cache";
 import { setSecureItem, getSecureItem, removeSecureItem } from "../utils/secureStorage";

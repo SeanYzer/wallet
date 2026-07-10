@@ -8,8 +8,8 @@ interface BalanceBreakdownProps {
   initialBalance: number;
   income: number;
   expense: number;
-  goals: any[];
-  transactions: any[];
+  goals: Record<string, unknown>[];
+  _transactions: Record<string, unknown>[];
 }
 
 export function BalanceBreakdown({
@@ -19,14 +19,14 @@ export function BalanceBreakdown({
   income,
   expense,
   goals,
-  transactions,
+  _transactions,
 }: BalanceBreakdownProps) {
   const theme = useTheme();
   const { formatAmount } = useCurrencyActions();
 
   const balance = initialBalance + income - expense;
 
-  const reservedSavings = goals.reduce((sum: number, g: any) => sum + Number(g.currentAmount || g.balance || 0), 0);
+  const reservedSavings = goals.reduce((sum: number, g: Record<string, unknown>) => sum + Number(g.currentAmount || g.balance || 0), 0);
 
   const totalReserved = reservedSavings;
   const availableBalance = balance - totalReserved;
@@ -70,7 +70,7 @@ export function BalanceBreakdown({
             {goals.length === 0 && (
               <Text variant="bodySmall" style={{ color: "gray", marginBottom: 8 }}>None</Text>
             )}
-            {goals.map((g: any) => (
+            {goals.map((g: Record<string, unknown>) => (
               <Text key={g.id} variant="bodySmall" style={{ color: "gray", marginBottom: 2 }}>
                 {g.title}: {formatAmount(g.currentAmount || g.balance || 0)}
               </Text>

@@ -1,11 +1,10 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { Card, Text, IconButton, useTheme, Button } from "react-native-paper";
+import { Card, Text, IconButton, Button } from "react-native-paper";
 import { useInsights, Insight } from "../hooks/useInsights";
 
 export function SmartInsights() {
   const { insights } = useInsights();
-  const theme = useTheme();
   const [dismissedIds, setDismissedIds] = React.useState<string[]>([]);
   const [showDismissed, setShowDismissed] = React.useState(false);
 

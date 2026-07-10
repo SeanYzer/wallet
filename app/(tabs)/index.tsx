@@ -1,4 +1,4 @@
-import { View, ActivityIndicator, TouchableOpacity, Platform } from "react-native";
+import { View, TouchableOpacity, Platform } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { FAB, Text, Card, IconButton, Menu, Divider } from "react-native-paper";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
@@ -144,7 +144,7 @@ export default function Dashboard() {
                 card: "credit-card",
                 bank_transfer: "bank",
                 e_wallet: "wallet",
-              } as Record<string, any>)[item.paymentMethod || "cash"]
+              } as Record<string, string>)[item.paymentMethod || "cash"]
             }
             size={24}
             color={theme.colors.primary}
@@ -198,7 +198,7 @@ export default function Dashboard() {
         ].map((item) => (
           <TouchableOpacity
             key={item.path}
-            onPress={() => router.push(item.path as any)}
+            onPress={() => router.push(item.path as "/dues" | "/savings")}
             style={{ width: "23%", alignItems: "center", marginBottom: 16 }}
           >
             <View style={{
@@ -220,7 +220,7 @@ export default function Dashboard() {
                 }
               })
             }}>
-              <MaterialCommunityIcons name={item.icon as any} size={26} color={theme.colors.primary} />
+              <MaterialCommunityIcons name={item.icon as string} size={26} color={theme.colors.primary} />
             </View>
             <Text variant="labelSmall" style={{ fontWeight: "600", color: theme.colors.onSurfaceVariant }}>{item.label}</Text>
           </TouchableOpacity>

@@ -22,14 +22,14 @@ const agendaRepo = new AsyncStorageAgendaRepository();
 const paymentMethodRepo = new AsyncStoragePaymentMethodRepository();
 const profileRepo = new AsyncStorageProfileRepository();
 
-function getUpdatedAt(item: any): number {
+function getUpdatedAt(item: Record<string, unknown>): number {
   if (typeof item.updatedAt === 'number' && item.updatedAt > 0) {
     return item.updatedAt;
   }
   return 0;
 }
 
-export function mergeLWW<T extends { id: any }>(localItems: T[], remoteItems: T[]): T[] {
+export function mergeLWW<T extends { id: string | number }>(localItems: T[], remoteItems: T[]): T[] {
   const mergedMap = new Map<string, T>();
 
   for (const item of localItems) {
@@ -108,13 +108,13 @@ const seedDefaults = async (userId: string) => {
   if (lastVersion < CURRENT_SEED_VERSION) {
     // 1. Merge Categories
     const catKey = `user_${userId}_categories`;
-    const existingCats = await getItem<any[]>(catKey, []);
+    const existingCats = await getItem<Record<string, unknown>[]>(catKey, []);
     const mergedCats = deduplicate([...existingCats, ...GLOBAL_CATEGORIES]);
     await setItem(catKey, mergedCats);
 
     // 2. Merge Payment Methods
     const pmKey = `user_${userId}_paymentMethods`;
-    const existingPMs = await getItem<any[]>(pmKey, []);
+    const existingPMs = await getItem<Record<string, unknown>[]>(pmKey, []);
     const mergedPMs = deduplicate([...existingPMs, ...GLOBAL_PAYMENT_METHODS]);
     await setItem(pmKey, mergedPMs);
 
@@ -130,7 +130,7 @@ export const getDb = async () => ({
   closeAsync: async () => { },
 });
 
-export const setOnFatalError = (cb: () => void) => {
+export const setOnFatalError = (_cb: () => void) => {
   // No fatal native errors in AsyncStorage normally
 };
 
@@ -173,7 +173,7 @@ export const setSetting = async (key: string, value: string) => {
 export const getUserProfile = async (overrideUserId?: string) => {
   if (overrideUserId) {
     const fullKey = await getPrefixedKey('profile', overrideUserId);
-    const profile = await getItem<any>(fullKey, null);
+    const profile = await getItem<Record<string, unknown>>(fullKey, null);
     if (profile) {
       return { ...profile, isFirstRun: profile.isFirstRun === true || profile.isFirstRun === 1 };
     }
@@ -234,7 +234,7 @@ export const getDues = async (): Promise<Due[]> => {
   const items = await dueRepo.getAll();
 
   // Migration: convert old Agenda format to Due
-  const migrated = items.map((item: any) => {
+  const migrated = items.map((item: Record<string, unknown>) => {
     if (item.isRecurring !== undefined && item.frequency === undefined) {
       return {
         id: item.id,
@@ -261,7 +261,7 @@ export const getSavingsItems = async (): Promise<SavingsItem[]> => {
   const items = await savingsItemRepo.getAll();
 
   // Migration: convert old SavingsGoal format to SavingsItem
-  const migrated = items.map((item: any) => {
+  const migrated = items.map((item: Record<string, unknown>) => {
     if (item.targetAmount !== undefined && item.balance === undefined) {
       return {
         id: item.id,
@@ -288,7 +288,7 @@ export const getSavingsItems = async (): Promise<SavingsItem[]> => {
 // --- Master Users (Auth) ---
 
 export const getUsers = async () => {
-  return await getItem<any[]>('master_users', []);
+  return await getItem<Record<string, unknown>[]>('master_users', []);
 };
 
 export const addUser = async (id: string, name: string, passcode: string) => {
@@ -382,7 +382,7 @@ export const importData = async (jsonString: string) => {
   }
   if (data.transactions) {
     // Restore images from Base64
-    const restoredTransactions = await Promise.all(data.transactions.map(async (t: any) => {
+    const restoredTransactions = await Promise.all(data.transactions.map(async (t: Record<string, unknown>) => {
       if (t.receiptBase64) {
         try {
           const filename = `receipt_${t.id}.jpg`;

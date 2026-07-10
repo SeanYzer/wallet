@@ -166,7 +166,7 @@ export default function DuesScreen() {
     setModalVisible(false);
   };
 
-  const recordTransaction = useCallback(async (item: any) => {
+  const recordTransaction = useCallback(async (item: Record<string, unknown>) => {
     try {
       await addTransaction({
         title: item.title,
@@ -333,7 +333,7 @@ export default function DuesScreen() {
       <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
         <SegmentedButtons
           value={filter}
-          onValueChange={(val) => setFilter(val as any)}
+          onValueChange={(val) => setFilter(val as "week" | "month" | "all")}
           buttons={[
             { value: "week", label: "This Week" },
             { value: "month", label: "This Month" },

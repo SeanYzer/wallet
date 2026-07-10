@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView, Alert } from "react-native";
-import { Appbar, List, FAB, Portal, Modal, TextInput, Button, Text, useTheme, Card, IconButton } from "react-native-paper";
+import { Appbar, FAB, Portal, Modal, TextInput, Button, Text, useTheme, Card, IconButton } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { authFetch } from "../utils/apiClient";
 

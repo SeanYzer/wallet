@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, Alert, Platform, TouchableOpacity } from "react-native";
+import { View, ScrollView, Alert } from "react-native";
 import { Image } from "expo-image";
 import { Appbar, TextInput, Button, SegmentedButtons, Text, Chip, IconButton, useTheme, Card, Portal, Modal } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Calendar } from "react-native-calendars";
 import { useTransactions } from "../hooks/useTransactions";
-import { TransactionType, PaymentMethod, Transaction, Category } from "../types";
+import { TransactionType, PaymentMethod, Category } from "../types";
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "1", name: "Food", type: "expense", updatedAt: 0 },
@@ -60,13 +60,6 @@ export default function EditTransaction() {
     } catch (error) {
       console.error("Error fetching categories:", error);
       setAvailableCategories(DEFAULT_CATEGORIES);
-    }
-  };
-
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowCalendar(Platform.OS === "ios");
-    if (selectedDate) {
-      setDate(selectedDate);
     }
   };
 
@@ -134,7 +127,7 @@ export default function EditTransaction() {
       });
       setLoading(false);
       router.back();
-    } catch (error) {
+    } catch {
       setLoading(false);
       Alert.alert("Error", "Failed to save changes. Please check your connection.");
     }

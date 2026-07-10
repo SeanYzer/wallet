@@ -12,7 +12,7 @@ export class AsyncStorageProfileRepository implements ProfileRepository {
 
   async getById(_id: string): Promise<UserProfile | undefined> {
     const key = await getPrefixedKey('profile');
-    const profile = await getItem<any>(key, null);
+    const profile = await getItem<Record<string, unknown>>(key, null);
     if (profile) {
       return {
         ...profile,
