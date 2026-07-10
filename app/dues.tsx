@@ -53,7 +53,9 @@ export default function DuesScreen() {
 
   useEffect(() => {
     if (dues.length > 0) {
-      scheduleDueNotifications(dues);
+      scheduleDueNotifications(dues).catch((e) => {
+        console.warn("Failed to reschedule notifications:", e);
+      });
     }
   }, [dues]);
 

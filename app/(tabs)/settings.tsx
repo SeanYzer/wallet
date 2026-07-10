@@ -20,13 +20,13 @@ import { useSyncStatus } from "../../hooks/useSyncStatus";
 import { useNetwork } from "../../context/NetworkContext";
 import * as Crypto from 'expo-crypto';
 
-function SyncStatusCard() {
+function SyncStatusCard({ autoBackup }: { autoBackup: boolean }) {
   const { isOnline, checkConnectivity, isChecking } = useNetwork();
-  const { pending, lastSyncedAt, hasFailed, refresh: retryAll, backupDisabled } = useSyncStatus();
+  const { pending, lastSyncedAt, hasFailed, refresh: retryAll } = useSyncStatus();
   const paperTheme = usePaperTheme();
 
   const getStatusColor = () => {
-    if (backupDisabled) return { icon: "cloud-off-outline", text: "Backup Disabled", color: paperTheme.colors.error };
+    if (!autoBackup) return { icon: "cloud-off-outline", text: "Backup Disabled", color: paperTheme.colors.error };
     if (isChecking) return { icon: "cloud-sync", text: "Checking...", color: paperTheme.colors.primary };
     if (!isOnline) return { icon: "cloud-off", text: "Offline", color: paperTheme.colors.error };
     if (pending > 0) return { icon: "upload", text: `${pending} pending`, color: paperTheme.colors.tertiary };
@@ -45,7 +45,7 @@ function SyncStatusCard() {
     <View style={[
       styles.syncCard,
       {
-        backgroundColor: backupDisabled
+        backgroundColor: !autoBackup
           ? paperTheme.colors.errorContainer
           : !isOnline
           ? paperTheme.colors.errorContainer
@@ -70,7 +70,7 @@ function SyncStatusCard() {
           </Text>
         </View>
       </View>
-      {backupDisabled ? null : pending > 0 && isOnline ? (
+      {!autoBackup ? null : pending > 0 && isOnline ? (
         <Button
           mode="text"
           compact
@@ -903,7 +903,7 @@ export default function SettingsScreen() {
           <Card.Content>
             <Text variant="titleMedium" style={{ marginBottom: 16 }}>Data Management</Text>
 
-            <SyncStatusCard />
+            <SyncStatusCard autoBackup={autoBackup} />
 
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>

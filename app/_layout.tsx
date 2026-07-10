@@ -195,13 +195,17 @@ export function AuthLoader({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!activeUserId) return;
-    requestNotificationPermissions().then((granted) => {
-      if (granted) {
-        repos.dues.getAll().then((dues) => {
-          scheduleDueNotifications(dues);
-        });
-      }
-    });
+    requestNotificationPermissions()
+      .then((granted) => {
+        if (granted) {
+          return repos.dues.getAll().then((dues) => {
+            return scheduleDueNotifications(dues);
+          });
+        }
+      })
+      .catch((e) => {
+        console.warn("Notification setup failed:", e);
+      });
   }, [activeUserId, repos]);
 
   // 2. Handle Navigation handled in MainLayout to avoid race-condition with Stack registration 
