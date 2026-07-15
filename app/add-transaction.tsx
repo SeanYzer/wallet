@@ -20,6 +20,7 @@ import { authFetch } from "../utils/apiClient";
 import * as ImagePicker from "expo-image-picker";
 import { Calendar } from "react-native-calendars";
 import { useTransactions } from "../hooks/useTransactions";
+import { useCategoriesData } from "../context/CategoriesContext";
 import { Category, TransactionType, PaymentMethod } from "../types";
 
 export default function AddTransaction() {
